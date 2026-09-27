@@ -756,6 +756,38 @@ Exact colour tokens, typography, spacing, radii, and component
 specifications should be finalised during the design phase rather than
 invented in the PRD before design approval.
 
+#### 2.8.1 Design Preview Note (`design.html`)
+
+A static, non-authoritative preview of the direction described above lives at
+[`/design.html`](../design.html) in the repository root. It is a single-file
+mockup (colour tokens, type scale, buttons, sample Brain Dump/Quick Add
+inputs, and an AI-suggestion-vs-confirmed card comparison) used to sanity-check
+this section before Phase 1 of `IMPLEMENTATION_PLAN.md` builds the coded
+token set and living `/design` styleguide. It does not supersede or finalise
+anything in this section.
+
+**Refinements requested during review:**
+
+1. The first draft distinguished the AI-suggested card from the confirmed
+   task card only by a faint background tint, which was not enough contrast
+   to satisfy the requirement above that "AI recommendations [be] visually
+   distinguishable from confirmed user decisions." The agent was asked to fix
+   this specifically. The result adds a left accent border (amber for
+   AI-suggested, green for confirmed) and an explicit "Suggested by
+   TaskMaster" pill badge to the AI card, so the two states read as
+   unmistakably different at a glance rather than relying on a subtle colour
+   shift alone.
+2. The palette was then asked to be changed to "more modern, cream and
+   brown." The cool slate/indigo primitive scale was replaced with warm
+   cream surfaces (`--color-cream-*`), espresso-brown text
+   (`--color-espresso-*`), and a coffee-brown primary action
+   (`--color-coffee-*`), while keeping the AI-suggestion accent on a distinct
+   hue (terracotta) rather than a shade of brown, so the AI-vs-confirmed
+   distinction from refinement 1 still holds. Muted text was darkened
+   slightly (`#8a7360` → `#6f5a44`) after the swap to keep body-text contrast
+   at AA (~6:1 against the cream background, not just the ~4.2:1 the first
+   cream draft measured at).
+
 ### 2.9 MVP Success Metrics
 
 Initial product metrics should focus on whether TaskMaster creates

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaskMaster — Design Preview</title>
+<style>
+  /* ============================================================
+     TOKENS — three tiers, per docs/IMPLEMENTATION_PLAN.md Phase 1 (D5):
+     Primitive → Semantic → Component. CSS custom properties so the
+     token set is portable regardless of eventual framework choice.
+     This file is a design PREVIEW ahead of the coded /design styleguide —
+     see PRD_v2.md §2.8, which defers final tokens to the design phase.
+     ============================================================ */
+  :root {
+    /* Primitive — cream neutrals (calm, low-noise surfaces) */
+    --color-cream-50:  #fbf6ee;
+    --color-cream-100: #f5ecdc;
+    --color-cream-200: #ecdfc4;
+    --color-cream-card:#fffdf9;
+
+    /* Primitive — brown/espresso (text + the one obvious primary action) */
+    --color-tan-300:    #d8c3a5;
+    --color-tan-400:    #c3a883;
+    --color-espresso-500: #6f5a44;
+    --color-espresso-700: #5a4632;
+    --color-espresso-900: #2e2013;
+
+    --color-coffee-600: #6f4518;
+    --color-coffee-700: #4e3011;
+
+    /* Primitive — AI suggestion (must read as distinct from confirmed state) */
+    --color-terracotta-100: #f6e1d2;
+    --color-terracotta-200: #ecc7ac;
+    --color-terracotta-500: #c1694f;
+    --color-terracotta-800: #7a3b27;
+
+    /* Primitive — success / destructive */
+    --color-sage-50:  #eef1e2;
+    --color-sage-600: #6b7f4f;
+    --color-brick-50: #f7e7e1;
+    --color-brick-600:#a23b2a;
+    --color-brick-700:#7e2d1f;
+
+    /* Semantic — intent, not colour name */
+    --surface-page:      var(--color-cream-50);
+    --surface-card:      var(--color-cream-card);
+    --surface-sunken:    var(--color-cream-100);
+    --border-default:    var(--color-cream-200);
+    --border-strong:     var(--color-tan-300);
+
+    --text-primary:  var(--color-espresso-900);
+    --text-muted:    var(--color-espresso-700);
+    --text-subtle:   var(--color-espresso-500);
+    --text-on-action: var(--color-cream-50);
+
+    --action-primary:       var(--color-coffee-600);
+    --action-primary-hover: var(--color-coffee-700);
+    --action-primary-tint:  var(--color-cream-200);
+
+    --ai-suggestion-bg:     var(--color-terracotta-100);
+    --ai-suggestion-border: var(--color-terracotta-500);
+    --ai-suggestion-text:   var(--color-terracotta-800);
+
+    --danger:        var(--color-brick-600);
+    --danger-hover:  var(--color-brick-700);
+    --danger-subtle: var(--color-brick-50);
+
+    --success: var(--color-sage-600);
+
+    --focus-ring: var(--color-coffee-600);
+
+    /* Type scale — mobile-first, generous line-height for scanability */
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    --text-xs:   0.75rem;   /* 12px — meta, timestamps */
+    --text-sm:   0.875rem;  /* 14px — secondary/body-small */
+    --text-base: 1rem;      /* 16px — body */
+    --text-lg:   1.125rem;  /* 18px — task titles, emphasis */
+    --text-xl:   1.375rem;  /* 22px — section headers */
+    --text-2xl:  1.75rem;   /* 28px — screen titles */
+    --text-3xl:  2.25rem;   /* 36px — hero */
+
+    /* Spacing + shape */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-12: 3rem;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+
+    --shadow-card: 0 1px 2px rgba(46, 32, 19, 0.06), 0 1px 3px rgba(46, 32, 19, 0.08);
+
+    /* Motion — respects prefers-reduced-motion below */
+    --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --duration-fast: 120ms;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--surface-page);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: var(--space-8) var(--space-4) var(--space-12);
+  }
+
+  header.hero {
+    padding-bottom: var(--space-8);
+    border-bottom: 1px solid var(--border-default);
+    margin-bottom: var(--space-8);
+  }
+
+  .eyebrow {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--action-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0 0 var(--space-2);
+  }
+
+  h1 {
+    font-size: var(--text-3xl);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 var(--space-2);
+  }
+
+  .hero p {
+    font-size: var(--text-lg);
+    color: var(--text-muted);
+    max-width: 56ch;
+    margin: 0;
+  }
+
+  section { margin-bottom: var(--space-12); }
+
+  h2 {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    margin: 0 0 var(--space-1);
+  }
+
+  .section-note {
+    font-size: var(--text-sm);
+    color: var(--text-subtle);
+    margin: 0 0 var(--space-6);
+  }
+
+  /* ---------- Colour tokens ---------- */
+  .swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .swatch {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border-default);
+    background: var(--surface-card);
+  }
+
+  .swatch-color {
+    height: 64px;
+  }
+
+  .swatch-label {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .swatch-name {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  .swatch-value {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--text-subtle);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  /* ---------- Typography specimen ---------- */
+  .type-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-4);
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--border-default);
+  }
+  .type-row:last-child { border-bottom: none; }
+
+  .type-token {
+    flex: 0 0 140px;
+    font-size: var(--text-xs);
+    color: var(--text-subtle);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .type-sample-3xl { font-size: var(--text-3xl); font-weight: 700; letter-spacing: -0.02em; }
+  .type-sample-2xl { font-size: var(--text-2xl); font-weight: 700; letter-spacing: -0.01em; }
+  .type-sample-xl  { font-size: var(--text-xl); font-weight: 700; }
+  .type-sample-lg  { font-size: var(--text-lg); font-weight: 600; }
+  .type-sample-base{ font-size: var(--text-base); font-weight: 400; }
+  .type-sample-sm  { font-size: var(--text-sm); color: var(--text-muted); }
+  .type-sample-xs  { font-size: var(--text-xs); color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.04em; }
+
+  /* ---------- Buttons ---------- */
+  .button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    align-items: center;
+  }
+
+  .btn {
+    appearance: none;
+    border: none;
+    font-family: inherit;
+    font-size: var(--text-base);
+    font-weight: 600;
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    min-height: 44px; /* touch target, PRD §2.8 */
+    transition: background-color var(--duration-fast) var(--ease-standard),
+                box-shadow var(--duration-fast) var(--ease-standard);
+  }
+
+  .btn:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .btn-primary {
+    background: var(--action-primary);
+    color: var(--text-on-action);
+  }
+  .btn-primary:hover { background: var(--action-primary-hover); }
+
+  .btn-secondary {
+    background: var(--surface-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+  }
+  .btn-secondary:hover { background: var(--surface-sunken); }
+
+  .btn-danger {
+    background: var(--surface-card);
+    color: var(--danger);
+    border: 1px solid var(--danger-subtle);
+  }
+  .btn-danger:hover { background: var(--danger-subtle); border-color: var(--danger); }
+
+  /* ---------- Input ---------- */
+  .field { margin-bottom: var(--space-6); max-width: 480px; }
+
+  label.field-label {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+  }
+
+  .input, .textarea {
+    width: 100%;
+    font-family: inherit;
+    font-size: var(--text-base);
+    color: var(--text-primary);
+    background: var(--surface-card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    min-height: 44px;
+  }
+
+  .textarea { min-height: 96px; resize: vertical; }
+
+  .input:focus, .textarea:focus {
+    outline: none;
+    border-color: var(--action-primary);
+    box-shadow: 0 0 0 3px var(--action-primary-tint);
+  }
+
+  .input::placeholder, .textarea::placeholder { color: var(--text-subtle); }
+
+  /* ---------- Cards: AI suggestion vs confirmed ---------- */
+  .card-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-4) var(--space-6);
+  }
+
+  .card-ai {
+    background: var(--ai-suggestion-bg);
+    border-left: 4px solid var(--ai-suggestion-border);
+  }
+
+  .card-confirmed {
+    border-left: 4px solid var(--success);
+  }
+
+  .card-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-subtle);
+    margin-bottom: var(--space-2);
+  }
+
+  .card-ai .card-kicker {
+    color: var(--ai-suggestion-text);
+    background: var(--color-terracotta-200);
+    padding: 2px var(--space-2);
+    border-radius: 999px;
+  }
+
+  .card-confirmed .card-kicker {
+    color: var(--success);
+  }
+
+  .card-title {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    margin: 0 0 var(--space-1);
+  }
+
+  .card-reason {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <p class="eyebrow">Design Preview — Phase 1</p>
+      <h1>TaskMaster</h1>
+      <p>Clarity and action. Calm surfaces, one obvious primary action per screen, and a strong hierarchy around "what next?" — per PRD_v2.md §2.8.</p>
+    </header>
+
+    <section id="colors">
+      <h2>Colour</h2>
+      <p class="section-note">Semantic tokens shown. Each maps to a primitive scale in <code>:root</code>.</p>
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-color" style="background:var(--surface-page)"></div>
+          <div class="swatch-label"><span class="swatch-name">surface-page</span><span class="swatch-value">#fbf6ee</span></div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background:var(--surface-card); border-bottom:1px solid var(--border-default)"></div>
+          <div class="swatch-label"><span class="swatch-name">surface-card</span><span class="swatch-value">#fffdf9</span></div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background:var(--text-primary)"></div>
+          <div class="swatch-label"><span class="swatch-name">text-primary</span><span class="swatch-value">#2e2013</span></div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background:var(--text-muted)"></div>
+          <div class="swatch-label"><span class="swatch-name">text-muted</span><span class="swatch-value">#5a4632</span></div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background:var(--action-primary)"></div>
+          <div class="swatch-label"><span class="swatch-name">action-primary</span><span class="swatch-value">#6f4518</span></div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background:var(--ai-suggestion-border)"></div>
+          <div class="swatch-label"><span class="swatch-name">ai-suggestion</span><span class="swatch-value">#c1694f</span></div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background:var(--danger)"></div>
+          <div class="swatch-label"><span class="swatch-name">danger</span><span class="swatch-value">#a23b2a</span></div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background:var(--success)"></div>
+          <div class="swatch-label"><span class="swatch-name">success</span><span class="swatch-value">#6b7f4f</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="typography">
+      <h2>Typography</h2>
+      <p class="section-note">Mobile-first scale, system font stack. Long-form task titles use <code>--text-lg</code> for a comfortable measure.</p>
+      <div class="type-row"><span class="type-token">--text-3xl / 700</span><span class="type-sample-3xl">Turn mental clutter into clear action</span></div>
+      <div class="type-row"><span class="type-token">--text-2xl / 700</span><span class="type-sample-2xl">Today</span></div>
+      <div class="type-row"><span class="type-token">--text-xl / 700</span><span class="type-sample-xl">Next Best Action</span></div>
+      <div class="type-row"><span class="type-token">--text-lg / 600</span><span class="type-sample-lg">Finish the client proposal draft</span></div>
+      <div class="type-row"><span class="type-token">--text-base / 400</span><span class="type-sample-base">It's due tomorrow, marked important, and two other tasks depend on it.</span></div>
+      <div class="type-row"><span class="type-token">--text-sm / 400</span><span class="type-sample-sm">Estimated 45 min · Deep work</span></div>
+      <div class="type-row"><span class="type-token">--text-xs / 400</span><span class="type-sample-xs">Updated 2 minutes ago</span></div>
+    </section>
+
+    <section id="buttons">
+      <h2>Buttons</h2>
+      <p class="section-note">One obvious primary action per screen. Destructive actions are visually differentiated, never styled as primary.</p>
+      <div class="button-row">
+        <button class="btn btn-primary">Build My Plan</button>
+        <button class="btn btn-secondary">Not now</button>
+        <button class="btn btn-danger">Delete task</button>
+      </div>
+    </section>
+
+    <section id="input">
+      <h2>Sample Input</h2>
+      <p class="section-note">Brain Dump composer and Quick Add, per PRD_v2.md §1.7 and §2.2.</p>
+      <div class="field">
+        <label class="field-label" for="braindump">What's taking up space in your head right now?</label>
+        <textarea class="textarea" id="braindump" placeholder="Add work, personal tasks, deadlines, things you've been putting off, projects, or anything else you need to get done. Don't organise it first."></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label" for="quickadd">Quick Add</label>
+        <input class="input" id="quickadd" type="text" placeholder="Call John tomorrow at 2pm">
+      </div>
+    </section>
+
+    <section id="ai-vs-confirmed">
+      <h2>AI Suggestion vs. Confirmed</h2>
+      <p class="section-note">PRD_v2.md §2.8 requires AI recommendations to read as visually distinct from confirmed user decisions.</p>
+      <div class="card-row">
+        <div class="card card-ai">
+          <p class="card-kicker">Suggested by TaskMaster</p>
+          <p class="card-title">Finish the client proposal draft</p>
+          <p class="card-reason">Due tomorrow, marked important, and two other tasks depend on it.</p>
+        </div>
+        <div class="card card-confirmed">
+          <p class="card-kicker">✓ In your plan</p>
+          <p class="card-title">Pay the electricity bill</p>
+          <p class="card-reason">Scheduled for today · confirmed by you</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
