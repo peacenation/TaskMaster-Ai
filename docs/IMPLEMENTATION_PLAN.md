@@ -1,10 +1,37 @@
 # TaskMaster — Implementation Plan
 
-> **Status:** Proposed, awaiting Product Owner approval
+> **Status:** Approved in part. Phases 0–12 estimated; the **immediate milestone
+> is narrowed to a single local page** per Product Owner direction (2026-09-27).
 > **Date:** 2026-09-27
 > **Repo:** `peacenation/TaskMaster-Ai` (branch `main`)
 > **Inputs:** `docs/PRD_v2.md` (v2.0 — authoritative),
 > `docs/archive/PRD_v1.md` (v1 — superseded, history only)
+
+---
+
+## Immediate milestone — read this first
+
+> **Scope: a single application page. The app and the database both run locally.
+> The complete application is not being built now.**
+
+| | |
+|---|---|
+| **What** | One page at `/`, plus `/api/extract` and `/api/breakdown` as AI proxies |
+| **Framework** | Next.js 16 (App Router) + React 19 + TypeScript `strict` + Tailwind CSS v4 |
+| **Database** | PostgreSQL 17, **local via Homebrew** (no Docker — not installed on this machine), Drizzle ORM + drizzle-kit |
+| **Authentication** | **None.** `user_id` columns created now so auth needs no migration later. Production: Better Auth |
+| **File storage** | **None.** No attachment entity exists in v2 §1.10 |
+| **AI** | Optional OpenAI-compatible call, server-side only, Zod-validated, with a local heuristic fallback so the page works with no API key |
+| **Running cost** | **$0/month** |
+
+Recorded in [`adr/ADR-001-prototype-stack.md`](adr/ADR-001-prototype-stack.md).
+
+**This does not revise the target architecture.** ADR-000 still governs: the
+finished product is cloud-based, authenticated and cross-device. The pages
+below describe the full plan; the single local page is the first milestone
+within it. The domain engine, extraction pipeline, design system and schema all
+carry forward — only auth, cloud persistence and multi-page navigation are
+reached later.
 
 ---
 
@@ -90,22 +117,42 @@ hypothesis should be P1/P2 or moved later.
 Full reasoning lives in the ADRs produced by **Phase 2**. Condensed here so the
 plan is readable on its own.
 
+> **Immediate milestone: a single local page, app and database both running on
+> `localhost`.** No cloud services, no accounts, no deployment. See
+> [`adr/ADR-001-prototype-stack.md`](adr/ADR-001-prototype-stack.md). The target
+> architecture below is unchanged — this is milestone one within it, not a
+> reversal ([ADR-000](adr/ADR-000-scope-and-source-of-truth.md) D8).
+
+### Named stack for the current milestone
+
+| Concern | Name | Runs |
+|---|---|---|
+| **Framework** | **Next.js 16 (App Router) + React 19 + TypeScript strict** | `localhost` via `npm run dev` |
+| **Database** | **PostgreSQL 17** (Homebrew, **no Docker**) + **Drizzle ORM** + drizzle-kit | `localhost:5432` |
+| **Authentication** | **None in this milestone.** Production: **Better Auth** (Drizzle adapter) | — |
+| **File storage** | **None.** No attachment entity exists in v2 §1.10 | — |
+| Styling | Tailwind CSS v4 + CSS custom-property tokens | — |
+| AI | OpenAI-compatible, **server-side only**, structured output + Zod validation | Optional outbound call |
+| AI fallback | Local heuristic extractor, always present | Fully local |
+
+### Target architecture (unchanged by the milestone)
+
 | Concern | Choice | Alternatives rejected | Why |
 |---|---|---|---|
 | Framework | **Next.js (App Router) + React + TypeScript** | Separate SPA + API server | One deployable, one language, server routes for AI proxy so no provider key reaches the browser (§1.9) |
 | Language | **TypeScript, strict** | JavaScript | The AI boundary and the scoring engine both need compile-time guarantees |
 | Styling | **Tailwind CSS + CSS custom-property tokens** | CSS Modules, vanilla-extract, component library | Utility classes keep the design system (§Phase 1) enforceable in code; tokens stay portable |
-| Database | **PostgreSQL (Supabase)** | PlanetScale, Neon, Firebase | v2 §1.10 is explicitly relational (`userId` foreign keys, `Plan`→`PlanItem`); Supabase also supplies auth, so one vendor covers two P0 requirements |
+| Database | **PostgreSQL** — managed provider in production, Homebrew locally | PlanetScale, Neon, Firebase | v2 §1.10 is explicitly relational (`userId` foreign keys, `Plan`→`PlanItem`) |
 | ORM + migrations | **Drizzle ORM + drizzle-kit** | Prisma, raw SQL | Migrations are plain SQL files in version control as §2.7 requires; light runtime; pairs with Postgres row-level security |
-| Row security | **Postgres RLS keyed on `auth.uid()`** | Application-only filtering | §1.11 makes per-user isolation a security requirement. Enforcing it in the database means a bug in app code cannot leak another user's tasks |
-| Auth | **Supabase Auth (magic link + OAuth)** | Hand-rolled sessions, NextAuth | §1.11 "Critical" risk on data exposure. Not building auth is the single biggest security win available |
+| Row security | **Postgres RLS keyed on the session user** | Application-only filtering | §1.11 makes per-user isolation a security requirement. Enforcing it in the database means a bug in app code cannot leak another user's tasks. Deferred with auth (ADR-001 §3); `user_id` columns are created from the first migration regardless |
+| Auth | **Better Auth**, self-hosted, Drizzle adapter | Auth.js v5, Clerk, Supabase Auth | §1.11 rates data exposure **Critical**. Not hand-rolling auth is the single biggest security win available. Better Auth preferred for a first-class Drizzle adapter and no external identity provider; revisit at Phase 8 |
 | AI provider | **OpenAI-compatible, server-side only, structured output** | Browser calls, multiple providers | §1.9 "no API keys exposed to the client"; §2.7 "structured AI responses rather than free-form parsing" |
 | AI validation | **Zod schema at the boundary** | Trust the model | §2.7: "The raw AI response must not directly mutate stored user data without validation." Top risk in the PRD risk table |
 | AI fallback | **Local heuristic extractor, always present** | Hard dependency on the model | §2.7 requires the app to be usable and recoverable when AI fails; also the cheapest insurance against vendor outage |
 | Unit tests | **Vitest** | Jest | Native TS/ESM, fast, minimal config |
 | E2E tests | **Playwright** | Cypress | Parallel, good mobile-viewport emulation for the §1.11 responsive requirement |
-| Observability | **Sentry** | Console logs | §1.9 requires application error observability; §2.7 requires not leaking private task content, so PII scrubbing must be configured |
-| Hosting | **Vercel** | Self-hosted | Lowest ops overhead; keeps the team on product rather than infrastructure |
+| Observability | **Sentry** | Console logs | §1.9 requires application error observability; §2.7 requires not leaking private task content, so PII scrubbing must be configured. Deferred with deployment |
+| Hosting | **Vercel** | Self-hosted | Lowest ops overhead; keeps the team on product rather than infrastructure. Deferred with deployment |
 
 > **Version caveat:** exact framework versions and APIs must be verified at
 > scaffold time. This plan deliberately avoids asserting version-specific API
@@ -1069,12 +1116,12 @@ is worth it.
 
 | Item | Free tier | Paid | Notes |
 |---|---:|---:|---|
-| Vercel | $0 | $20/mo | Hobby works until traffic or team size demands Pro |
-| Supabase (Postgres + Auth) | $0 | $25/mo | Free tier pauses after 1 week of inactivity — unsuitable for a real demo |
-| Sentry | $0 | $26/mo | Free tier is real; upgrade when error volume matters |
+| Vercel | $0 | $20/mo | **Not incurred in the current milestone** — nothing is deployed. Applies at Phase 12 |
+| Managed Postgres (production) | $0 | $25/mo | **Not incurred in the current milestone** — Postgres runs locally via Homebrew at $0. Free tiers commonly pause after ~1 week of inactivity, unsuitable for a real demo |
+| Sentry | $0 | $26/mo | **Not incurred in the current milestone** — applies at Phase 12 |
 | Domain | — | ~$1/mo | ~$12/year |
 | Email (auth magic links) | — | $0–20/mo | Free tier covers early usage |
-| **Subtotal** | **$0** | **~$72/mo** | ~$860/year |
+| **Subtotal** | **$0** | **~$72/mo** | ~$860/year. **Current local milestone: $0/month all-in.** |
 
 **Deliberately excluded** from the build: the AI provider, below.
 
@@ -1164,7 +1211,7 @@ Selected mappings:
   from the PRD plus general experience with this class of application. It is
   not derived from this project.
 - Estimates assume a developer who already knows the stack. Onboarding a
-  developer to Next.js + Drizzle + Supabase + Tailwind v4 would add real hours.
+  developer to Next.js + Drizzle + Postgres + Tailwind v4 would add real hours.
 - Phases 1, 2 and 3 are the most predictable — conventional work with clear
   references. Phase 4 is the least predictable. Phase 11 is the most likely to
   surface surprises, because that is when other people's requirements meet the

@@ -12,6 +12,27 @@ application**, authenticated accounts, relational cloud database, cross-device
 persistence, server-side AI calls. There is no local-only, browser-storage or
 account-free variant in scope.
 
+## Current build milestone — single local page
+
+> **The app and the database both run locally, for now.** `npm run dev` on
+> `localhost`, PostgreSQL on `localhost`. No cloud services, no accounts, no
+> deployment. The only permitted outbound call is an optional AI provider
+> request, and the app works fully without it.
+
+| Concern | Choice | Detail |
+|---|---|---|
+| **Framework** | **Next.js 16, App Router** | + React 19, TypeScript `strict`, Tailwind CSS v4. One page at `/`; `/api/extract` and `/api/breakdown` as AI proxies so no provider key reaches the browser |
+| **Database** | **PostgreSQL 17, local** | Installed via Homebrew, **not** Docker. Drizzle ORM, drizzle-kit migrations committed as SQL. `user_id` nullable on every user-scoped table, defaulted to a seeded local user |
+| **Authentication** | **None in this milestone** | A single local page has one user. `user_id` columns are created now so authentication needs no data migration later. Production choice: **Better Auth** (Drizzle adapter, self-hosted) |
+| **File storage** | **None** | The v2 §1.10 data model has no attachment or media entity, and no phase requires uploads. Not built rather than scaffolded empty |
+
+Full reasoning, alternatives and revisit triggers:
+[`adr/ADR-001-prototype-stack.md`](adr/ADR-001-prototype-stack.md).
+
+**This milestone does not revise the target architecture.** ADR-000 still
+governs: the finished product is cloud-based, authenticated, and
+cross-device. A local prototype is milestone one, not the destination.
+
 ## Documents
 
 | Document | Status | Purpose |
@@ -26,6 +47,7 @@ account-free variant in scope.
 | ADR | Subject | Status |
 |---|---|---|
 | [ADR-000](adr/ADR-000-scope-and-source-of-truth.md) | Scope and source of truth | Accepted |
+| [ADR-001](adr/ADR-001-prototype-stack.md) | Prototype technology stack and local-first execution | Accepted |
 
 ## Why v1 was archived
 

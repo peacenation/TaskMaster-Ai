@@ -99,7 +99,8 @@ never exposed to the client (§1.9).
 | **D4** | Storage sits behind a **repository interface**; domain and UI layers never import a database client | Preserves the option to run locally for demos, dev and tests. Makes D2's retrofit risk small rather than large. Costs a few hours up front |
 | **D5** | Domain logic is **pure and framework-free**; all time injected, no ambient `Date.now()` | Makes the prioritisation and planning engine testable. Required for the Phase 4 test suite to be cheap |
 | **D6** | Design system ships **before** the architecture is locked, built on framework-agnostic **CSS custom properties** | Honours the requested phase order without a false dependency; Phase 1 work survives a Phase 2 change of styling approach |
-| **D7** | `PRD.md` (v1) is **archived, not deleted** | Preserves product history and the §1–§22 vision, while removing the risk of building against the wrong architecture |
+| **D7** | `PRD.md` (v1) is **archived, not deleted** | Preserves product history and the §1–22 vision, while removing the risk of building against the wrong architecture |
+| **D8** | The **immediate milestone is a single local page** — app and database both running on `localhost`, no cloud services | Product Owner direction, 2026-09-27. Milestone one *within* this plan, not a reversal of D1–D3. See [ADR-001](ADR-001-prototype-stack.md) |
 
 ---
 
@@ -136,6 +137,13 @@ never exposed to the client (§1.9).
 - Nothing in v1 §1–§22 is lost. The product vision, principles, feature
   catalogue, responsibility areas and free-vs-premium positioning were carried
   into v2.0, and v1 remains readable in `archive/`.
+- **D8 narrows the first milestone, not the target.** The Product Owner has
+  directed that the immediate build is a single page with the app and database
+  running locally ([ADR-001](ADR-001-prototype-stack.md)). This is compatible
+  with D1–D3: the domain engine, extraction pipeline, design system and schema
+  all carry forward unchanged, while auth and cloud persistence are simply
+  reached later. The risk this ADR guards against is not deferral — it is
+  **mistaking the deferral for the destination**.
 
 ---
 
