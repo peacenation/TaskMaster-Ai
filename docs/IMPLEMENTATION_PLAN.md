@@ -1255,6 +1255,40 @@ above, and the first Phase 0 output that matters most:
 `docs/REQUIREMENTS.md`, mapping every v2.0 §2.2 P0 item and every §2.10
 acceptance criterion to a build phase.
 
+### Progress checkpoint — initial working page (2026-09-27)
+
+**Phase reached:** a slice of **Phase 1** (design tokens, ported from the
+`/design.html` preview per PRD_v2.md §2.8.1) plus a UI-only slice of
+**Phases 5–7** (Capture → Review → Plan → Focus) — deliberately taken out of
+strict phase order to satisfy an assignment checkpoint that asks for *"an
+initial/single working app page,"* explicitly without sign-in, database, or
+deployment. `npm run dev` serves one page at `/` implementing:
+
+- Brain Dump capture → a local heuristic split (line/sentence breaks) stands
+  in for the real AI extraction call
+- Review-before-commit (approve/remove proposed items)
+- Build My Plan → Next Best Action card, visually distinct from confirmed
+  work per the §2.8 requirement
+- Complete / Postpone / Focus Mode
+- Quick Add straight into the backlog
+
+**Deliberately not done yet**, and still gating later phases:
+
+- **Phase 2** — no ADRs beyond ADR-001, no CI, no real app shell decisions
+  recorded for this code
+- **Phase 3** — no Postgres, no Drizzle schema/migrations, no row-level
+  security; nothing persists past a page refresh
+- **Phase 4** — no pure/testable domain engine; scoring and extraction are
+  inline heuristics in the component, not a separable, tested module
+- **Phase 5–7 (real versions)** — no server-side AI call, no Zod validation
+  boundary (§2.7), no persistence of the plan/backlog
+
+**Next in the roadmap:** Phase 2 (lock the ADRs, add CI), then Phase 3
+(Postgres + Drizzle locally, per the current milestone's named stack in
+"Named stack for the current milestone" above), then Phase 4 to pull the
+heuristic extraction and Next-Best-Action ordering out of `page.tsx` into a
+pure, tested domain module before any AI call or database write is wired in.
+
 ---
 
 *Prepared from `docs/PRD_v2.md` and `docs/archive/PRD_v1.md` against an empty
