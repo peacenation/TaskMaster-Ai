@@ -21,7 +21,7 @@
 | **Database** | PostgreSQL 17, **local via Homebrew** (no Docker — not installed on this machine), Drizzle ORM + drizzle-kit |
 | **Authentication** | **None.** `user_id` columns created now so auth needs no migration later. Production: Better Auth |
 | **File storage** | **None.** No attachment entity exists in v2 §1.10 |
-| **AI** | Optional OpenAI-compatible call, server-side only, Zod-validated, with a local heuristic fallback so the page works with no API key |
+| **AI** | Optional **Anthropic Claude** call via the native SDK, server-side only, tool-use structured extraction + Zod validation, with a local heuristic fallback so the page works with no API key |
 | **Running cost** | **$0/month** |
 
 Recorded in [`adr/ADR-001-prototype-stack.md`](adr/ADR-001-prototype-stack.md).
@@ -132,7 +132,7 @@ plan is readable on its own.
 | **Authentication** | **None in this milestone.** Production: **Better Auth** (Drizzle adapter) | — |
 | **File storage** | **None.** No attachment entity exists in v2 §1.10 | — |
 | Styling | Tailwind CSS v4 + CSS custom-property tokens | — |
-| AI | OpenAI-compatible, **server-side only**, structured output + Zod validation | Optional outbound call |
+| AI | **Anthropic Claude**, native SDK, **server-side only**, tool-use structured extraction + Zod validation, prompt caching on the stable prefix | Optional outbound call |
 | AI fallback | Local heuristic extractor, always present | Fully local |
 
 ### Target architecture (unchanged by the milestone)
@@ -146,7 +146,7 @@ plan is readable on its own.
 | ORM + migrations | **Drizzle ORM + drizzle-kit** | Prisma, raw SQL | Migrations are plain SQL files in version control as §2.7 requires; light runtime; pairs with Postgres row-level security |
 | Row security | **Postgres RLS keyed on the session user** | Application-only filtering | §1.11 makes per-user isolation a security requirement. Enforcing it in the database means a bug in app code cannot leak another user's tasks. Deferred with auth (ADR-001 §3); `user_id` columns are created from the first migration regardless |
 | Auth | **Better Auth**, self-hosted, Drizzle adapter | Auth.js v5, Clerk, Supabase Auth | §1.11 rates data exposure **Critical**. Not hand-rolling auth is the single biggest security win available. Better Auth preferred for a first-class Drizzle adapter and no external identity provider; revisit at Phase 8 |
-| AI provider | **OpenAI-compatible, server-side only, structured output** | Browser calls, multiple providers | §1.9 "no API keys exposed to the client"; §2.7 "structured AI responses rather than free-form parsing" |
+| AI provider | **Anthropic Claude** via native SDK | OpenAI, Gemini, Bedrock, local Llama | Chosen for prompt caching on this product's repeated-context extraction workload, faithful handling of ambiguous unorganised input, and the plain-English explanation requirement (§2.3/§2.6/§3.2). See PRD §2.7.2. Native SDK over a compatibility layer so caching and tool use stay available |
 | AI validation | **Zod schema at the boundary** | Trust the model | §2.7: "The raw AI response must not directly mutate stored user data without validation." Top risk in the PRD risk table |
 | AI fallback | **Local heuristic extractor, always present** | Hard dependency on the model | §2.7 requires the app to be usable and recoverable when AI fails; also the cheapest insurance against vendor outage |
 | Unit tests | **Vitest** | Jest | Native TS/ESM, fast, minimal config |
@@ -1169,7 +1169,7 @@ plan**, which is a different list.
 | R6 | Design system drift as feature phases add one-off styles | Medium | Medium | Semantic tokens only; no hard-coded values; visual regression in Phase 11 |
 | R7 | Estimates are wrong because there is no codebase to measure against | **High** | Medium | Ranges not points; §11 states what would tighten them; Phase 0 re-estimates after the scaffold |
 | R8 | Key-person dependency — one developer holds all context | Medium | High | ADRs and `docs/SCORING.md` written for readers, not authors; Phase 12 handover gate |
-| R9 | Provider lock-in or outage in the AI layer | Low | Medium | OpenAI-compatible interface; heuristic fallback is a complete path, not a stub |
+| R9 | Provider lock-in or outage in the AI layer | Low | Medium | AI client behind a provider interface; heuristic fallback is a complete path, not a stub; PRD §2.7.2 requires validating structured extraction against the PRD's own worked examples before the pipeline is built on it |
 | R10 | "Realistic planning" reads as nagging rather than help | Medium | Medium | v2 §1.5 and §7.3 both warn against administration; Reality Check must offer a choice, never a lecture |
 
 ---

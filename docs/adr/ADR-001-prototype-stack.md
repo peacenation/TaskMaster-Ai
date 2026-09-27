@@ -223,7 +223,7 @@ not permit forgetting the target.
       local user
 - [ ] No authentication code, no auth middleware, no session handling
 - [ ] No file upload, no storage adapter, no object storage client
-- [ ] App is fully functional with no `OPENAI_API_KEY` set
+- [ ] App is fully functional with no `ANTHROPIC_API_KEY` set
 - [ ] No outbound network call other than the optional AI request
 - [ ] `.env.local` is gitignored and no credential is committed
 

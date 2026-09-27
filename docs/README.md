@@ -37,7 +37,7 @@ cross-device. A local prototype is milestone one, not the destination.
 
 | Document | Status | Purpose |
 |---|---|---|
-| [`PRD_v2.md`](PRD_v2.md) | **Authoritative** | Product scope, P0/P1/P2 priorities, data model, NFRs, per-phase acceptance criteria |
+| [`PRD_v2.md`](PRD_v2.md) | **Authoritative** (v2.2) | Product scope, P0/P1/P2 priorities, data model, NFRs, per-phase acceptance criteria |
 | [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) | Active | 13-phase build plan, architecture decision summary, effort and cost model |
 | [`adr/`](adr/) | Active | Architecture decision records |
 | [`archive/PRD_v1.md`](archive/PRD_v1.md) | **Superseded** | v1 product vision and feature catalogue. History only — do not build from it |
@@ -48,6 +48,17 @@ cross-device. A local prototype is milestone one, not the destination.
 |---|---|---|
 | [ADR-000](adr/ADR-000-scope-and-source-of-truth.md) | Scope and source of truth | Accepted |
 | [ADR-001](adr/ADR-001-prototype-stack.md) | Prototype technology stack and local-first execution | Accepted |
+| [ADR-002](adr/ADR-002-transactional-email.md) | Transactional email provider | Accepted |
+
+### Current standing decisions
+
+| # | Decision |
+|---|---|
+| D1–D3, D8 | v2.0 is the authoritative spec; build the cloud architecture; keep storage behind a repository interface; the immediate milestone is a single local page |
+| D4–D6 | Domain logic is pure and framework-free; design system precedes architecture using portable CSS tokens |
+| D7 | PRD v1 archived, not deleted |
+| D9–D12 | Transactional email sits behind a provider interface; **Amazon SES where an AWS account exists, otherwise Resend**; sending email is not email integration; no email is wired up in the current milestone |
+| D13 | **Anthropic Claude** is the production AI platform, via the native SDK with prompt caching and tool-use structured extraction. Prioritisation, planning, capacity and Reality Check stay deterministic. Recorded in PRD §2.7.2 |
 
 ## Why v1 was archived
 

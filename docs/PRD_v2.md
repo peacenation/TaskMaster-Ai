@@ -23,7 +23,7 @@
 ---
 
 **Product Name:** TaskMaster\
-**Version:** 2.0\
+**Version:** 2.2\
 **Platform:** Responsive Web Application\
 **Product Type:** AI-powered personal productivity and execution system\
 **Primary Audience:** Busy individuals juggling multiple areas of work
@@ -207,6 +207,33 @@ product architecture must support:
 -   observability for application errors
 -   environment-based secret management
 -   no API keys exposed to the client
+-   transactional email delivery for account and notification messages,
+    behind a swappable provider interface
+
+### 1.9.1 Transactional Email Provider
+
+TaskMaster sends email for account messages (magic links, password resets)
+and, in a later phase, for notifications. The sending provider must sit behind
+an interface so that it can be changed without altering authentication or
+notification logic.
+
+**Decision (see [ADR-002](adr/ADR-002-transactional-email.md)):**
+
+| Condition | Provider |
+|---|---|
+| An AWS account already exists | **Amazon SES** |
+| No AWS account | **Resend** |
+
+Amazon SES is preferred where AWS is already in place: it is cheaper at volume
+and offers stronger deliverability tooling. It is not the default for a new
+project because it begins in a sandbox mode, requires a production access
+request, and carries account-review risk that would place an external approval
+process on the critical path.
+
+> **Sending email is not reading email.** Choosing a sending provider does
+> **not** deliver the Email Integration feature in §4.1. That feature requires
+> read access to a user's mailbox via the Gmail API or Microsoft Graph, and is
+> governed separately. See §4.4.1.
 
 ### 1.10 Initial Data Model
 
@@ -609,6 +636,86 @@ Review → Database Commit**
 The raw AI response must not directly mutate stored user data without
 validation.
 
+#### 2.7.1 Transactional Email in Phase 1
+
+Phase 1 includes user accounts (§2.2), so account email — magic links and
+password resets — is in scope from the point authentication ships.
+
+-   Outbound email goes through a provider interface; the vendor is
+    replaceable without touching authentication logic
+-   Provider selection follows §1.9.1 and
+    [ADR-002](adr/ADR-002-transactional-email.md): Amazon SES where an AWS
+    account exists, otherwise Resend
+-   Email content must not disclose private productivity data. Messages
+    should reveal only what is necessary to complete the requested action
+-   Delivery failure must be recoverable and must not block account
+    creation. A user who cannot receive a magic link must be able to
+    complete authentication another way
+-   Email Integration — reading a user's mailbox to detect commitments — is
+    **not** part of Phase 1. It is a Phase 3 feature and is specified
+    separately in §4.4.1
+
+#### 2.7.2 AI Platform and Model Routing
+
+**Decision: Anthropic Claude is the AI platform for production.** The AI client
+sits behind an interface so the provider remains replaceable, but Claude is the
+intended target rather than a placeholder.
+
+**Rationale.** The choice follows the shape of the AI work, not general model
+preference. TaskMaster's AI surface is narrow, and three of its requirements
+align unusually well with Claude specifically:
+
+1.  **Prompt caching suits a repeated-context workload.** Every brain dump
+    re-sends the same stable prefix: the output schema, few-shot examples, and
+    the user's goal and project context. Claude's prompt caching makes that
+    repeated context substantially cheaper, which is the single largest
+    recurring saving available in this product.
+2.  **Brain dumps are ambiguous by nature.** §1.5 requires users to enter
+    thoughts "without organising them first". Half-formed sentences,
+    parentheticals, run-on lists and shifting topics are the normal case, not
+    the edge case. Claude preserves the intent of ambiguous input rather than
+    over-normalising it into false structure.
+3.  **Explainability is a product requirement, not a feature.** §2.3, §2.6 and
+    §3.2 require short plain-English reasons, exposed uncertainty when
+    confidence is low, and a stated trade-off in the Reality Check. Producing
+    that language well is a core requirement, and it is where Claude is
+    strongest.
+
+**What the AI must not do.** Prioritisation, daily planning, capacity
+calculation and the Reality Check are **deterministic engine work**, not model
+calls. They must remain testable, reproducible and explainable by rule. Routing
+those to a language model would make the product's central claim unverifiable
+and its costs unpredictable.
+
+Accordingly, only three capabilities call a model:
+
+| Capability | Volume | Model class |
+|---|---|---|
+| Brain dump → structured proposal | Every capture | Small, fast, structured |
+| Task breakdown | On request | Small to mid |
+| Procrastination assist, insight and review phrasing | Rare | Mid |
+
+**Structured extraction.** Extraction uses Claude's tool-use mechanism with a
+declared input schema, not free-form output parsed after the fact. The result
+is validated against a schema before it may touch stored user data, per §2.7.
+
+> **Validate before building on it.** Claude's structured output is delivered
+> via tool use with a schema, which is a different guarantee from a
+> strict response-format constraint. It is reliable in practice, but extraction
+> is the product's most credibility-sensitive path and the PRD's most
+> consequential risk. Before the extraction pipeline is built on it, run the
+> PRD's own worked examples as a golden test set and confirm the schema holds.
+> If it does not, the fallback is a corrected schema and retry, or a different
+> provider — the interface exists for exactly this reason.
+
+**Non-negotiable requirements for any provider.** Private productivity data
+must not be used for provider training; retention behaviour must be explicit
+and configurable; credentials must be server-side only, per §1.9.
+
+**Client choice.** Use the native Anthropic SDK rather than an
+OpenAI-compatibility layer, because the compatibility surface may not expose
+prompt caching or tool use completely — and both are load-bearing here.
+
 ### 2.8 Design System --- Phase 1
 
 The visual direction should support TaskMaster's product principle:
@@ -979,6 +1086,32 @@ that already exist in the user's working life.
 -   external source identifiers to prevent duplicates
 -   audit trail for imported commitments
 -   notification preference model
+-   outbound notifications sent through a provider interface, so the
+    transactional email vendor is replaceable
+-   domain authentication (SPF, DKIM, DMARC) configured for any domain
+    TaskMaster sends from, before public launch
+
+### 4.4.1 Email Sending Is Not Email Integration
+
+Phase 3 involves two unrelated capabilities that are easily confused. They
+require different vendors and different engineering, and satisfying one does
+not satisfy the other.
+
+| | **Outbound email** | **Email Integration** (§4.1, P1) |
+|---|---|---|
+| Direction | TaskMaster → user | User's mailbox → TaskMaster |
+| Purpose | Magic links, password resets, notifications | Detect commitments, deadlines, follow-ups, requests in existing mail |
+| Mechanism | Transactional email provider | Gmail API / Microsoft Graph over OAuth |
+| Provider decision | [ADR-002](adr/ADR-002-transactional-email.md) — Resend, or Amazon SES where an AWS account exists | Not yet decided. Requires its own decision covering OAuth scopes, token storage and refresh, sync strategy, and dedup |
+| Phase | Phase 8 (auth), Phase 3 (notifications) | Phase 3 |
+
+**An outbound email provider does not provide mailbox read access.** Selecting
+Amazon SES or Resend satisfies no part of the §4.1 Email Integration feature.
+
+Both capabilities remain subject to the §4.2 integration principles:
+imported content is never treated as a confirmed task merely because
+automation detected one, and every imported item passes through the §4.1
+Commitment Review Queue.
 
 ### 4.5 Acceptance Criteria
 
@@ -1294,6 +1427,54 @@ hypothesis, it should normally be P1/P2 or moved to a later phase.
 
 ### 7.8 Change Log
 
+#### Version 2.2 --- AI Platform Decision
+
+**Decision:** Selected Anthropic Claude as the production AI platform. Added
+§2.7.2. No product scope, priority or acceptance criterion changed.
+
+**Key changes:** - named Claude as the intended AI provider rather than
+treating the provider as interchangeable - recorded the rationale: prompt
+caching for TaskMaster's repeated-context extraction workload, faithful
+handling of ambiguous unorganised input, and the plain-English
+explanation requirement in §2.3/§2.6/§3.2 - stated explicitly that
+prioritisation, planning, capacity and the Reality Check are
+deterministic engine work and must not become model calls - specified
+tool-use with a declared schema for structured extraction, rather than
+parsing free-form output - required the native SDK over a
+compatibility layer, so prompt caching and tool use remain available -
+required that provider training not use private productivity data - added
+a pre-build validation step against the PRD's own worked examples
+
+**Rationale for the version bump:** §2.7 previously specified AI
+behaviour without naming a platform. Provider-specific capabilities
+(prompt caching, tool-use structured output) now shape the
+implementation, so the choice is part of the specification rather than
+an implementation detail.
+
+#### Version 2.1 --- Transactional Email Provider Decision
+
+**Decision:** Recorded the transactional email provider decision and
+separated outbound email from email integration. Added §1.9.1, §2.7.1
+and §4.4.1. No product scope, priority or acceptance criterion changed.
+
+**Key changes:** - specified that outbound transactional email sits
+behind a swappable provider interface - selected Amazon SES where an AWS
+account already exists, otherwise Resend, per
+[ADR-002](adr/ADR-002-transactional-email.md) - stated explicitly
+that a sending provider does **not** satisfy the §4.1 Email Integration
+feature, which needs Gmail API or Microsoft Graph read access and remains
+undecided - added domain authentication (SPF/DKIM/DMARC) as a
+pre-launch requirement - required that email content avoid disclosing
+private productivity data, and that mail delivery failure never block
+account creation
+
+**Rationale for the version bump:** §2.7 previously left email
+unspecified while §4.1 listed Email Integration as a P1 feature. The two
+are different capabilities, and the ambiguity would have produced the
+wrong integration at the wrong phase.
+
+------------------------------------------------------------------------
+
 #### Version 2.0 --- PRD Restructure
 
 **Decision:** Rebuilt the TaskMaster PRD around a phased,
@@ -1312,4 +1493,4 @@ each development phase
 
 ------------------------------------------------------------------------
 
-**End of TaskMaster PRD v2.0**
+**End of TaskMaster PRD v2.2**
