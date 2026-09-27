@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button, Card, EmptyState, Field, Input, Textarea } from "@/components/ui";
 
 type Item = {
   id: string;
@@ -98,6 +99,8 @@ export default function Home() {
         Local prototype, no backend yet: this page runs entirely in the
         browser with a simple heuristic in place of the AI extraction call
         (see PRD_v2.md §2.7). No sign-in, no database, nothing deployed.
+        Built from the same primitives and tokens as{" "}
+        <a href="/design">/design</a>.
       </p>
 
       {stage === "capture" && (
@@ -108,24 +111,20 @@ export default function Home() {
             putting off, projects, or anything else you need to get done.
             Don&apos;t organise it first.
           </p>
-          <div className="field">
-            <textarea
-              className="textarea"
+          <Field label="Brain Dump" htmlFor="braindump">
+            <Textarea
+              id="braindump"
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
               placeholder={
                 "Call John tomorrow at 2pm.\nFinish the client proposal draft, due Friday.\nBook the car in for a service."
               }
             />
-          </div>
+          </Field>
           <div className="button-row">
-            <button
-              className="btn btn-primary"
-              onClick={handleOrganise}
-              disabled={rawText.trim().length === 0}
-            >
+            <Button onClick={handleOrganise} disabled={rawText.trim().length === 0}>
               Organise It
-            </button>
+            </Button>
           </div>
         </section>
       )}
@@ -139,7 +138,7 @@ export default function Home() {
             remove anything that isn&apos;t right before it&apos;s saved.
           </p>
           {reviewItems.length === 0 ? (
-            <p className="empty-state">No items left to review.</p>
+            <EmptyState title="No items left to review" />
           ) : (
             <ul className="review-list">
               {reviewItems.map((item) => (
@@ -163,16 +162,15 @@ export default function Home() {
             </ul>
           )}
           <div className="button-row" style={{ marginTop: "1.5rem" }}>
-            <button className="btn btn-secondary" onClick={() => setStage("capture")}>
+            <Button variant="secondary" onClick={() => setStage("capture")}>
               Back
-            </button>
-            <button
-              className="btn btn-primary"
+            </Button>
+            <Button
               onClick={handleBuildPlan}
               disabled={reviewItems.filter((i) => i.approved).length === 0}
             >
               Build My Plan
-            </button>
+            </Button>
           </div>
         </section>
       )}
@@ -182,36 +180,29 @@ export default function Home() {
           <section id="today">
             <h2>Today</h2>
             {!nextBestAction ? (
-              <p className="empty-state">
-                Nothing left in your plan. Add something with Quick Add below,
-                or start a new Brain Dump.
-              </p>
+              <EmptyState
+                title="Nothing left in your plan"
+                description="Add something with Quick Add below, or start a new Brain Dump."
+              />
             ) : (
               <div className="card-row">
-                <div className="card card-ai">
-                  <p className="card-kicker">Next Best Action</p>
-                  <p className="card-title">{nextBestAction.text}</p>
+                <Card variant="ai" kicker="Next Best Action" title={nextBestAction.text}>
                   <p className="card-reason">
                     Recommended first because it&apos;s next in your Brain
                     Dump order — priority scoring is a later milestone.
                   </p>
                   <div className="button-row" style={{ marginTop: "1rem" }}>
-                    <button className="btn btn-primary" onClick={completeCurrent}>
-                      Complete
-                    </button>
-                    <button className="btn btn-secondary" onClick={postponeCurrent}>
+                    <Button onClick={completeCurrent}>Complete</Button>
+                    <Button variant="secondary" onClick={postponeCurrent}>
                       Postpone
-                    </button>
+                    </Button>
                     {!focusMode && (
-                      <button
-                        className="btn btn-secondary"
-                        onClick={() => setFocusMode(true)}
-                      >
+                      <Button variant="secondary" onClick={() => setFocusMode(true)}>
                         Focus Mode
-                      </button>
+                      </Button>
                     )}
                   </div>
-                </div>
+                </Card>
               </div>
             )}
           </section>
@@ -223,21 +214,17 @@ export default function Home() {
                 One task, minimal distractions. The rest of your backlog is
                 out of the way until you complete or postpone this.
               </p>
-              <div className="card card-confirmed">
-                <p className="card-kicker">✓ Focused on</p>
-                <p className="card-title">{nextBestAction.text}</p>
+              <Card variant="confirmed" kicker="✓ Focused on" title={nextBestAction.text}>
                 <div className="button-row" style={{ marginTop: "1rem" }}>
-                  <button className="btn btn-primary" onClick={completeCurrent}>
-                    Complete
-                  </button>
-                  <button className="btn btn-secondary" onClick={postponeCurrent}>
+                  <Button onClick={completeCurrent}>Complete</Button>
+                  <Button variant="secondary" onClick={postponeCurrent}>
                     Postpone
-                  </button>
-                  <button className="btn btn-secondary" onClick={() => setFocusMode(false)}>
+                  </Button>
+                  <Button variant="secondary" onClick={() => setFocusMode(false)}>
                     Exit Focus
-                  </button>
+                  </Button>
                 </div>
-              </div>
+              </Card>
             </section>
           )}
 
@@ -245,7 +232,7 @@ export default function Home() {
             <section id="backlog">
               <h2>Backlog</h2>
               {backlog.length === 0 ? (
-                <p className="empty-state">Nothing else queued.</p>
+                <EmptyState title="Nothing else queued" />
               ) : (
                 <ul className="review-list">
                   {backlog.map((item) => (
@@ -275,26 +262,23 @@ export default function Home() {
                 no review step.
               </p>
               <div className="field" style={{ display: "flex", gap: "0.75rem", marginBottom: 0 }}>
-                <input
-                  className="input"
+                <Input
                   type="text"
                   value={quickAddText}
                   onChange={(e) => setQuickAddText(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleQuickAdd()}
                   placeholder="Send Sarah the figures Friday morning"
                 />
-                <button className="btn btn-primary" onClick={handleQuickAdd}>
-                  Add
-                </button>
+                <Button onClick={handleQuickAdd}>Add</Button>
               </div>
             </section>
           )}
 
           {!focusMode && (
             <div className="button-row">
-              <button className="btn btn-danger" onClick={startOver}>
+              <Button variant="danger" onClick={startOver}>
                 Start Over
-              </button>
+              </Button>
             </div>
           )}
         </>

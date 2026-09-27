@@ -1274,12 +1274,13 @@ deployment. `npm run dev` serves one page at `/` implementing:
 
 **Deliberately not done yet**, and still gating later phases:
 
-- **Phase 2** — no ADRs beyond ADR-001, no CI, no real app shell decisions
-  recorded for this code
+- **Phase 2** — no ADRs beyond ADR-001/ADR-002, no CI, no real app shell
+  decisions recorded for this code
 - **Phase 3** — no Postgres, no Drizzle schema/migrations, no row-level
   security; nothing persists past a page refresh
-- **Phase 4** — no pure/testable domain engine; scoring and extraction are
-  inline heuristics in the component, not a separable, tested module
+- **Phase 4** — no pure/testable domain engine; extraction and
+  Next-Best-Action ordering are inline heuristics in `page.tsx`, not a
+  separable, tested module
 - **Phase 5–7 (real versions)** — no server-side AI call, no Zod validation
   boundary (§2.7), no persistence of the plan/backlog
 
@@ -1288,6 +1289,38 @@ deployment. `npm run dev` serves one page at `/` implementing:
 "Named stack for the current milestone" above), then Phase 4 to pull the
 heuristic extraction and Next-Best-Action ordering out of `page.tsx` into a
 pure, tested domain module before any AI call or database write is wired in.
+
+### Progress checkpoint — Phase 1 completed (2026-09-28)
+
+Phase 1's own Outputs and Exit criteria (above) are now met in code, not
+just in the static `design.html` preview:
+
+- `app/globals.css` — full primitive/semantic token set, including a
+  second, separate dark-mode primitive scale (`--color-coal-*` neutrals,
+  `--color-sand-*` text) rather than a naive inversion of the light values
+- `components/ui/*` — coded primitives: `Button`, `Input`, `Textarea`,
+  `Select`, `Field`, `Card` (`default`/`ai`/`confirmed`), `Badge`, `Chip`,
+  `EmptyState`, `Skeleton`, `Modal`, `ConfirmDialog`, `Toast`. `app/page.tsx`
+  was refactored to import these instead of raw `className="btn"` strings,
+  so Phase 1 is now the thing feature code actually depends on, not a
+  parallel preview
+- `app/design/page.tsx` — the living styleguide, with a System/Light/Dark
+  toggle and every token/primitive rendered live
+- `docs/DESIGN_SYSTEM.md` — token reference and usage rules
+- A **live** contrast audit on `/design` (DOM-probes the resolved CSS
+  custom properties via `lib/contrast.ts`, not a hardcoded table), which
+  caught and fixed two real failures: `--color-sage-600` (success text)
+  was under the 4.5:1 text minimum, and `--border-strong` (the border on
+  every `Input`/`Textarea`/`Button variant="secondary"`) was under the
+  3:1 non-text UI-boundary minimum in **both** themes. Both are corrected
+  at the token level — see `docs/DESIGN_SYSTEM.md` for the before/after
+  values.
+
+Not carried into this pass, and not blocking Phase 2: a full modal focus
+trap (`Modal`/`ConfirmDialog` currently do Escape + backdrop-click +
+initial focus only) and a global `Toast` queue/provider (the component is
+presentational only). Both are explicitly deferred to Phase 11
+(hardening) rather than built ahead of a feature that needs them.
 
 ---
 
