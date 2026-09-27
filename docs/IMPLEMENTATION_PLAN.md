@@ -3,7 +3,8 @@
 > **Status:** Proposed, awaiting Product Owner approval
 > **Date:** 2026-09-27
 > **Repo:** `peacenation/TaskMaster-Ai` (branch `main`)
-> **Inputs:** `docs/PRD.md` (v1), `docs/TaskMaster_PRD_v2.md` (v2.0)
+> **Inputs:** `docs/PRD_v2.md` (v2.0 — authoritative),
+> `docs/archive/PRD_v1.md` (v1 — superseded, history only)
 
 ---
 
@@ -35,7 +36,7 @@ TaskMasterAi/
 ├── .gitignore                # Node/Next.js ignores
 └── docs/
     ├── PRD.md                # v1 — 1,525 lines
-    └── TaskMaster_PRD_v2.md  # v2.0 — 1,293 lines
+    └── PRD_v2.md  # v2.0 — 1,293 lines
 ```
 
 **There is no application code.** No `package.json`, no framework, no database
@@ -47,7 +48,7 @@ greenfield.
 This matters because they give **contradictory architecture instructions**, and I
 had to pick one to cost the build.
 
-| Question | v1 (`PRD.md`) | v2.0 (`TaskMaster_PRD_v2.md`) |
+| Question | v1 (`archive/PRD_v1.md`) | v2.0 (`PRD_v2.md`) |
 |---|---|---|
 | Structure | Flat catalogue of 49 features | 4 delivery phases with P0/P1/P2 |
 | Architecture | Local prototype (§23.4) | Cloud web app, auth + cloud DB (§1.8) |
@@ -64,7 +65,8 @@ expensive later, which is why they are written down explicitly.
 
 | # | Decision | Rationale | Reversal cost |
 |---|---|---|---|
-| **D1** | **v2.0 is the source of truth** for product scope, priorities and acceptance criteria. v1 §23 is treated as historical assessment scope, not a build target. | v2 §7.8 records the restructure as a deliberate decision. v1's own §23 preamble says it "does not replace the product vision." v2 is the later, more considered document. | Low — v1 is retained in `docs/` either way |
+| **D1** | **v2.0 is the source of truth** for product scope, priorities and acceptance criteria. v1 §23 is treated as historical assessment scope, not a build target. | v2 §7.8 records the restructure as a deliberate decision. v1's own §23 preamble says it "does not replace the product vision." v2 is the later, more considered document. | Low — v1 is retained in `docs/archive/` either way |
+| **D1a** | **v1 archived, v2 banner-marked authoritative** — enacted, not proposed. `docs/README.md` indexes the set; ADR-000 records the reasoning. | Two documents with contradictory architecture instructions is a standing source of scope drift, which v2 §6 rates High/High. | Done — reversible by moving the file back |
 | **D2** | **Build for v2 Phase 1 in full**, including accounts, cloud persistence and cross-device. | v2 §2.2 marks these P0. Shipping a localStorage prototype would fail 4 of the 22 §2.10 acceptance criteria on day one. | High — retrofitting auth + row-level security onto a client-store app is a rewrite of the data layer |
 | **D3** | **Storage sits behind a repository interface** so the domain and UI layers never import a database client directly. | The single highest-leverage hedge available. Preserves the option to run fully local for demos/offline/dev-without-credentials, and would let a future cut fall back to v1 §23 scope without a rewrite. This is the "both, sequenced" answer without paying for two builds. | Already paid for in Phase 2 |
 | **D4** | **Domain logic is pure and framework-free** — no React, no DB, no `Date.now()` inside scoring. All time injected. | This is what makes the prioritisation and planning engine testable at all, and it is where the PRD's real logic risk lives (§2.3). Also makes the Vitest suite in Phase 4 cheap. | High — retrofitting purity into impure scoring code is painful |
@@ -1190,22 +1192,23 @@ hours up front. Commit to Phase 0–2; re-estimate after.
 3. **Confirm the rate basis** in §8.1, or confirm that hours are the unit you
    want.
 4. **Approve or amend this plan**, then begin Phase 0.
-5. Consider whether `docs/PRD.md` (v1) should stay in the repository. It is
-   useful history and v1 §23 records prior assessment scope, but keeping two
-   documents with conflicting architecture instructions is a live source of
-   confusion for anyone — human or AI — who opens the wrong one. Options:
-   - keep both, and add a one-line header to `docs/PRD.md` pointing to v2 as
-     authoritative
-   - keep both, and add `docs/adr/ADR-000` as the tiebreaker (this plan already
-     assumes the latter)
-   - archive v1 to `docs/archive/`
 
-**My recommendation:** option 3. Move v1 to `docs/archive/` and let v2 stand
-alone, with ADR-000 recording why. One live specification beats two, and v1's
-substantive content — §1–22 product vision, feature catalogue, positioning — is
-fully carried into v2.
+### Completed since this plan was written
+
+| Action | Outcome |
+|---|---|
+| **v1 archived** | `docs/PRD.md` → `docs/archive/PRD_v1.md`, banner-marked superseded with the conflict table |
+| **v2 made authoritative** | `docs/PRD_v2.md` banner-marked as the single source of truth, including its §1.8–§1.9 architecture |
+| **Document set indexed** | `docs/README.md` states which document wins and why |
+| **Reasoning recorded** | `docs/adr/ADR-000-scope-and-source-of-truth.md` — context, decision D1–D7, consequences, alternatives, revisit triggers |
+| **D1a recorded** in §1.2 | The archival is enacted, not merely proposed |
+
+The open question from the original §12 is closed. What remains is items 1–4
+above, and the first Phase 0 output that matters most:
+`docs/REQUIREMENTS.md`, mapping every v2.0 §2.2 P0 item and every §2.10
+acceptance criterion to a build phase.
 
 ---
 
-*Prepared from `docs/PRD.md` and `docs/TaskMaster_PRD_v2.md` against an empty
+*Prepared from `docs/PRD_v2.md` and `docs/archive/PRD_v1.md` against an empty
 repository. All effort and cost figures are estimates, not commitments.*

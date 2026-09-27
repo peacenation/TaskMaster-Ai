@@ -1,5 +1,27 @@
 # Product Requirements Document: TaskMaster
 
+> ## AUTHORITATIVE SPECIFICATION
+>
+> **This document is the single source of truth for TaskMaster product scope,
+> priorities, architecture and acceptance criteria.**
+>
+> - Build targets, feature priorities and acceptance criteria are taken from this
+>   document only.
+> - The architecture defined in §1.8–§1.9 is authoritative: a **cloud-based
+>   responsive web application** with authenticated accounts, relational cloud
+>   database, cross-device persistence and server-side AI calls. Where any other
+>   document suggests a local-only, browser-storage or account-free product, this
+>   document wins.
+> - v1 has been superseded and archived at [`archive/PRD_v1.md`](archive/PRD_v1.md).
+>   Retained for product history only. **Do not build from it.**
+> - Changes to scope must be made here, not in the archived copy.
+>
+> Recorded as decision D1/D2 in
+> [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) §1.2 and
+> [`adr/ADR-000-scope-and-source-of-truth.md`](adr/ADR-000-scope-and-source-of-truth.md).
+
+---
+
 **Product Name:** TaskMaster\
 **Version:** 2.0\
 **Platform:** Responsive Web Application\

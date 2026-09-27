@@ -1,3 +1,41 @@
+> # ⚠️ SUPERSEDED — ARCHIVED DOCUMENT
+>
+> **This is TaskMaster PRD v1. It is no longer the specification and must not be
+> used as a build target.**
+>
+> Superseded by **[`../PRD_v2.md`](../PRD_v2.md)** (v2.0),
+> which is the authoritative source of truth for scope, priorities, architecture
+> and acceptance criteria.
+>
+> **Why it was archived.** This document gives architecture instructions that
+> directly contradict v2.0:
+>
+> | Topic | v1 (this document) | v2.0 (authoritative) |
+> |---|---|---|
+> | Architecture | Local prototype (§23.4) | Cloud web app (§1.8) |
+> | User accounts | "Not required" (§23.4) | **P0** (§2.2) |
+> | Database | "A database is **not** required" (§23.4) | **P0** — cloud persistence (§2.2) |
+> | Cross-device | Not addressed | **P0** (§2.2) |
+> | Storage | localStorage | Relational cloud database |
+> | Acceptance criteria | C1–C11 (11 items, §23.3) | 22 items (§2.10), plus per-phase sets |
+>
+> Building from this document would fail 4 of v2.0's 22 acceptance criteria on
+> day one.
+>
+> **What is still worth keeping.** §1–§22 remain a good record of product
+> thinking — vision, principles, the 49-feature catalogue, responsibility areas,
+> free-vs-premium positioning, and the "what TaskMaster should avoid becoming"
+> constraints. Most of that substance was carried forward into v2.0. Read it for
+> context; do not quote it as a requirement.
+>
+> §23 additionally records a prior AI Foundry Lesson 6 assessment scope. That
+> was a deliberately narrowed prototype exercise, not the product roadmap.
+>
+> Archived per decision D1 in
+> [`../IMPLEMENTATION_PLAN.md`](../IMPLEMENTATION_PLAN.md) §1.2.
+
+---
+
 # **TaskMaster — Product Requirements Document**
 
 ## **1\. Product Overview**
