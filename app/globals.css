@@ -1,0 +1,380 @@
+@import "tailwindcss";
+
+/* ============================================================
+   TOKENS — carried over from /design.html (the design preview),
+   per PRD_v2.md §2.8.1. Same three tiers: Primitive → Semantic →
+   Component, as CSS custom properties (docs/IMPLEMENTATION_PLAN.md
+   Phase 1, decision D5).
+   ============================================================ */
+:root {
+  /* Primitive — cream neutrals (calm, low-noise surfaces) */
+  --color-cream-50: #fbf6ee;
+  --color-cream-100: #f5ecdc;
+  --color-cream-200: #ecdfc4;
+  --color-cream-card: #fffdf9;
+
+  /* Primitive — brown/espresso (text + the one obvious primary action) */
+  --color-tan-300: #d8c3a5;
+  --color-tan-400: #c3a883;
+  --color-espresso-500: #6f5a44;
+  --color-espresso-700: #5a4632;
+  --color-espresso-900: #2e2013;
+
+  --color-coffee-600: #6f4518;
+  --color-coffee-700: #4e3011;
+
+  /* Primitive — AI suggestion (must read as distinct from confirmed state) */
+  --color-terracotta-100: #f6e1d2;
+  --color-terracotta-200: #ecc7ac;
+  --color-terracotta-500: #c1694f;
+  --color-terracotta-800: #7a3b27;
+
+  /* Primitive — success / destructive */
+  --color-sage-50: #eef1e2;
+  --color-sage-600: #6b7f4f;
+  --color-brick-50: #f7e7e1;
+  --color-brick-600: #a23b2a;
+  --color-brick-700: #7e2d1f;
+
+  /* Semantic — intent, not colour name */
+  --surface-page: var(--color-cream-50);
+  --surface-card: var(--color-cream-card);
+  --surface-sunken: var(--color-cream-100);
+  --border-default: var(--color-cream-200);
+  --border-strong: var(--color-tan-300);
+
+  --text-primary: var(--color-espresso-900);
+  --text-muted: var(--color-espresso-700);
+  --text-subtle: var(--color-espresso-500);
+  --text-on-action: var(--color-cream-50);
+
+  --action-primary: var(--color-coffee-600);
+  --action-primary-hover: var(--color-coffee-700);
+  --action-primary-tint: var(--color-cream-200);
+
+  --ai-suggestion-bg: var(--color-terracotta-100);
+  --ai-suggestion-border: var(--color-terracotta-500);
+  --ai-suggestion-text: var(--color-terracotta-800);
+
+  --danger: var(--color-brick-600);
+  --danger-hover: var(--color-brick-700);
+  --danger-subtle: var(--color-brick-50);
+
+  --success: var(--color-sage-600);
+
+  --focus-ring: var(--color-coffee-600);
+
+  /* Type scale — mobile-first */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
+    Helvetica, Arial, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+
+  /* Spacing + shape */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --shadow-card: 0 1px 2px rgba(46, 32, 19, 0.06), 0 1px 3px rgba(46, 32, 19, 0.08);
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4) var(--space-12);
+}
+
+header.hero {
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border-default);
+  margin-bottom: var(--space-8);
+}
+
+.eyebrow {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--action-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 var(--space-2);
+}
+
+h1 {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-2);
+}
+
+.hero p {
+  font-size: var(--text-lg);
+  color: var(--text-muted);
+  max-width: 56ch;
+  margin: 0;
+}
+
+section {
+  margin-bottom: var(--space-8);
+}
+
+h2 {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  margin: 0 0 var(--space-1);
+}
+
+.section-note {
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+  margin: 0 0 var(--space-4);
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.btn {
+  appearance: none;
+  border: none;
+  font-family: inherit;
+  font-size: var(--text-base);
+  font-weight: 600;
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  min-height: 44px;
+  transition: background-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  background: var(--action-primary);
+  color: var(--text-on-action);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--action-primary-hover);
+}
+
+.btn-secondary {
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-sunken);
+}
+
+.btn-danger {
+  background: var(--surface-card);
+  color: var(--danger);
+  border: 1px solid var(--danger-subtle);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger-subtle);
+  border-color: var(--danger);
+}
+
+.field {
+  margin-bottom: var(--space-6);
+}
+
+label.field-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+.input,
+.textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  min-height: 44px;
+}
+
+.textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--action-primary);
+  box-shadow: 0 0 0 3px var(--action-primary-tint);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--text-subtle);
+}
+
+.card-row {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-4) var(--space-6);
+}
+
+.card-ai {
+  background: var(--ai-suggestion-bg);
+  border-left: 4px solid var(--ai-suggestion-border);
+}
+
+.card-confirmed {
+  border-left: 4px solid var(--success);
+}
+
+.card-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-subtle);
+  margin-bottom: var(--space-2);
+}
+
+.card-ai .card-kicker {
+  color: var(--ai-suggestion-text);
+  background: var(--color-terracotta-200);
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+}
+
+.card-confirmed .card-kicker {
+  color: var(--success);
+}
+
+.card-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin: 0 0 var(--space-1);
+}
+
+.card-reason {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.review-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.review-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.review-item input[type="checkbox"] {
+  margin-top: 4px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--action-primary);
+}
+
+.review-item-text {
+  flex: 1;
+  font-size: var(--text-base);
+}
+
+.review-item-remove {
+  background: none;
+  border: none;
+  color: var(--text-subtle);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  padding: var(--space-1) var(--space-2);
+}
+.review-item-remove:hover {
+  color: var(--danger);
+}
+
+.empty-state {
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+  font-style: italic;
+}
+
+.phase-banner {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--space-8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+}
