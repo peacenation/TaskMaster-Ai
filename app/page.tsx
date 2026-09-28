@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button, Card, EmptyState, Field, Input, Textarea } from "@/components/ui";
+import { extractItems } from "@/lib/extract";
 
 type Item = {
   id: string;
@@ -10,17 +11,6 @@ type Item = {
 };
 
 type Stage = "capture" | "review" | "plan";
-
-function extractItems(rawText: string): Item[] {
-  // Local heuristic fallback (no AI call in this milestone — see
-  // docs/IMPLEMENTATION_PLAN.md "Named stack for the current milestone").
-  // Splits on line breaks and sentence-ending punctuation, drops blanks.
-  return rawText
-    .split(/\r?\n|(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
-    .map((text) => ({ id: crypto.randomUUID(), text, approved: true }));
-}
 
 export default function Home() {
   const [stage, setStage] = useState<Stage>("capture");
@@ -31,9 +21,9 @@ export default function Home() {
   const [focusMode, setFocusMode] = useState(false);
 
   function handleOrganise() {
-    const items = extractItems(rawText);
-    if (items.length === 0) return;
-    setReviewItems(items);
+    const extracted = extractItems(rawText);
+    if (extracted.length === 0) return;
+    setReviewItems(extracted.map((item) => ({ ...item, approved: true })));
     setStage("review");
   }
 
@@ -89,17 +79,15 @@ export default function Home() {
         <p className="eyebrow">Prototype — Initial Working Page</p>
         <h1>TaskMaster</h1>
         <p>
-          Tell TaskMaster everything you need to get done. It will work out
-          what matters, build you a realistic plan, and tell you what to do
-          next.
+          Tell TaskMaster everything you need to get done. It will work out what matters, build
+          you a realistic plan, and tell you what to do next.
         </p>
       </header>
 
       <p className="phase-banner">
-        Local prototype, no backend yet: this page runs entirely in the
-        browser with a simple heuristic in place of the AI extraction call
-        (see PRD_v2.md §2.7). No sign-in, no database, nothing deployed.
-        Built from the same primitives and tokens as{" "}
+        Local prototype, no backend yet: this page runs entirely in the browser with a simple
+        heuristic in place of the AI extraction call (see PRD_v2.md §2.7). No sign-in, no
+        database, nothing deployed. Built from the same primitives and tokens as{" "}
         <a href="/design">/design</a>.
       </p>
 
@@ -107,9 +95,8 @@ export default function Home() {
         <section id="capture">
           <h2>What&apos;s taking up space in your head right now?</h2>
           <p className="section-note">
-            Add work, personal tasks, deadlines, things you&apos;ve been
-            putting off, projects, or anything else you need to get done.
-            Don&apos;t organise it first.
+            Add work, personal tasks, deadlines, things you&apos;ve been putting off, projects,
+            or anything else you need to get done. Don&apos;t organise it first.
           </p>
           <Field label="Brain Dump" htmlFor="braindump">
             <Textarea
@@ -133,9 +120,9 @@ export default function Home() {
         <section id="review">
           <h2>Review before you commit</h2>
           <p className="section-note">
-            TaskMaster split your Brain Dump into {reviewItems.length}{" "}
-            proposed item{reviewItems.length === 1 ? "" : "s"}. Uncheck or
-            remove anything that isn&apos;t right before it&apos;s saved.
+            TaskMaster split your Brain Dump into {reviewItems.length} proposed item
+            {reviewItems.length === 1 ? "" : "s"}. Uncheck or remove anything that isn&apos;t
+            right before it&apos;s saved.
           </p>
           {reviewItems.length === 0 ? (
             <EmptyState title="No items left to review" />
@@ -188,8 +175,8 @@ export default function Home() {
               <div className="card-row">
                 <Card variant="ai" kicker="Next Best Action" title={nextBestAction.text}>
                   <p className="card-reason">
-                    Recommended first because it&apos;s next in your Brain
-                    Dump order — priority scoring is a later milestone.
+                    Recommended first because it&apos;s next in your Brain Dump order —
+                    priority scoring is a later milestone.
                   </p>
                   <div className="button-row" style={{ marginTop: "1rem" }}>
                     <Button onClick={completeCurrent}>Complete</Button>
@@ -211,8 +198,8 @@ export default function Home() {
             <section id="focus">
               <h2>Focus Mode</h2>
               <p className="section-note">
-                One task, minimal distractions. The rest of your backlog is
-                out of the way until you complete or postpone this.
+                One task, minimal distractions. The rest of your backlog is out of the way
+                until you complete or postpone this.
               </p>
               <Card variant="confirmed" kicker="✓ Focused on" title={nextBestAction.text}>
                 <div className="button-row" style={{ marginTop: "1rem" }}>
@@ -258,10 +245,12 @@ export default function Home() {
             <section id="quick-add">
               <h2>Quick Add</h2>
               <p className="section-note">
-                Fast natural-language entry, added straight to your backlog —
-                no review step.
+                Fast natural-language entry, added straight to your backlog — no review step.
               </p>
-              <div className="field" style={{ display: "flex", gap: "0.75rem", marginBottom: 0 }}>
+              <div
+                className="field"
+                style={{ display: "flex", gap: "0.75rem", marginBottom: 0 }}
+              >
                 <Input
                   type="text"
                   value={quickAddText}

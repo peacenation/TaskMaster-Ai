@@ -1322,6 +1322,55 @@ initial focus only) and a global `Toast` queue/provider (the component is
 presentational only). Both are explicitly deferred to Phase 11
 (hardening) rather than built ahead of a feature that needs them.
 
+### Progress checkpoint — Phase 2 completed (2026-09-28)
+
+Phase 2's Outputs and Exit criteria are met:
+
+- **ADR-003 through ADR-010** written (`docs/adr/`), covering every topic
+  Phase 2's own table lists beyond what ADR-001/002 already settled:
+  authentication, row-level security, the repository boundary, AI
+  integration, AI fallback policy, testing strategy, deployment/
+  environments/secrets, and observability/PII. Each has alternatives
+  considered, consequences, and a "revisit if" trigger.
+- **Repository interface + in-memory adapter** (D3/ADR-005) —
+  `lib/repo/task-repository.ts` (interface) and
+  `lib/repo/in-memory-task-repository.ts` (adapter), with a passing unit
+  test. Not yet wired into `app/page.tsx`'s React state — that's Phase 4/5
+  wiring, once a real domain engine exists to sit behind it. Phase 2's own
+  Outputs only ask for the interface + in-memory adapter to exist.
+- **App shell** — `components/shell/NavBar.tsx` renders the PRD §2.5 nav
+  (Today, Inbox, Projects, Focus, More) responsively, wired into
+  `app/layout.tsx`. Today (`/`) has the real Phase 5-7 prototype content;
+  Inbox/Projects/Focus/More are placeholder stubs — shell only, per this
+  phase's own scope, not feature screens.
+- **CI** — `.github/workflows/ci.yml` runs typecheck, lint, format check,
+  unit tests, build, and the client-bundle secret grep on every push/PR.
+- **Testing strategy in code, not just in the ADR** — Vitest installed;
+  `lib/extract.ts` (the heuristic extractor, moved out of `app/page.tsx`
+  so it's a pure, tested module per D4) and `lib/contrast.ts` both have
+  unit tests, alongside the repository test above. 24 tests passing.
+- **Environment management** — `.env.example` documents every server-only
+  variable name; none are read by any code yet (`DATABASE_URL` arrives
+  Phase 3, an AI provider key Phase 5/6). `npm run check:client-bundle`
+  greps the built client bundle for those names and is wired into CI —
+  currently vacuous (nothing to leak yet) but running from today, not
+  added under pressure once a real secret exists.
+- **Prettier** — added and applied across all source files (`.md` files
+  are intentionally excluded; they're hand-formatted prose, not code).
+
+**Deliberately not done**, and not blocking Phase 3:
+
+- The Postgres/Drizzle adapter implementing `TaskRepository` — that's
+  Phase 3
+- Component-level or E2E test tooling (Testing Library, Playwright) — per
+  ADR-008, added when a feature first needs them, not ahead of that need
+- A real AI Route Handler — ADR-006/007 fix the shape it will take; no
+  code calls out to a provider yet
+
+**Next in the roadmap:** Phase 3 — data model, migrations, and row-level
+security in Postgres, per ADR-004's decision and the schema in
+`docs/PRD_v2.md` §1.10.
+
 ---
 
 *Prepared from `docs/PRD_v2.md` and `docs/archive/PRD_v1.md` against an empty

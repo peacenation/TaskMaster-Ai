@@ -1,0 +1,9 @@
+node_modules
+.next
+.vercel
+package-lock.json
+
+# Prose is hand-formatted (tables, line wraps, backslash continuations) —
+# Prettier only formats source code here, not docs.
+*.md
+design.html

@@ -19,7 +19,12 @@ export function Toast({ tone = "default", children, onDismiss }: ToastProps) {
     <div className={classes} role="status">
       <span>{children}</span>
       {onDismiss && (
-        <button type="button" className="toast-dismiss" onClick={onDismiss} aria-label="Dismiss">
+        <button
+          type="button"
+          className="toast-dismiss"
+          onClick={onDismiss}
+          aria-label="Dismiss"
+        >
           ✕
         </button>
       )}
