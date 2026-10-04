@@ -1371,6 +1371,93 @@ Phase 2's Outputs and Exit criteria are met:
 security in Postgres, per ADR-004's decision and the schema in
 `docs/PRD_v2.md` §1.10.
 
+### Progress checkpoint — Phase 3 completed (2026-10-04)
+
+Phase 3's Outputs and Exit criteria are met, and — unusually for this
+log — one of them was proven the hard way: the first version of the
+isolation test and the first version of `scripts/db-bootstrap.sh` both
+had real bugs that would have shipped a false sense of security if not
+caught. Specifics below.
+
+- **Schema** — `lib/db/schema.ts`: the v2 §1.10 entities, plus
+  `task_events`, `task_dependencies`, `recurrence_rules`, and
+  `brain_dumps.proposal_json`, which Phase 3's own work item 1 calls for
+  because the PRD implies them without naming them. `user_id` is
+  denormalized onto every table, including children that could instead
+  join to a parent — a deliberate RLS-auditability tradeoff, written up
+  in `docs/ERD.md`.
+- **Migrations** — `migrations/0000_initial_schema.sql` (generated from
+  the schema) and `migrations/0001_row_level_security.sql` (hand-written:
+  the `app_current_user_id()` helper, `ENABLE`/`FORCE ROW LEVEL SECURITY`,
+  and one policy per table). Proven reproducible **literally**, not just
+  assumed: `dropdb taskmaster_dev`, re-ran `db:bootstrap` + `db:migrate`
+  + `db:seed` + `db:test` against the fully recreated database, all green.
+- **RLS mechanism is a session GUC, not Supabase's `auth.uid()`** — this
+  project is self-hosted Postgres (ADR-001), not Supabase, so that
+  function doesn't exist here. See ADR-004's Phase 3 implementation note.
+- **The default local Postgres role is a superuser** (`rolsuper = true,
+  rolbypassrls = true`, checked directly, not assumed) — it ignores every
+  RLS policy regardless of `FORCE`. `scripts/db-bootstrap.sh` creates a
+  second, non-superuser `taskmaster_app` role; the application and every
+  isolation-sensitive test connect as that role, never the admin one.
+  Skipping this step would have made the isolation test pass for the
+  wrong reason — it's the single most important decision in this phase.
+- **Postgres adapter** — `lib/repo/postgres-task-repository.ts`,
+  implementing the Phase 2 `TaskRepository` interface via a
+  per-user-session factory (`get`/`update`/`remove` don't take a `userId`
+  in that interface, but every RLS-scoped query needs one — see ADR-005's
+  Phase 3 note for why a factory, not an interface change). Not yet wired
+  into `app/page.tsx` — same reasoning as Phase 2's in-memory adapter.
+- **Seed script** — `lib/db/seed.ts`, two users with realistic data across
+  every table, with an inline isolation spot-check that fails loudly if
+  one user's data is visible under another's session.
+- **Isolation test** — `lib/db/isolation.test.ts`: enumerates every table
+  with an ownership column and asserts RLS is enabled, forced, and
+  policied (so a future table added without RLS fails immediately), then
+  proves — per table, per operation — that user A gets zero rows
+  selecting/updating/deleting user B's data and is rejected inserting on
+  user B's behalf. **The first version of this test had a bug that made
+  it pass without proving anything**: it matched rows by the fixture's
+  own primary key instead of by the ownership column's value, so two of
+  its six checks were comparing the wrong things entirely. Caught by
+  actually reading the failure output rather than the pass/fail count.
+- **Contract test** — `lib/repo/postgres-task-repository.test.ts`, the
+  same scenarios as the Phase 2 in-memory suite, run against the real
+  adapter (ADR-005's Verification checklist asked for this explicitly).
+- A second real bug: running the isolation test and the contract test in
+  the same `vitest run` let Vitest execute the two files **concurrently**
+  against the same live database — one file's `TRUNCATE` wiped out the
+  other's fixtures mid-run, failing two unrelated-looking tests for a
+  third, infrastructural reason. Fixed with `fileParallelism: false` in
+  `vitest.config.db.mts`, which only applies to the DB-backed tests —
+  `vitest.config.mts`'s ordinary unit tests stay parallel.
+- **`npm run db:test`** is intentionally separate from `npm run test`:
+  the latter is what CI runs and must never require a database that
+  doesn't exist there; the former needs `scripts/db-bootstrap.sh` run
+  first and is a manual/local step for now (see "Deliberately not done").
+- `docs/ERD.md` — the two departures from the PRD's literal field list,
+  the RLS mechanism, and the denormalization rationale, written up for a
+  reader who only has the schema file otherwise.
+
+**Deliberately not done**, and not blocking Phase 4:
+
+- **Postgres is not wired into CI.** `npm run db:test` needs a real local
+  database (`scripts/db-bootstrap.sh`'s trust-auth, peer-based setup);
+  GitHub Actions' Postgres service containers use password auth against a
+  `postgres` superuser by default, which would need its own bootstrap
+  path rather than reusing the laptop-oriented script as-is. Not
+  required by this milestone (ADR-009: no deployment yet) — tracked as a
+  gap, not silently skipped.
+- `app/page.tsx` still runs on local React state, not the Postgres
+  repository — Phase 4's domain engine is what that wiring is for.
+- No `Project`/`Goal`/`Plan` repository — only `TaskRepository` exists,
+  matching ADR-005's "start with tasks" scope.
+
+**Next in the roadmap:** Phase 4 — domain engine & test harness: pull the
+heuristic extraction and Next-Best-Action ordering out of `app/page.tsx`
+into a pure, tested module built against `TaskRepository`, per D4 and
+ADR-005.
+
 ---
 
 *Prepared from `docs/PRD_v2.md` and `docs/archive/PRD_v1.md` against an empty

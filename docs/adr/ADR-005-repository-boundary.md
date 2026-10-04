@@ -98,3 +98,39 @@ independent of a running Postgres instance.
 
 - `docs/IMPLEMENTATION_PLAN.md` §1.2 D3, D4
 - `lib/repo/task-repository.ts`, `lib/repo/in-memory-task-repository.ts`
+
+---
+
+## Implementation note (Phase 3, 2026-10-04)
+
+The Postgres adapter (`lib/repo/postgres-task-repository.ts`) surfaced a
+gap the interface's own Consequences section half-predicted: `list()` and
+`create()` take a `userId` parameter, but `get(id)`, `update(id, patch)`,
+and `remove(id)` don't. That's fine for the in-memory adapter (a single
+array, filtered by whatever `userId` a caller happens to pass to `list`)
+but Postgres's RLS (ADR-004) needs the session's user context set on
+**every** query, not just `list`/`create` — and those three methods have
+no `userId` to set it from.
+
+**Resolved as a factory, not an interface change:**
+`createPostgresTaskRepository(userId)` returns a `TaskRepository` scoped
+to one user for its lifetime; `get`/`update`/`remove` use that closed-over
+id to open the RLS-scoped transaction. This is also just a better security
+default than threading a bare id through unchecked: pass another user's
+task id into `get()`, and RLS returns nothing rather than trusting the
+caller to have already verified ownership.
+
+This was deliberately **not** turned into an interface change (e.g. adding
+`userId` to every method signature) — that would also force a matching
+change to `InMemoryTaskRepository` and its tests for no behavioural gain,
+since the in-memory adapter has no RLS to scope. If Phase 4/5 need
+`get`/`update`/`remove` to work across users in one call (e.g. an admin
+tool), that's the point to revisit this, not now.
+
+**Contract test added:** `lib/repo/postgres-task-repository.test.ts` runs
+the same scenarios as `lib/repo/in-memory-task-repository.test.ts` —
+create/list/update/remove, cross-user list isolation — against the real
+adapter. Not literally shared test code (a `new InMemoryTaskRepository()`
+gives empty state for free each test; a persistent database needs an
+explicit `TRUNCATE` in `beforeEach` instead), but the same behavioural
+contract, verified against both.

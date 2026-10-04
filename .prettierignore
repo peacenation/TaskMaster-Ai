@@ -7,3 +7,7 @@ package-lock.json
 # Prettier only formats source code here, not docs.
 *.md
 design.html
+
+# drizzle-kit owns this file's exact formatting and rewrites it on every
+# `db:generate` — reformatting it here would just fight that.
+migrations/meta/
