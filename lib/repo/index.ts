@@ -1,5 +1,7 @@
 import { withUserContext } from "@/lib/db/client";
 import { createPostgresTaskRepository } from "./postgres-task-repository";
+import { createAccountRepository } from "./account-repository";
+import { createExecutionRepository } from "./execution-repository";
 import {
   createBrainDumpRepository,
   createGoalRepository,
@@ -14,6 +16,8 @@ export function createRepositories(
   userId: string
 ) {
   return {
+    execution: createExecutionRepository(db, userId),
+    account: createAccountRepository(db, userId),
     users: createUserRepository(db, userId),
     tasks: createPostgresTaskRepository(db, userId),
     taskEvents: createTaskEventRepository(db, userId),

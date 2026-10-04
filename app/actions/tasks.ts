@@ -32,7 +32,9 @@ const taskFormSchema = z.object({
   importance: score,
   urgency: score,
   energy: optional(z.enum(["low", "medium", "high"])),
-  status: z.enum(["inbox", "todo", "in_progress", "postponed", "completed"]).default("todo"),
+  status: z
+    .enum(["inbox", "todo", "in_progress", "postponed", "completed", "dropped"])
+    .default("todo"),
   project: optional(z.string().trim().max(200)),
 });
 
@@ -90,6 +92,10 @@ export async function saveTask(
         }
       } else {
         const task = await repos.tasks.create({ ...values, source: "manual" });
+        const profile = await repos.users.profile();
+        await repos.users.savePreferences(profile?.timezone ?? "UTC", {
+          onboardingCompleted: true,
+        });
         await repos.taskEvents.record({
           taskId: task.id,
           eventType: "created",

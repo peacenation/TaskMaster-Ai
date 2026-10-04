@@ -16,6 +16,7 @@ export interface TaskRecord {
   userId: string;
   title: string;
   description: string | null;
+  parentTaskId: string | null;
   status: TaskStatus;
   priority: number | null;
   urgency: number | null;
@@ -54,6 +55,7 @@ export interface TaskRepository {
 
 export const TASK_DEFAULTS: Omit<Editable, "title"> = {
   description: null,
+  parentTaskId: null,
   status: "todo",
   priority: null,
   urgency: null,

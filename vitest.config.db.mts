@@ -1,6 +1,17 @@
 import { defineConfig } from "vitest/config";
 import path from "node:path";
 
+if (
+  process.env.TASKMASTER_TEST_DATABASE !== "taskmaster_test" ||
+  [process.env.DATABASE_URL, process.env.DATABASE_URL_APP].some(
+    (value) => !value || new URL(value).pathname !== "/taskmaster_test"
+  )
+) {
+  throw new Error(
+    "Run npm run db:test: destructive fixtures are restricted to taskmaster_test."
+  );
+}
+
 // Separate from vitest.config.mts on purpose: this one needs a real local
 // Postgres with migrations applied (scripts/db-bootstrap.sh), so it must
 // never be what `npm run test` (CI) picks up by default.

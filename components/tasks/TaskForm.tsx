@@ -152,6 +152,7 @@ export function TaskForm({ task, projects }: { task: TaskFormValues; projects: s
               <option value="in_progress">In progress</option>
               <option value="postponed">Postponed</option>
               <option value="completed">Done</option>
+              <option value="dropped">Dropped</option>
             </Select>
           </Field>
         </div>

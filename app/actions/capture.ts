@@ -38,7 +38,14 @@ export async function commitBrainDump(input: unknown): Promise<CommitResult> {
   const userId = await getCurrentUserId();
   try {
     const summary = await withRepositories(userId, (repos) =>
-      commitReviewedItems(repos, parsed.data, new Date())
+      (async () => {
+        const summary = await commitReviewedItems(repos, parsed.data, new Date());
+        const profile = await repos.users.profile();
+        await repos.users.savePreferences(profile?.timezone ?? "UTC", {
+          onboardingCompleted: true,
+        });
+        return summary;
+      })()
     );
     revalidatePath("/", "layout");
     return { ok: true, summary };

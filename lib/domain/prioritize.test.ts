@@ -319,3 +319,13 @@ describe("isBlocked", () => {
     expect(isBlocked(task, new Map([[done.id, done]]))).toBe(false);
   });
 });
+
+describe("dropped work", () => {
+  it("is excluded and no longer blocks its dependents", () => {
+    const dropped = makeTask({ id: "drop", title: "Dropped", status: "dropped" });
+    const next = makeTask({ id: "next", title: "Next", dependsOn: ["drop"] });
+    const ranked = prioritize([dropped, next], { now });
+    expect(ranked.map((item) => item.task.id)).toEqual(["next"]);
+    expect(ranked[0].blocked).toBe(false);
+  });
+});

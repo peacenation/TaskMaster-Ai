@@ -3,7 +3,7 @@
 // mapped from the `tasks` table by whichever adapter feeds it. Kept free of
 // database and framework types so every domain module stays pure (D4).
 
-export type TaskStatus = "inbox" | "todo" | "in_progress" | "completed" | "postponed";
+export type TaskStatus = "inbox" | "todo" | "in_progress" | "completed" | "postponed" | "dropped";
 export type Energy = "low" | "medium" | "high";
 
 export interface PlannableTask {
@@ -38,7 +38,7 @@ export interface PlanningContext {
 }
 
 export function isOpen(task: PlannableTask): boolean {
-  return task.status !== "completed";
+  return task.status !== "completed" && task.status !== "dropped";
 }
 
 /** Waiting on another task that isn't finished yet. */

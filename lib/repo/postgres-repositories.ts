@@ -176,8 +176,39 @@ export function createTaskEventRepository(db: AppDb, userId: string) {
 
 export function createUserRepository(db: AppDb, userId: string) {
   return {
+    async nextTaskId(): Promise<string | null> {
+      const [row] = await db
+        .select({ preferences: users.preferences })
+        .from(users)
+        .where(eq(users.id, userId));
+      const value = (row?.preferences as Record<string, unknown> | undefined)?.nextTaskId;
+      return typeof value === "string" ? value : null;
+    },
+
+    async chooseNext(taskId: string | null): Promise<void> {
+      await db
+        .update(users)
+        .set({
+          preferences: sql`${users.preferences} || jsonb_build_object('nextTaskId', ${taskId}::text)`,
+        })
+        .where(eq(users.id, userId));
+    },
     /** Creates the user row if it doesn't exist yet. Idempotent. */
-    async ensure(input: { name: string; email: string }): Promise<void> {
+    async profile() {
+      const [row] = await db.select().from(users).where(eq(users.id, userId));
+      return row ? { ...row, preferences: row.preferences as Record<string, unknown> } : null;
+    },
+    async savePreferences(timezone: string, preferences: Record<string, unknown>) {
+      await db
+        .update(users)
+        .set({
+          timezone,
+          preferences: sql`${users.preferences} || ${JSON.stringify(preferences)}::jsonb`,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+    },
+    async ensure(input: { name: string; email: string; authId?: string }): Promise<void> {
       await db
         .insert(users)
         .values({ id: userId, name: input.name, email: input.email })

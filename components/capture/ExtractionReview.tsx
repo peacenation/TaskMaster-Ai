@@ -112,6 +112,9 @@ export function ExtractionReview({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<CommitSummary | null>(null);
+  const [splitting, setSplitting] = useState<string | null>(null);
+  const [splitKeys, setSplitKeys] = useState<string[]>([]);
+  const [splitName, setSplitName] = useState("");
   const listId = useId();
 
   const update = (key: string, patch: Partial<Row>) =>
@@ -256,6 +259,19 @@ export function ExtractionReview({
                   onBlur={(e) => e.target.value.trim() && renameGroup(name, e.target.value)}
                 />
                 <span className="review-count">{count}</span>
+                {count > 1 && (
+                  <button
+                    type="button"
+                    className="review-item-remove"
+                    onClick={() => {
+                      setSplitting(name);
+                      setSplitKeys([]);
+                      setSplitName("");
+                    }}
+                  >
+                    Split
+                  </button>
+                )}
                 <button
                   type="button"
                   className="review-item-remove"
@@ -266,6 +282,64 @@ export function ExtractionReview({
               </li>
             ))}
           </ul>
+          {splitting && (
+            <div className="review-group">
+              <h3>Split {splitting}</h3>
+              <p className="field-hint">Select the items to move into a separate group.</p>
+              {rows
+                .filter((row) => row.project.trim() === splitting)
+                .map((row) => (
+                  <label key={row.key} style={{ display: "block" }}>
+                    <input
+                      type="checkbox"
+                      checked={splitKeys.includes(row.key)}
+                      onChange={(event) =>
+                        setSplitKeys((keys) =>
+                          event.target.checked
+                            ? [...keys, row.key]
+                            : keys.filter((key) => key !== row.key)
+                        )
+                      }
+                    />{" "}
+                    {row.title}
+                  </label>
+                ))}
+              <Input
+                aria-label="New group name"
+                value={splitName}
+                onChange={(event) => setSplitName(event.target.value)}
+                maxLength={200}
+              />
+              <div className="button-row">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={
+                    !splitName.trim() ||
+                    splitName.trim() === splitting ||
+                    splitKeys.length === 0 ||
+                    splitKeys.length ===
+                      rows.filter((row) => row.project.trim() === splitting).length
+                  }
+                  onClick={() => {
+                    setRows((previous) =>
+                      previous.map((row) =>
+                        splitKeys.includes(row.key)
+                          ? { ...row, project: splitName.trim() }
+                          : row
+                      )
+                    );
+                    setSplitting(null);
+                  }}
+                >
+                  Split group
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => setSplitting(null)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -1012,3 +1012,145 @@ label.field-label {
     animation: none;
   }
 }
+
+/* Today planning: shared task rows across both views. */
+.today-settings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+  margin-bottom: var(--space-6);
+}
+.today-settings > button {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+.capacity-panel {
+  margin-block: var(--space-6);
+  padding: var(--space-6);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+}
+.capacity-panel meter {
+  width: 100%;
+  height: 1.5rem;
+}
+.plan-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.today-task-list {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-4) 0;
+}
+.today-task {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-6);
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--border-default);
+}
+.today-task-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.today-task details {
+  margin-top: var(--space-3);
+}
+.today-task summary,
+.card summary {
+  cursor: pointer;
+}
+.today-task-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: start;
+}
+.priority-control {
+  display: grid;
+  gap: var(--space-2);
+}
+.schedule-time {
+  font-weight: 600;
+  margin-top: var(--space-6);
+}
+.schedule-gap {
+  padding: var(--space-3);
+  border-left: 3px solid var(--border-strong);
+  color: var(--text-muted);
+}
+button[aria-pressed="true"] {
+  outline: 2px solid var(--border-strong);
+  outline-offset: 2px;
+}
+@media (max-width: 640px) {
+  .today-settings,
+  .today-task {
+    grid-template-columns: 1fr;
+  }
+  .today-task-controls {
+    width: 100%;
+  }
+  .priority-control {
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    align-items: center;
+  }
+  .priority-control label {
+    grid-column: 1 / -1;
+  }
+}
+
+.auth-wrap,
+.focus-wrap {
+  max-width: 680px;
+}
+.auth-form {
+  display: grid;
+  gap: var(--space-4);
+  margin-block: var(--space-6);
+}
+.auth-form > button {
+  justify-self: start;
+}
+.auth-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-block: var(--space-6);
+}
+.focus-timer {
+  margin-block: var(--space-8);
+}
+.focus-timer input {
+  max-width: 8rem;
+}
+.timer-display {
+  font-size: clamp(3rem, 12vw, 5rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.breakdown-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px auto;
+  gap: var(--space-3);
+  align-items: end;
+  margin-bottom: var(--space-3);
+}
+.recovery-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 1fr);
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+}
+@media (max-width: 640px) {
+  .breakdown-row,
+  .recovery-row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1554,13 +1554,14 @@ Bugs caught while verifying, not after:
 - **No live Claude call has been made.** The request is verified against
   the SDK's types and every response path is unit-tested with canned
   responses, but §2.7.2's own "validate before building on it" golden run
-  needs a paid API key and a go-ahead. Until then, only the heuristic path
+  needs configured Claude credentials. Until then, only the heuristic path
   is proven end to end.
-- **`npm run db:test` and `db:seed` truncate the dev database**, including
-  the local app user's data. A separate test database would fix this.
-- Project *grouping suggestions* are keyword life-areas, not clustering
-  by inferred context; "split" is per-row editing rather than a dedicated
-  action.
+- **Resolved in Phase 5 closeout:** `npm run db:test` now creates/migrates
+  `taskmaster_test`; its destructive fixtures cannot run against the dev DB.
+  `db:seed` still resets development data and is an explicit setup command.
+- Project *grouping suggestions* are keyword life-areas rather than deeper
+  contextual clustering. **Dedicated group splitting is now implemented**
+  and verified through explicit commit in the browser.
 - Notes aren't saved anywhere but the dump's retained proposal — PRD
   §1.10 has no notes entity.
 - Habits are stored as recurrence rules but don't generate tasks yet
@@ -1568,6 +1569,84 @@ Bugs caught while verifying, not after:
 
 **Next in the roadmap:** Phase 6 — Today in full: available-time input,
 scheduled view, capacity warning, overriding the recommendation.
+
+
+### Phase 5 closeout and Phase 6 completed (2026-10-04)
+
+**Phase 5 closeout:** added an explicit grouping split action: select the
+items, name their new group, then review and commit. A headless Chrome run
+verified the new group appears and is persisted on commit. Capture's existing
+raw-text recovery, validation/fallback and atomic-commit tests remain green.
+
+Database verification now runs exclusively against **`taskmaster_test`**:
+`scripts/db-test.mjs` derives local test URLs, creates the separate database,
+applies the migrations, grants the application role access, and starts the
+sequential test suite. The Vitest DB configuration rejects direct invocations
+without the guarded test URLs. The development database is preserved.
+
+`npm run ai:smoke` exercises the actual Claude extractor with the PRD worked
+example and strict validation, without writing application data. It was run
+and reported **no configured credentials**. Live model validation therefore
+remains pending; it is not claimed as passing. The heuristic path and mocked
+AI failure/validation paths are verified. Configure credentials in `.env.local`
+and run that command to close the external validation item.
+
+**Phase 6 implementation:**
+
+- Today exposes separate inputs for time available **today**, time available
+  **right now**, and current energy. Inputs are validated on the server.
+- `lib/planning/today.ts` builds the recommendation, ranking, capacity and one
+  scheduled plan. Flexible and scheduled views present the exact same items;
+  the client toggle performs no planning. Buffer is 20%, gaps are 10 minutes,
+  and unknown estimates are visibly suggested at 30 minutes.
+- `components/planning/` contains `NextBestAction`, `TaskRow`, `PlanView` and
+  `CapacityMeter`. Short reasons are always visible; detailed score signals
+  are expandable. Deadline, estimate, project and user priority appear on rows.
+- Explicit priorities are stored on tasks. **Choose next** is stored in the
+  user's preferences under RLS, independently of score recomputation. The UI
+  labels this choice and offers **Use recommendation** to clear it. Completing,
+  postponing or blocking the chosen task makes it ineligible for the next action.
+- Capacity shows planned versus available effort and the specific gap when
+  work due within 24 hours or overdue exceeds usable time. Deferred tasks show
+  their reason; deadline work is never presented as harmless to delay.
+- Dependencies on Inbox/postponed tasks remain blocking, even though those
+  prerequisites are not candidates for today's plan.
+
+**Exit criteria verified:**
+
+| Criterion | Evidence |
+|---|---|
+| Defensible top recommendation and specific reason | PRD golden unit test; browser shows the report first |
+| 20-minute / low-energy input changes the recommendation | `lib/planning/today.test.ts`; browser selects the dentist |
+| Priority override survives reload and rebuild | Fresh-transaction DB test and browser reload/rebuild |
+| Both modes share data, no client planning | Single server-built schedule; browser compares ordered titles |
+| Scheduled blocks have nonzero gaps | Unit assertions (10 minutes); browser checks rendered gaps |
+| Keyboard access and action on Next Best Action | Headless Chrome Tab to Complete, Enter submits, recommendation and plan update |
+
+Verification: **218 unit tests**, **20 database tests**, **100% domain
+coverage**, typecheck, lint, formatting, production build and client-bundle
+secret check passed. Browser verification also passed at a 375px viewport
+with no horizontal overflow; the mobile screenshot was visually reviewed.
+All browser mutations used the isolated test database.
+
+**Next:** Phase 7 — Focus Mode, breakdown and recovery check-in. The live Claude
+smoke test is the remaining external Phase 5 validation, pending credentials.
+
+
+### Supabase database hosting connected (2026-10-04)
+
+Per Product Owner direction, database hosting moved to the empty Supabase
+project `cpfmxwvaddfixgwujekn`. Authentication remains deferred; the local-user
+seam and server-side Drizzle repositories are unchanged. See ADR-012 and
+`docs/SUPABASE.md` for setup and rollback.
+
+All migrations applied. The application uses a generated restricted role,
+with credentials saved only in `.env.local`. TLS verifies the server using
+the downloaded Supabase CA certificate rather than disabling verification.
+The hosted read-only schema/RLS check and transactional read/write,
+cross-user select/update/delete/insert checks passed; temporary test records
+were rolled back. The 20 database tests still run successfully against local
+`taskmaster_test`, using preserved local URLs. Local task data was not copied.
 
 ---
 

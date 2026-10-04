@@ -8,7 +8,7 @@ const NAV_ITEMS = [
   { href: "/inbox", label: "Inbox" },
   { href: "/projects", label: "Projects" },
   { href: "/focus", label: "Focus" },
-  { href: "/more", label: "More" },
+  { href: "/settings", label: "Settings" },
 ];
 
 /**
@@ -21,7 +21,11 @@ const NAV_ITEMS = [
  */
 export function NavBar() {
   const pathname = usePathname();
-  if (pathname?.startsWith("/design")) return null;
+  if (
+    ["/signin", "/signup", "/reset", "/magic"].includes(pathname) ||
+    pathname?.startsWith("/design")
+  )
+    return null;
 
   return (
     <nav className="app-nav" aria-label="Main">

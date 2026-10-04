@@ -35,6 +35,11 @@ cross-device. A local prototype is milestone one, not the destination.
 
 ## Documents
 
+**Database-hosting update (2026-10-04):** Supabase database hosting is now
+approved, with the app still running locally and authentication deferred.
+[Setup guide](SUPABASE.md) and [ADR-012](adr/ADR-012-supabase-database-hosting.md)
+update the earlier local-database-only milestone described above.
+
 | Document | Status | Purpose |
 |---|---|---|
 | [`PRD_v2.md`](PRD_v2.md) | **Authoritative** (v2.2) | Product scope, P0/P1/P2 priorities, data model, NFRs, per-phase acceptance criteria |

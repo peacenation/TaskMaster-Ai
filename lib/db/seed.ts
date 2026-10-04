@@ -16,6 +16,10 @@ const adminDb = getAdminDb();
 const appDb = getAppDb();
 
 async function main() {
+  const url = new URL(process.env.DATABASE_URL ?? "");
+  if (!["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)) {
+    throw new Error("db:seed resets data and is restricted to a local database.");
+  }
   console.log("Clearing existing data...");
   await adminDb.execute(
     sql`TRUNCATE TABLE users, goals, projects, brain_dumps, tasks, task_dependencies, task_events, recurrence_rules, plans, plan_items RESTART IDENTITY CASCADE`

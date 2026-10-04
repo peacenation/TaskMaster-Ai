@@ -27,7 +27,10 @@ import {
   timestamp,
   unique,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import { authUser } from "./auth-schema";
+export { authUser, authSession, authAccount, authVerification } from "./auth-schema";
 
 export const taskStatusEnum = pgEnum("task_status", [
   "inbox",
@@ -35,6 +38,7 @@ export const taskStatusEnum = pgEnum("task_status", [
   "in_progress",
   "completed",
   "postponed",
+  "dropped",
 ]);
 export const projectStatusEnum = pgEnum("project_status", ["active", "completed", "archived"]);
 export const goalStatusEnum = pgEnum("goal_status", ["active", "completed", "archived"]);
@@ -68,6 +72,9 @@ export const taskEventTypeEnum = pgEnum("task_event_type", [
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
+  authId: uuid("auth_id")
+    .unique()
+    .references(() => authUser.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   timezone: text("timezone").notNull().default("UTC"),
@@ -140,6 +147,9 @@ export const tasks = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
+    parentTaskId: uuid("parent_task_id").references((): AnyPgColumn => tasks.id, {
+      onDelete: "set null",
+    }),
     description: text("description"),
     status: taskStatusEnum("status").notNull().default("inbox"),
     priority: smallint("priority"),
@@ -270,6 +280,7 @@ export const planItems = pgTable(
     scheduledStart: timestamp("scheduled_start", { withTimezone: true }),
     scheduledEnd: timestamp("scheduled_end", { withTimezone: true }),
     recommendationReason: text("recommendation_reason"),
+    recoveryReviewedAt: timestamp("recovery_reviewed_at", { withTimezone: true }),
   },
   (table) => [
     index("plan_items_user_id_idx").on(table.userId),

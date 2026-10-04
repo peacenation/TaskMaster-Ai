@@ -1,3 +1,5 @@
+import { finishOnboarding } from "@/app/actions/account";
+import { Button } from "@/components/ui";
 import { BrainDumpFlow } from "@/components/capture/BrainDumpFlow";
 import { withRepositories } from "@/lib/repo";
 import { getCurrentUserId } from "@/lib/server/session";
@@ -18,6 +20,11 @@ export default async function BrainDumpPage() {
         </p>
       </header>
       <BrainDumpFlow existingProjects={projects.map((p) => p.name)} />
+      <form action={finishOnboarding}>
+        <Button variant="secondary" type="submit">
+          Go to Today
+        </Button>
+      </form>
     </div>
   );
 }

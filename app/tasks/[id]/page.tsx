@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { BreakdownReview } from "@/components/execution/BreakdownReview";
+import { breakdownTask } from "@/lib/domain/breakdown";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { TaskForm } from "@/components/tasks/TaskForm";
@@ -15,10 +18,15 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
 
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
-  const { task, projects } = await withRepositories(userId, async (repos) => ({
-    task: await repos.tasks.get(id),
-    projects: await repos.projects.list(),
-  }));
+  const { task, projects, children, events } = await withRepositories(
+    userId,
+    async (repos) => ({
+      task: await repos.tasks.get(id),
+      projects: await repos.projects.list(),
+      children: await repos.execution.children(id),
+      events: await repos.execution.events(id),
+    })
+  );
   if (!task) notFound();
 
   return (
@@ -27,6 +35,25 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
         <p className="eyebrow">Edit task</p>
         <h1>{task.title}</h1>
       </header>
+      {children.length > 0 ? (
+        <section>
+          <h2>Steps</h2>
+          <ul>
+            {children.map((child) => (
+              <li key={child.id}>
+                <Link href={`/tasks/${child.id}`}>{child.title}</Link> · {child.status}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        ["todo", "in_progress", "inbox"].includes(task.status) && (
+          <BreakdownReview
+            taskId={task.id}
+            suggested={breakdownTask(task.title, task.estimatedMinutes).steps}
+          />
+        )
+      )}
       <TaskForm
         projects={projects.map((p) => p.name)}
         task={{
@@ -43,6 +70,17 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
           project: projects.find((p) => p.id === task.projectId)?.name ?? "",
         }}
       />
+      <section>
+        <h2>Task history</h2>
+        <ul>
+          {events.map((event) => (
+            <li key={event.id}>
+              {event.eventType.replaceAll("_", " ")} · {event.toStatus ?? ""} ·{" "}
+              {event.occurredAt.toLocaleString("en-GB", { timeZone })}
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

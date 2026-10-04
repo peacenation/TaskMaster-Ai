@@ -9,6 +9,7 @@ import { Pool } from "pg";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { sql } from "drizzle-orm";
 import * as schema from "./schema";
+import { authSchema } from "./auth-schema";
 
 // Safe to call unconditionally: dotenv never overwrites a variable Next.js
 // has already loaded from .env.local itself, and standalone scripts (the
@@ -29,10 +30,24 @@ function requireEnv(name: string): string {
 // server modules to collect page data, and CI builds with no database.
 let admin: AppDb | undefined;
 let app: AppDb | undefined;
+let authDb: NodePgDatabase<typeof authSchema> | undefined;
+
+/** Auth service role can reach only the private authentication schema. */
+export function getAuthDb() {
+  authDb ??= drizzle(
+    new Pool({
+      connectionString: requireEnv("DATABASE_URL_AUTH"),
+      max: 5,
+      connectionTimeoutMillis: 10000,
+    }),
+    { schema: authSchema }
+  );
+  return authDb;
+}
 
 /**
  * Admin/owner connection — migrations and the seed script only. This role
- * is a local superuser (BYPASSRLS). Never use it for application queries;
+ * is the local owner or Supabase migration role. Never use it for application queries;
  * see docs/adr/ADR-004-row-level-security.md.
  */
 export function getAdminDb(): AppDb {
