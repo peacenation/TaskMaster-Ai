@@ -1458,6 +1458,40 @@ heuristic extraction and Next-Best-Action ordering out of `app/page.tsx`
 into a pure, tested module built against `TaskRepository`, per D4 and
 ADR-005.
 
+### Progress checkpoint — Phase 4 completed (2026-10-04)
+
+`lib/domain/` — `dates`, `extract`, `prioritize`, `plan`,
+`nextBestAction`, `breakdown`, plus `clock` (injected "now") and
+`proposal` (the Zod contract both extraction engines must emit). 178 unit
+tests; domain coverage **100% lines/branches/functions**, enforced at ≥85%
+in CI (`npm run test:coverage`). No domain module imports React, a
+database client, or reads ambient time — the only `new Date()` is
+`systemClock` itself, the one sanctioned boundary.
+
+The PRD's worked example (archived v1 §20 — the clearest executable
+statement of the product's intent) is the golden contract in
+`lib/domain/golden.test.ts`: the run-on Brain Dump splits into the
+expected seven items with the right kinds, deadlines, and life-area
+grouping; the report breaks down into the PRD's four steps; the
+unconstrained next action is the report; and with 20 minutes and low
+energy it's the dentist, with the report explicitly named as displaced.
+
+Two calibration decisions surfaced by working the golden numbers, both
+written up in `docs/SCORING.md`:
+- Deadline buckets use **calendar days in the user's timezone**, not
+  elapsed hours (Thursday 5pm from Monday 9am is "due on Thursday").
+- Anti-crowding is **two mechanisms**: a deliberately modest neglect
+  nudge in scoring, and a protected slot in the planner that is the
+  actual guarantee — and never displaces work due within 7 days.
+
+**Not met yet:** the exit criterion "`docs/SCORING.md` reviewed by
+someone who did not write the code." It is written and flagged as
+unreviewed at the top; that review is a human step.
+
+**Not built here, by design:** `extract.ts` is heuristic only; the AI path
+that sits on top of it is Phase 5. `lib/extract.ts` (the old line
+splitter) still backs `app/page.tsx` until Phase 5 replaces that flow.
+
 ---
 
 *Prepared from `docs/PRD_v2.md` and `docs/archive/PRD_v1.md` against an empty
