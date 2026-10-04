@@ -12,7 +12,10 @@
 //    every user-scoped table.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
-import { adminDb, appDb } from "./client";
+import { getAdminDb, getAppDb } from "./client";
+
+const adminDb = getAdminDb();
+const appDb = getAppDb();
 
 interface TableFixture {
   table: string;

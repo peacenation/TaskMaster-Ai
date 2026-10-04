@@ -1,23 +1,68 @@
-// The only seam allowed to reach storage — see docs/adr/ADR-005-repository-boundary.md.
-// No caller of this interface may import a database client directly.
+import type { Energy, TaskStatus } from "@/lib/domain/task";
 
-export type TaskStatus = "pending" | "completed";
+// The only seam allowed to reach task storage — see
+// docs/adr/ADR-005-repository-boundary.md. No caller may import a
+// database client directly.
+//
+// Phase 5 replaced Phase 2's placeholder shape (`text`/`position`) with the
+// real fields, as ADR-005 anticipated. Every repository instance is bound
+// to one user for its lifetime (ADR-005's Phase 3 note): with Postgres,
+// that's what row-level security scopes against.
 
-export interface Task {
+export type TaskSource = "brain_dump" | "quick_add" | "manual" | "recurrence";
+
+export interface TaskRecord {
   id: string;
   userId: string;
-  text: string;
+  title: string;
+  description: string | null;
   status: TaskStatus;
-  position: number;
+  priority: number | null;
+  urgency: number | null;
+  importance: number | null;
+  dueAt: Date | null;
+  estimatedMinutes: number | null;
+  energy: Energy | null;
+  projectId: string | null;
+  goalId: string | null;
+  source: TaskSource;
   createdAt: Date;
+  updatedAt: Date;
+  completedAt: Date | null;
 }
 
-export type NewTask = Pick<Task, "userId" | "text"> & Partial<Pick<Task, "position">>;
+type Editable = Omit<TaskRecord, "id" | "userId" | "createdAt" | "updatedAt">;
+
+export type NewTask = Pick<TaskRecord, "title"> & Partial<Editable>;
+export type TaskPatch = Partial<Omit<Editable, "source">>;
+
+export interface TaskDependency {
+  taskId: string;
+  dependsOnTaskId: string;
+}
 
 export interface TaskRepository {
-  list(userId: string): Promise<Task[]>;
-  get(id: string): Promise<Task | undefined>;
-  create(input: NewTask): Promise<Task>;
-  update(id: string, patch: Partial<Omit<Task, "id" | "userId">>): Promise<Task>;
+  /** The user's tasks, oldest first, optionally filtered by status. */
+  list(filter?: { statuses?: TaskStatus[] }): Promise<TaskRecord[]>;
+  get(id: string): Promise<TaskRecord | undefined>;
+  create(input: NewTask): Promise<TaskRecord>;
+  /** Throws if the task doesn't exist (or isn't this user's). */
+  update(id: string, patch: TaskPatch): Promise<TaskRecord>;
   remove(id: string): Promise<void>;
+  dependencies(): Promise<TaskDependency[]>;
 }
+
+export const TASK_DEFAULTS: Omit<Editable, "title"> = {
+  description: null,
+  status: "todo",
+  priority: null,
+  urgency: null,
+  importance: null,
+  dueAt: null,
+  estimatedMinutes: null,
+  energy: null,
+  projectId: null,
+  goalId: null,
+  source: "manual",
+  completedAt: null,
+};

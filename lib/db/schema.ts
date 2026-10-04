@@ -5,7 +5,7 @@
 // recurring responsibilities), BrainDump.proposalJson (§1.11
 // recoverability — the raw AI proposal survives a failed save).
 //
-// RLS policies live in migrations/0002_row_level_security.sql, not here —
+// RLS policies live in migrations/0001_row_level_security.sql, not here —
 // see docs/adr/ADR-004-row-level-security.md and docs/ERD.md.
 //
 // user_id is denormalized onto every table, including child tables that
@@ -14,6 +14,7 @@
 // `user_id = app_current_user_id()` check instead of a correlated
 // subquery through the parent table. See docs/ERD.md.
 
+import { sql } from "drizzle-orm";
 import {
   date,
   index,
@@ -123,6 +124,9 @@ export const brainDumps = pgTable(
     // Recoverability: "Failed AI processing must not destroy or silently
     // alter user input."
     proposalJson: jsonb("proposal_json"),
+    // Null until the user commits the reviewed proposal; an extracted but
+    // uncommitted dump is one the Inbox offers to resume.
+    committedAt: timestamp("committed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("brain_dumps_user_id_idx").on(table.userId)]
@@ -147,7 +151,12 @@ export const tasks = pgTable(
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     goalId: uuid("goal_id").references(() => goals.id, { onDelete: "set null" }),
     source: taskSourceEnum("source").notNull().default("manual"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // clock_timestamp(), not now(): now() is the *transaction's* start time,
+    // so every task in a Brain Dump commit would tie, and "oldest first"
+    // would fall back to random UUID order instead of the reviewed order.
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`clock_timestamp()`),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
@@ -212,6 +221,9 @@ export const recurrenceRules = pgTable(
     title: text("title").notNull(),
     frequency: recurrenceFrequencyEnum("frequency").notNull(),
     intervalCount: integer("interval_count").notNull().default(1),
+    // "Gym three times a week" — a count per period, distinct from
+    // interval_count ("every 2 weeks").
+    timesPerPeriod: integer("times_per_period").notNull().default(1),
     daysOfWeek: jsonb("days_of_week"),
     startDate: date("start_date").notNull(),
     endDate: date("end_date"),

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { fixedClock } from "./clock";
-import { parseDeadline, parseNumber, removeSpans, zonedTimeToUtc } from "./dates";
+import {
+  isValidTimeZone,
+  localDateString,
+  parseDeadline,
+  parseNumber,
+  removeSpans,
+  zonedTimeToUtc,
+} from "./dates";
 
 // Monday 5 October 2026, 09:00 in London (BST, UTC+1).
 const clock = fixedClock("2026-10-05T08:00:00Z");
@@ -246,5 +253,21 @@ describe("helpers", () => {
     const text = "Call John tomorrow at 2pm.";
     const parsed = parse(text);
     expect(removeSpans(text, parsed!.spans)).toBe("Call John.");
+  });
+});
+
+describe("timezone helpers", () => {
+  it("isValidTimeZone accepts IANA names and rejects anything else", () => {
+    expect(isValidTimeZone("Europe/London")).toBe(true);
+    expect(isValidTimeZone("UTC")).toBe(true);
+    expect(isValidTimeZone("Mars/Olympus_Mons")).toBe(false);
+    expect(isValidTimeZone("")).toBe(false);
+  });
+
+  it("localDateString gives the calendar date where the user is", () => {
+    // 11pm Monday in New York is already Tuesday in UTC.
+    const instant = new Date("2026-10-06T03:00:00Z");
+    expect(localDateString(instant, "America/New_York")).toBe("2026-10-05");
+    expect(localDateString(instant, "UTC")).toBe("2026-10-06");
   });
 });

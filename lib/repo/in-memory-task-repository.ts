@@ -1,47 +1,79 @@
-import type { NewTask, Task, TaskRepository } from "./task-repository";
+import {
+  TASK_DEFAULTS,
+  type NewTask,
+  type TaskDependency,
+  type TaskPatch,
+  type TaskRecord,
+  type TaskRepository,
+} from "./task-repository";
 
 /**
- * Array-backed adapter — used in tests and any dev workflow that doesn't
- * need real persistence. See docs/adr/ADR-005-repository-boundary.md.
- * The Phase 3 Postgres adapter must satisfy the same contract this class
- * does; see docs/adr/ADR-008-testing-strategy.md's contract-test note.
+ * Array-backed adapter for tests and dev without Postgres (ADR-005). The
+ * store is shared; each repository is a view of it bound to one user,
+ * mirroring how RLS scopes the Postgres adapter. Must satisfy the same
+ * contract as the Postgres adapter — see the paired test files.
  */
-export class InMemoryTaskRepository implements TaskRepository {
-  private tasks: Task[] = [];
-  private nextPosition = 0;
+export interface InMemoryStore {
+  tasks: TaskRecord[];
+  dependencies: Array<TaskDependency & { userId: string }>;
+}
 
-  async list(userId: string): Promise<Task[]> {
-    return this.tasks
-      .filter((t) => t.userId === userId)
-      .sort((a, b) => a.position - b.position);
-  }
+export function createInMemoryStore(): InMemoryStore {
+  return { tasks: [], dependencies: [] };
+}
 
-  async get(id: string): Promise<Task | undefined> {
-    return this.tasks.find((t) => t.id === id);
-  }
+export function createInMemoryTaskRepository(
+  store: InMemoryStore,
+  userId: string
+): TaskRepository {
+  const mine = () => store.tasks.filter((t) => t.userId === userId);
+  let clock = 0;
+  // Strictly increasing timestamps, so "oldest first" is well defined even
+  // when tasks are created within the same millisecond.
+  const stamp = () => new Date(Math.max(Date.now(), clock + 1)).getTime();
 
-  async create(input: NewTask): Promise<Task> {
-    const task: Task = {
-      id: crypto.randomUUID(),
-      userId: input.userId,
-      text: input.text,
-      status: "pending",
-      position: input.position ?? this.nextPosition++,
-      createdAt: new Date(),
-    };
-    this.tasks.push(task);
-    return task;
-  }
+  return {
+    async list(filter) {
+      return mine()
+        .filter((t) => !filter?.statuses || filter.statuses.includes(t.status))
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    },
 
-  async update(id: string, patch: Partial<Omit<Task, "id" | "userId">>): Promise<Task> {
-    const index = this.tasks.findIndex((t) => t.id === id);
-    if (index === -1) throw new Error(`Task not found: ${id}`);
-    const updated = { ...this.tasks[index], ...patch };
-    this.tasks[index] = updated;
-    return updated;
-  }
+    async get(id) {
+      return mine().find((t) => t.id === id);
+    },
 
-  async remove(id: string): Promise<void> {
-    this.tasks = this.tasks.filter((t) => t.id !== id);
-  }
+    async create(input: NewTask) {
+      clock = stamp();
+      const now = new Date(clock);
+      const task: TaskRecord = {
+        ...TASK_DEFAULTS,
+        ...input,
+        id: crypto.randomUUID(),
+        userId,
+        createdAt: now,
+        updatedAt: now,
+      };
+      store.tasks.push(task);
+      return task;
+    },
+
+    async update(id, patch: TaskPatch) {
+      const index = store.tasks.findIndex((t) => t.id === id && t.userId === userId);
+      if (index === -1) throw new Error(`Task not found: ${id}`);
+      const updated = { ...store.tasks[index], ...patch, updatedAt: new Date() };
+      store.tasks[index] = updated;
+      return updated;
+    },
+
+    async remove(id) {
+      store.tasks = store.tasks.filter((t) => !(t.id === id && t.userId === userId));
+    },
+
+    async dependencies() {
+      return store.dependencies
+        .filter((d) => d.userId === userId)
+        .map(({ taskId, dependsOnTaskId }) => ({ taskId, dependsOnTaskId }));
+    },
+  };
 }

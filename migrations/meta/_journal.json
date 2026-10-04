@@ -15,6 +15,20 @@
       "when": 1791146803665,
       "tag": "0001_row_level_security",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791148977218,
+      "tag": "0002_capture_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791149143268,
+      "tag": "0003_task_created_at_clock",
+      "breakpoints": true
     }
   ]
 }

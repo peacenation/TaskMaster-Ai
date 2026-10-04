@@ -7,7 +7,11 @@ import path from "node:path";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["lib/db/isolation.test.ts", "lib/repo/postgres-task-repository.test.ts"],
+    include: [
+      "lib/db/isolation.test.ts",
+      "lib/repo/postgres-task-repository.test.ts",
+      "lib/**/*.db.test.ts",
+    ],
     hookTimeout: 20_000,
     // Both files truncate shared tables against the same real database —
     // running them concurrently lets one file's TRUNCATE wipe out

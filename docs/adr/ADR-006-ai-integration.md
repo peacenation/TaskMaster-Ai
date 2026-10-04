@@ -1,6 +1,14 @@
 # ADR-006 — AI integration: provider, structured output, validation
 
-- **Status:** Accepted
+> **Superseded by [ADR-011](ADR-011-claude-extraction.md) (2026-10-04).**
+> This ADR chose an "OpenAI-compatible" provider shape. That contradicted
+> the authoritative PRD_v2.md §2.7.2, which had already chosen Anthropic
+> Claude via the native SDK — this ADR was written without that section
+> having been read. Kept unedited below as the record of what was decided
+> and why it was wrong; the parts that still hold (server-side only, Zod
+> at the boundary, key never client-side) are carried into ADR-011.
+
+- **Status:** Superseded by ADR-011
 - **Date:** 2026-09-28
 - **Deciders:** Product Owner, AI agent
 - **Affects:** Phase 2 (this ADR), Phase 5/6 (implementation — Brain Dump

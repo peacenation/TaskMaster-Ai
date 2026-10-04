@@ -13,8 +13,8 @@ export default function FocusPage() {
         </p>
       </header>
       <EmptyState
-        title="Enter Focus Mode from Today"
-        description="Focus Mode is currently reached from the Next Best Action card on Today, not as a standalone destination. A dedicated /focus route is part of Phase 7."
+        title="Not built yet"
+        description="Focus Mode arrives in Phase 7. Until then, Today shows your Next Best Action with Complete and Postpone."
         action={
           <Link href="/" className="btn btn-secondary">
             Go to Today

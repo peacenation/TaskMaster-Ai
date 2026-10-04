@@ -1492,6 +1492,83 @@ unreviewed at the top; that review is a human step.
 that sits on top of it is Phase 5. `lib/extract.ts` (the old line
 splitter) still backs `app/page.tsx` until Phase 5 replaces that flow.
 
+### Progress checkpoint — Phase 5 completed (2026-10-04)
+
+**Correction first.** PRD_v2.md §2.7.2 had already chosen **Anthropic
+Claude via the native SDK**; ADR-006 (Phase 2) said "OpenAI-compatible"
+because that section hadn't been read. ADR-006 is marked superseded and
+**ADR-011** records what was built. Where this plan elsewhere says
+"OpenAI-compatible", the PRD and ADR-011 win.
+
+Built:
+- **Capture flow** — `/dump` composer → `organiseBrainDump`
+  (`lib/capture/organise.ts`) saves the raw text **before** requesting
+  extraction → `POST /api/extract` (Claude, with heuristic fallback) →
+  review → atomic commit. `/review/[id]` resumes any saved, uncommitted
+  dump.
+- **Claude extraction** (`lib/ai/`) — structured outputs (forced tool use
+  400s on the current model; see ADR-011's *Deviation*), a loose model
+  schema behind our strict Zod contract, cached stable prompt prefix with
+  the PRD example as few-shot, refusal fallbacks enabled, 30 s timeout,
+  SDK errors mapped to user-facing fallback reasons.
+- **Review screen** — grouped by kind; every row editable and removable;
+  low-confidence dates badged *Suggested*; reorder; grouping rename /
+  merge / clear; told which engine ran and why.
+- **Quick Add** (local live interpretation → Inbox), **manual task
+  create/edit/delete** (`/tasks/new`, `/tasks/[id]`), **Inbox** with batch
+  "move to my list" and resumable dumps, **Projects** listing all open
+  tasks by project, and a real **Today** (Next Best Action + day plan from
+  the Phase 4 engine, Complete/Postpone) replacing the local-state
+  prototype.
+- **Repository evolution** — `TaskRepository` now has the real fields
+  (as ADR-005 anticipated); one shared contract suite runs against both
+  adapters; `withRepositories` gives every request one RLS-scoped
+  transaction. Migrations 0002 (`brain_dumps.committed_at`,
+  `recurrence_rules.times_per_period`) and 0003.
+
+Exit criteria, each verified by a test or a browser run:
+
+| Criterion | Evidence |
+|---|---|
+| PRD example dumps to individually editable items | Golden test + headless-Chrome run of the full flow |
+| Relative dates resolve against a fixed clock | `lib/domain/dates.test.ts` |
+| Killing the network mid-request preserves the dump and offers the heuristic | `lib/capture/organise.test.ts` — fails before save, after save, and on timeout |
+| Malformed model response rejected by Zod, never reaches the DB | `lib/capture/extract-with-fallback.test.ts` — 7 malformed shapes |
+| Nothing appears in tasks without explicit commit | `lib/capture/commit.db.test.ts` |
+| Editing and removing proposed items works and persists | Commit DB test + browser run (edit, remove, save, re-open) |
+
+Bugs caught while verifying, not after:
+- **Postgres `now()` is the transaction's start time**, so every task in
+  one commit tied on `created_at` and listed in random order. The shared
+  repository contract caught it; migration 0003 uses `clock_timestamp()`.
+- **Missing credentials were reported as "AI organising failed"**: the SDK
+  throws an untyped `Error` there, not the `AnthropicError` assumed.
+  Credentials are now detected before calling (`hasClaudeCredentials`).
+- **`lib/db/client.ts` opened pools at import**, which would have crashed
+  CI's database-less `next build` once pages imported it. Now lazy;
+  verified by building with no `.env.local`.
+- **Phone layout** truncated dates and project names on the review screen
+  — passed the no-horizontal-scroll check, failed on actually looking.
+
+**Not done / known gaps:**
+- **No live Claude call has been made.** The request is verified against
+  the SDK's types and every response path is unit-tested with canned
+  responses, but §2.7.2's own "validate before building on it" golden run
+  needs a paid API key and a go-ahead. Until then, only the heuristic path
+  is proven end to end.
+- **`npm run db:test` and `db:seed` truncate the dev database**, including
+  the local app user's data. A separate test database would fix this.
+- Project *grouping suggestions* are keyword life-areas, not clustering
+  by inferred context; "split" is per-row editing rather than a dedicated
+  action.
+- Notes aren't saved anywhere but the dump's retained proposal — PRD
+  §1.10 has no notes entity.
+- Habits are stored as recurrence rules but don't generate tasks yet
+  (Phase 9). Focus Mode is a stub until Phase 7.
+
+**Next in the roadmap:** Phase 6 — Today in full: available-time input,
+scheduled view, capacity warning, overriding the recommendation.
+
 ---
 
 *Prepared from `docs/PRD_v2.md` and `docs/archive/PRD_v1.md` against an empty

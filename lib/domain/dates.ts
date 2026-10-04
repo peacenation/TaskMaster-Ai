@@ -395,6 +395,22 @@ function matchTime(text: string): TimeMatch | null {
 
 // ------------------------------------------------------------------- public
 
+/** True for a timezone name this runtime recognises, e.g. "Europe/London". */
+export function isValidTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The calendar date of `instant` in `timeZone`, as YYYY-MM-DD. */
+export function localDateString(instant: Date, timeZone: string): string {
+  const p = zonedParts(instant, timeZone);
+  return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+}
+
 export function todayIn(clock: Clock, timeZone: string): LocalDate {
   const p = zonedParts(clock.now(), timeZone);
   return { year: p.year, month: p.month, day: p.day };

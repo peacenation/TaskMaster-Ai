@@ -82,7 +82,10 @@ down) — degraded quality, never zero output.
 
 - [ ] `lib/extract.ts` has no dependency on network access or a provider
       SDK
-- [ ] A unit test proves extraction succeeds with `AI_PROVIDER_API_KEY`
+- [x] A unit test proves extraction succeeds with no AI credentials
+      configured (`lib/capture/extract-with-fallback.test.ts`, "with AI
+      switched off"). Was written as `AI_PROVIDER_API_KEY` unset; the key is
+      `ANTHROPIC_API_KEY` since ADR-011.
       unset
 - [ ] No code path exists where a failed AI call returns an empty result
       to the user instead of the heuristic's output

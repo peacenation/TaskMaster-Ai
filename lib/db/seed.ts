@@ -8,9 +8,12 @@
 // multiple users is exactly the case RLS exists to prevent for the
 // application's own connection, so this script intentionally uses the
 // role that bypasses it. Never import adminDb from application code.
-import { adminDb, appDb } from "./client";
+import { getAdminDb, getAppDb } from "./client";
 import { brainDumps, goals, plans, planItems, projects, tasks, users } from "./schema";
 import { sql } from "drizzle-orm";
+
+const adminDb = getAdminDb();
+const appDb = getAppDb();
 
 async function main() {
   console.log("Clearing existing data...");

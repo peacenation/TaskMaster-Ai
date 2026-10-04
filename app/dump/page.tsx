@@ -1,0 +1,23 @@
+import { BrainDumpFlow } from "@/components/capture/BrainDumpFlow";
+import { withRepositories } from "@/lib/repo";
+import { getCurrentUserId } from "@/lib/server/session";
+
+export const dynamic = "force-dynamic";
+
+export default async function BrainDumpPage() {
+  const userId = await getCurrentUserId();
+  const projects = await withRepositories(userId, (repos) => repos.projects.list());
+  return (
+    <div className="wrap wrap-wide">
+      <header className="hero">
+        <p className="eyebrow">Brain Dump</p>
+        <h1>Empty your head</h1>
+        <p>
+          Everything you write is saved before it&apos;s organised, so nothing you type is
+          lost.
+        </p>
+      </header>
+      <BrainDumpFlow existingProjects={projects.map((p) => p.name)} />
+    </div>
+  );
+}
