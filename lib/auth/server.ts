@@ -35,7 +35,7 @@ export function createAuth() {
     session: {
       expiresIn: 60 * 60 * 24 * 7,
       updateAge: 60 * 60 * 24,
-      cookieCache: { enabled: false },
+      cookieCache: { enabled: true, maxAge: 60 },
     },
     user: { deleteUser: { enabled: true } },
     databaseHooks: {

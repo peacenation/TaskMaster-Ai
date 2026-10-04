@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "@/lib/auth/server";
+import { getCookieCache } from "better-auth/cookies";
 
 const PUBLIC = new Set(["/signin", "/signup", "/reset", "/magic", "/design"]);
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   if (PUBLIC.has(path) || path.startsWith("/api/auth/")) return NextResponse.next();
-  const session = await getAuth().api.getSession({ headers: request.headers });
+  const session = await getCookieCache(request);
   if (!session) {
     if (path.startsWith("/api/"))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
