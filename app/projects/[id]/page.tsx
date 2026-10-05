@@ -10,7 +10,11 @@ import { formatDue } from "@/lib/server/views";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProjectDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();
   const userId = await getCurrentUserId();
@@ -21,7 +25,8 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   }));
   if (!data.project) notFound();
   const tasks = data.tasks.filter(
-    (task) => task.projectId === id && task.source !== "recurrence" && task.status !== "dropped"
+    (task) =>
+      task.projectId === id && task.source !== "recurrence" && task.status !== "dropped"
   );
   const completed = tasks.filter((task) => task.status === "completed").length;
   const percent = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
@@ -29,9 +34,13 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   return (
     <div className="wrap">
       <header className="hero">
-        <p className="eyebrow"><Link href="/projects">Projects</Link></p>
+        <p className="eyebrow">
+          <Link href="/projects">Projects</Link>
+        </p>
         <h1>{data.project.name}</h1>
-        <p>{completed} of {tasks.length} tasks complete · {percent}%</p>
+        <p>
+          {completed} of {tasks.length} tasks complete · {percent}%
+        </p>
         <progress aria-label="Project task completion" max={100} value={percent} />
       </header>
       <section>
@@ -40,19 +49,35 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           <input type="hidden" name="id" value={id} />
           <label className="field" htmlFor="description">
             <span>What does finished look like?</span>
-            <textarea id="description" name="description" maxLength={2000} defaultValue={data.project.description ?? ""} />
+            <textarea
+              id="description"
+              name="description"
+              maxLength={2000}
+              defaultValue={data.project.description ?? ""}
+            />
           </label>
           <label className="field" htmlFor="dueDate">
             <span>Target date</span>
-            <input id="dueDate" name="dueDate" type="date" defaultValue={data.project.dueDate ?? ""} />
+            <input
+              id="dueDate"
+              name="dueDate"
+              type="date"
+              defaultValue={data.project.dueDate ?? ""}
+            />
           </label>
-          <button type="submit" className="btn btn-primary">Save outcome</button>
+          <button type="submit" className="btn btn-primary">
+            Save outcome
+          </button>
         </form>
       </section>
       <section>
         <h2>Tasks</h2>
         {tasks.length === 0 ? (
-          <EmptyState title="No tasks in this project" description="Add a task and connect it to this project." action={<Link href="/tasks/new">New task</Link>} />
+          <EmptyState
+            title="No tasks in this project"
+            description="Add a task and connect it to this project."
+            action={<Link href="/tasks/new">New task</Link>}
+          />
         ) : (
           <ul className="review-list">
             {tasks.map((task) => (
@@ -60,11 +85,18 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                 <span className="review-item-text">
                   <Link href={`/tasks/${task.id}`}>{task.title}</Link>
                   <span className="field-hint"> · {task.status.replaceAll("_", " ")}</span>
-                  {task.dueAt && <span className="field-hint"> · due {formatDue(task.dueAt, timeZone)}</span>}
+                  {task.dueAt && (
+                    <span className="field-hint">
+                      {" "}
+                      · due {formatDue(task.dueAt, timeZone)}
+                    </span>
+                  )}
                 </span>
                 {task.status !== "completed" && (
                   <form action={setTaskStatus.bind(null, task.id, "completed")}>
-                    <button type="submit" className="review-item-remove">Done</button>
+                    <button type="submit" className="review-item-remove">
+                      Done
+                    </button>
                   </form>
                 )}
               </li>

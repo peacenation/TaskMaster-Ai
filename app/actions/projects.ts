@@ -8,7 +8,10 @@ import { getCurrentUserId } from "@/lib/server/session";
 const projectOutcomeSchema = z.object({
   id: z.string().uuid(),
   description: z.string().trim().max(2000).nullable(),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable(),
 });
 
 export async function saveProjectOutcome(formData: FormData): Promise<void> {

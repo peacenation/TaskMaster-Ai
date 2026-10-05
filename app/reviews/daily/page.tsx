@@ -30,7 +30,9 @@ export default async function DailyReviewPage() {
     missed: await repos.execution.recovery(new Date()),
   }));
   const completed = events.filter((event) => event.eventType === "completed");
-  const changed = events.filter((event) => !["completed", "created"].includes(event.eventType));
+  const changed = events.filter(
+    (event) => !["completed", "created"].includes(event.eventType)
+  );
   const carried = tasks.filter(
     (task) =>
       task.source !== "recurrence" &&
@@ -43,7 +45,10 @@ export default async function DailyReviewPage() {
       <header className="hero">
         <p className="eyebrow">Daily review</p>
         <h1>Close the day, quickly</h1>
-        <p>{completed.length} completed · {changed.length} changed · {carried.length} carried forward</p>
+        <p>
+          {completed.length} completed · {changed.length} changed · {carried.length} carried
+          forward
+        </p>
       </header>
       {events.length === 0 && carried.length === 0 && missed.length === 0 ? (
         <EmptyState title="A clear day" description="There is nothing to review here yet." />
@@ -59,7 +64,9 @@ export default async function DailyReviewPage() {
                   </li>
                 ))}
               </ul>
-            ) : <p className="field-hint">Nothing marked complete today.</p>}
+            ) : (
+              <p className="field-hint">Nothing marked complete today.</p>
+            )}
           </section>
           <section aria-labelledby="missed-heading">
             <h2 id="missed-heading">Missed plan blocks</h2>
@@ -71,7 +78,9 @@ export default async function DailyReviewPage() {
                   </li>
                 ))}
               </ul>
-            ) : <p className="field-hint">No missed blocks need a decision.</p>}
+            ) : (
+              <p className="field-hint">No missed blocks need a decision.</p>
+            )}
           </section>
           <section aria-labelledby="carry-heading">
             <h2 id="carry-heading">Still active</h2>
@@ -84,16 +93,24 @@ export default async function DailyReviewPage() {
                   </li>
                 ))}
               </ul>
-            ) : <p className="field-hint">No active work carried over.</p>}
+            ) : (
+              <p className="field-hint">No active work carried over.</p>
+            )}
           </section>
           {changed.length > 0 && (
             <section aria-labelledby="changed-heading">
               <h2 id="changed-heading">Changed today</h2>
               <ul className="review-list">
                 {changed.map((event, index) => (
-                  <li className="review-item" key={`${event.taskId}-${event.eventType}-${index}`}>
+                  <li
+                    className="review-item"
+                    key={`${event.taskId}-${event.eventType}-${index}`}
+                  >
                     <Link href={`/tasks/${event.taskId}`}>{event.title}</Link>
-                    <span className="field-hint"> · {event.eventType.replaceAll("_", " ")}</span>
+                    <span className="field-hint">
+                      {" "}
+                      · {event.eventType.replaceAll("_", " ")}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -101,7 +118,9 @@ export default async function DailyReviewPage() {
           )}
         </>
       )}
-      <p><Link href="/reviews/weekly">Open weekly review</Link></p>
+      <p>
+        <Link href="/reviews/weekly">Open weekly review</Link>
+      </p>
     </div>
   );
 }

@@ -75,7 +75,9 @@ export default async function ProjectsPage() {
         .filter((g) => g.tasks.length > 0 || (g.name !== "No project" && open.length > 0))
         .map((group) => (
           <section key={group.name} aria-label={group.name}>
-            <h2>{group.name} <span className="review-count">{group.tasks.length}</span></h2>
+            <h2>
+              {group.name} <span className="review-count">{group.tasks.length}</span>
+            </h2>
             {group.tasks.length === 0 ? (
               <p className="field-hint">No open tasks.</p>
             ) : (
@@ -112,18 +114,25 @@ export default async function ProjectsPage() {
         {projects.length ? (
           <ul className="review-list">
             {projects.map((project) => {
-              const projectTasks = [...open, ...postponed].filter((task) => task.projectId === project.id);
+              const projectTasks = [...open, ...postponed].filter(
+                (task) => task.projectId === project.id
+              );
               return (
                 <li className="review-item" key={project.id}>
                   <span className="review-item-text">
                     <Link href={`/projects/${project.id}`}>{project.name}</Link>
-                    <span className="field-hint"> · {projectTasks.length} active or postponed</span>
+                    <span className="field-hint">
+                      {" "}
+                      · {projectTasks.length} active or postponed
+                    </span>
                   </span>
                 </li>
               );
             })}
           </ul>
-        ) : <p className="field-hint">Projects appear here as tasks are grouped.</p>}
+        ) : (
+          <p className="field-hint">Projects appear here as tasks are grouped.</p>
+        )}
       </section>
     </div>
   );

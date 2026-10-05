@@ -50,19 +50,17 @@ export function createExecutionRepository(db: AppDb, userId: string) {
       }
       await db.delete(planItems).where(eq(planItems.planId, saved.id));
       if (plan.items.length)
-        await db
-          .insert(planItems)
-          .values(
-            plan.items.map((item) => ({
-              userId,
-              planId: saved.id,
-              taskId: item.task.id,
-              position: item.position,
-              scheduledStart: item.scheduledStart,
-              scheduledEnd: item.scheduledEnd,
-              recommendationReason: item.reasons.map((reason) => reason.text).join("; "),
-            }))
-          );
+        await db.insert(planItems).values(
+          plan.items.map((item) => ({
+            userId,
+            planId: saved.id,
+            taskId: item.task.id,
+            position: item.position,
+            scheduledStart: item.scheduledStart,
+            scheduledEnd: item.scheduledEnd,
+            recommendationReason: item.reasons.map((reason) => reason.text).join("; "),
+          }))
+        );
     },
     async recovery(now: Date) {
       const rows = await db

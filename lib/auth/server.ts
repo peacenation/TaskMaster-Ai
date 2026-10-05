@@ -35,7 +35,10 @@ export function createAuth() {
     session: {
       expiresIn: 60 * 60 * 24 * 7,
       updateAge: 60 * 60 * 24,
-      cookieCache: { enabled: true, maxAge: 60 },
+      // Off: a cached session cookie stays valid for its whole maxAge after
+      // sign-out, password reset, or account deletion. Revocation must be
+      // immediate (PRD §1.11), so every session check reads the database.
+      cookieCache: { enabled: false },
     },
     user: { deleteUser: { enabled: true } },
     databaseHooks: {

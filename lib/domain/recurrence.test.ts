@@ -11,11 +11,7 @@ const base: RecurrenceSchedule = {
 describe("occurrencesBetween", () => {
   it("generates daily occurrences and separates multiple same-day slots", () => {
     expect(
-      occurrencesBetween(
-        { ...base, timesPerPeriod: 2 },
-        "2026-10-06",
-        "2026-10-07"
-      )
+      occurrencesBetween({ ...base, timesPerPeriod: 2 }, "2026-10-06", "2026-10-07")
     ).toEqual([
       { date: "2026-10-06", slot: 0 },
       { date: "2026-10-06", slot: 1 },
@@ -31,7 +27,14 @@ describe("occurrencesBetween", () => {
         "2026-10-05",
         "2026-10-25"
       ).map(({ date }) => date)
-    ).toEqual(["2026-10-05", "2026-10-07", "2026-10-09", "2026-10-19", "2026-10-21", "2026-10-23"]);
+    ).toEqual([
+      "2026-10-05",
+      "2026-10-07",
+      "2026-10-09",
+      "2026-10-19",
+      "2026-10-21",
+      "2026-10-23",
+    ]);
   });
 
   it("honors explicitly selected weekdays", () => {
@@ -56,14 +59,12 @@ describe("occurrencesBetween", () => {
 
   it("honors inclusive end dates and rejects invalid cadence values", () => {
     expect(
-      occurrencesBetween(
-        { ...base, endDate: "2026-10-06" },
-        "2026-10-05",
-        "2026-10-08"
-      ).map(({ date }) => date)
+      occurrencesBetween({ ...base, endDate: "2026-10-06" }, "2026-10-05", "2026-10-08").map(
+        ({ date }) => date
+      )
     ).toEqual(["2026-10-05", "2026-10-06"]);
-    expect(() => occurrencesBetween({ ...base, intervalCount: 0 }, "2026-10-05", "2026-10-08")).toThrow(
-      RangeError
-    );
+    expect(() =>
+      occurrencesBetween({ ...base, intervalCount: 0 }, "2026-10-05", "2026-10-08")
+    ).toThrow(RangeError);
   });
 });

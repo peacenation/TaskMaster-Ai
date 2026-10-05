@@ -25,7 +25,9 @@ export function RealityCheck({
         resolve. You decide; nothing changes until you confirm a choice.
       </p>
       {tasks.length === 0 ? (
-        <p className="field-hint">Review your active estimates or available time to make a plan.</p>
+        <p className="field-hint">
+          Review your active estimates or available time to make a plan.
+        </p>
       ) : (
         <ul className="review-list">
           {tasks.map((task) => (
@@ -45,7 +47,12 @@ export function RealityCheck({
                 <Link href={`/tasks/${task.id}`} className="btn btn-secondary">
                   Simplify in task
                 </Link>
-                <button className="btn btn-secondary" type="button" disabled title="Delegation is not available yet">
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  disabled
+                  title="Delegation is not available yet"
+                >
                   Delegate unavailable
                 </button>
                 <form action={confirmRealityDecision}>
@@ -57,8 +64,9 @@ export function RealityCheck({
                 </form>
               </div>
               <p className="field-hint">
-                Postpone: the task leaves today&apos;s plan. Simplify: edit its scope and estimate.
-                Delegate: requires another account. Drop: removes it from active work.
+                Postpone: the task leaves today&apos;s plan. Simplify: edit its scope and
+                estimate. Delegate: requires another account. Drop: removes it from active
+                work.
               </p>
             </li>
           ))}

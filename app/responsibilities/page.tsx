@@ -70,9 +70,7 @@ export default async function ResponsibilitiesPage() {
                 <div>
                   <h2 id={`rule-${rule.id}`}>{rule.title}</h2>
                   <p className="field-hint">
-                    {rule.timesPerPeriod > 1
-                      ? `${rule.timesPerPeriod} times `
-                      : ""}
+                    {rule.timesPerPeriod > 1 ? `${rule.timesPerPeriod} times ` : ""}
                     {frequencyLabel[rule.frequency]}
                     {rule.intervalCount > 1 ? `, every ${rule.intervalCount} periods` : ""}
                     {rule.endDate ? ` · ends ${rule.endDate}` : ""}
@@ -116,14 +114,18 @@ export default async function ResponsibilitiesPage() {
       {rules.some((rule) => rule.stoppedAt) && (
         <section aria-labelledby="stopped-heading">
           <h2 id="stopped-heading">Stopped responsibilities</h2>
-          <p className="field-hint">Existing instances remain in your history; no new ones are generated.</p>
+          <p className="field-hint">
+            Existing instances remain in your history; no new ones are generated.
+          </p>
           <ul className="review-list">
             {rules
               .filter((rule) => rule.stoppedAt)
               .map((rule) => (
                 <li className="review-item" key={rule.id}>
                   <span className="review-item-text">{rule.title}</span>
-                  <span className="field-hint">Stopped {rule.stoppedAt?.toLocaleDateString()}</span>
+                  <span className="field-hint">
+                    Stopped {rule.stoppedAt?.toLocaleDateString()}
+                  </span>
                 </li>
               ))}
           </ul>

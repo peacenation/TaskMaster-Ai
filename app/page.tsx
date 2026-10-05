@@ -28,17 +28,15 @@ export default async function TodayPage({
 
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
-  const { records, dependencies, projects, chosenId, profile, procrastinationCandidates } = await withRepositories(
-    userId,
-    async (repos) => ({
+  const { records, dependencies, projects, chosenId, profile, procrastinationCandidates } =
+    await withRepositories(userId, async (repos) => ({
       records: await repos.tasks.list(),
       dependencies: await repos.tasks.dependencies(),
       projects: await repos.projects.list(),
       chosenId: await repos.users.nextTaskId(),
       profile: await repos.users.profile(),
       procrastinationCandidates: await repos.taskEvents.procrastinationCandidates(),
-    })
-  );
+    }));
   if (!profile?.preferences.onboardingCompleted) redirect("/dump");
   const settings = todaySettingsSchema.parse({
     dayMinutes: profile.preferences.dayMinutes ?? 240,
@@ -136,10 +134,11 @@ export default async function TodayPage({
         {completedToday} completed today ·{" "}
         {
           records.filter(
-            (task) => task.source !== "recurrence" && ["todo", "in_progress"].includes(task.status)
+            (task) =>
+              task.source !== "recurrence" && ["todo", "in_progress"].includes(task.status)
           ).length
-        } active
-        tasks
+        }{" "}
+        active tasks
       </p>
       <PlanSettings
         dayMinutes={settings.dayMinutes}
@@ -183,7 +182,10 @@ export default async function TodayPage({
         <RealityCheck
           summary={realityCheck}
           tasks={today.ranked
-            .filter((item) => item.task.dueAt && item.task.dueAt.getTime() <= now.getTime() + 86400000)
+            .filter(
+              (item) =>
+                item.task.dueAt && item.task.dueAt.getTime() <= now.getTime() + 86400000
+            )
             .map((item) => ({
               id: item.task.id,
               title: item.task.title,

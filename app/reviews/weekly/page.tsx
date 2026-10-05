@@ -40,25 +40,35 @@ export default async function WeeklyReviewPage() {
     data.events.filter((event) => event.eventType === "completed").map((event) => event.taskId)
   );
   const upcoming = data.tasks.filter(
-    (task) => task.source !== "recurrence" && task.dueAt && task.dueAt >= start && task.dueAt < end
+    (task) =>
+      task.source !== "recurrence" && task.dueAt && task.dueAt >= start && task.dueAt < end
   );
   const postponed = data.events.filter((event) => event.eventType === "postponed");
   const activeGoals = data.goals.map((goal) => {
-    const goalTasks = data.tasks.filter((task) => task.goalId === goal.id && task.status !== "dropped");
+    const goalTasks = data.tasks.filter(
+      (task) => task.goalId === goal.id && task.status !== "dropped"
+    );
     const completed = goalTasks.filter((task) => completedIds.has(task.id)).length;
     return { ...goal, goalTasks, completed };
   });
-  const neglected = activeGoals.filter((goal) => goal.goalTasks.length > 0 && goal.completed === 0);
+  const neglected = activeGoals.filter(
+    (goal) => goal.goalTasks.length > 0 && goal.completed === 0
+  );
 
   return (
     <div className="wrap">
       <header className="hero">
         <p className="eyebrow">Weekly review</p>
         <h1>Choose what deserves next week</h1>
-        <p>{startDate} to {shiftDate(endDate, -1)}</p>
+        <p>
+          {startDate} to {shiftDate(endDate, -1)}
+        </p>
       </header>
       {!data.goals.length && !data.tasks.length ? (
-        <EmptyState title="Nothing to review yet" description="Capture a few tasks or goals to begin." />
+        <EmptyState
+          title="Nothing to review yet"
+          description="Capture a few tasks or goals to begin."
+        />
       ) : (
         <>
           <section aria-labelledby="goal-progress-heading">
@@ -69,12 +79,18 @@ export default async function WeeklyReviewPage() {
                   <li className="review-item" key={goal.id}>
                     <span className="review-item-text">
                       <strong>{goal.title}</strong>
-                      <span className="field-hint"> · {goal.completed} task{goal.completed === 1 ? "" : "s"} completed this week</span>
+                      <span className="field-hint">
+                        {" "}
+                        · {goal.completed} task{goal.completed === 1 ? "" : "s"} completed this
+                        week
+                      </span>
                     </span>
                   </li>
                 ))}
               </ul>
-            ) : <p className="field-hint">No active goals yet.</p>}
+            ) : (
+              <p className="field-hint">No active goals yet.</p>
+            )}
           </section>
           <section aria-labelledby="deadlines-heading">
             <h2 id="deadlines-heading">Deadlines this week</h2>
@@ -83,11 +99,16 @@ export default async function WeeklyReviewPage() {
                 {upcoming.map((task) => (
                   <li className="review-item" key={task.id}>
                     <Link href={`/tasks/${task.id}`}>{task.title}</Link>
-                    <span className="field-hint"> · {task.dueAt?.toLocaleDateString("en-GB", { timeZone })}</span>
+                    <span className="field-hint">
+                      {" "}
+                      · {task.dueAt?.toLocaleDateString("en-GB", { timeZone })}
+                    </span>
                   </li>
                 ))}
               </ul>
-            ) : <p className="field-hint">No task deadlines in this week.</p>}
+            ) : (
+              <p className="field-hint">No task deadlines in this week.</p>
+            )}
           </section>
           <section aria-labelledby="postponed-heading">
             <h2 id="postponed-heading">Postponed this week</h2>
@@ -99,7 +120,9 @@ export default async function WeeklyReviewPage() {
                   </li>
                 ))}
               </ul>
-            ) : <p className="field-hint">No postponements recorded.</p>}
+            ) : (
+              <p className="field-hint">No postponements recorded.</p>
+            )}
           </section>
           {neglected.length > 0 && (
             <section aria-labelledby="suggestions-heading">
@@ -110,7 +133,9 @@ export default async function WeeklyReviewPage() {
                     <span className="review-item-text">
                       Choose one small action for <strong>{goal.title}</strong> next week.
                     </span>
-                    <Link href="/goals" className="btn btn-secondary">Review goal tasks</Link>
+                    <Link href="/goals" className="btn btn-secondary">
+                      Review goal tasks
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -118,7 +143,9 @@ export default async function WeeklyReviewPage() {
           )}
         </>
       )}
-      <p><Link href="/reviews/daily">Open daily review</Link></p>
+      <p>
+        <Link href="/reviews/daily">Open daily review</Link>
+      </p>
     </div>
   );
 }

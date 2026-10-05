@@ -3,7 +3,9 @@ import { createGoalRepository } from "./postgres-repositories";
 
 describe("goal repository", () => {
   it("lists active goals and creates new ones", async () => {
-    const existing = [{ id: "g-1", title: "Side Business", targetDate: null, status: "active" }];
+    const existing = [
+      { id: "g-1", title: "Side Business", targetDate: null, status: "active" },
+    ];
     const db = {
       select: () => ({
         from: () => ({

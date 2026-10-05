@@ -3,7 +3,8 @@
 // mapped from the `tasks` table by whichever adapter feeds it. Kept free of
 // database and framework types so every domain module stays pure (D4).
 
-export type TaskStatus = "inbox" | "todo" | "in_progress" | "completed" | "postponed" | "dropped";
+export type TaskStatus =
+  "inbox" | "todo" | "in_progress" | "completed" | "postponed" | "dropped";
 export type Energy = "low" | "medium" | "high";
 
 export interface PlannableTask {

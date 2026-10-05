@@ -12,23 +12,25 @@ export function toPlannable(
   for (const { taskId, dependsOnTaskId } of dependencies) {
     dependsOn.set(taskId, [...(dependsOn.get(taskId) ?? []), dependsOnTaskId]);
   }
-  return records.filter((record) => record.source !== "recurrence").map((r) => ({
-    id: r.id,
-    title: r.title,
-    status: r.status,
-    priority: r.priority,
-    urgency: r.urgency,
-    importance: r.importance,
-    dueAt: r.dueAt,
-    estimatedMinutes: r.estimatedMinutes,
-    energy: r.energy,
-    projectId: r.projectId,
-    goalId: r.goalId,
-    dependsOn: dependsOn.get(r.id) ?? [],
-    // Not tracked yet; the neglect rule falls back to createdAt (docs/SCORING.md).
-    lastProgressAt: null,
-    createdAt: r.createdAt,
-  }));
+  return records
+    .filter((record) => record.source !== "recurrence")
+    .map((r) => ({
+      id: r.id,
+      title: r.title,
+      status: r.status,
+      priority: r.priority,
+      urgency: r.urgency,
+      importance: r.importance,
+      dueAt: r.dueAt,
+      estimatedMinutes: r.estimatedMinutes,
+      energy: r.energy,
+      projectId: r.projectId,
+      goalId: r.goalId,
+      dependsOn: dependsOn.get(r.id) ?? [],
+      // Not tracked yet; the neglect rule falls back to createdAt (docs/SCORING.md).
+      lastProgressAt: null,
+      createdAt: r.createdAt,
+    }));
 }
 
 /** e.g. "Thu 8 Oct, 17:00", in the user's timezone. */

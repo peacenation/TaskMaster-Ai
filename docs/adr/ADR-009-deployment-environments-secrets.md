@@ -83,3 +83,27 @@ it's already running rather than needing to be remembered.
 - `docs/adr/ADR-001-prototype-stack.md`
 - `docs/adr/ADR-006-ai-integration.md`
 - `docs/IMPLEMENTATION_PLAN.md` §8.3 (Vercel costed as the deploy target)
+
+---
+
+## Amendment (2026-10-05): the guard checks values, not names
+
+The original guard grepped `.next/static` for secret variable *names*. Two
+problems surfaced once real dependencies arrived:
+
+- **It flagged harmless references.** Better Auth's shared code mentions
+  `BETTER_AUTH_URL` and `BETTER_AUTH_SECRET` by name in the browser bundle
+  (its env accessor, which returns nothing there). CI went red with no leak.
+- **It missed the realistic leak.** A server page passing a secret to a
+  client component as a prop puts the *value* — not the name — into that
+  page's prerendered HTML/RSC under `.next/server/app`, which it never
+  scanned. Verified by planting exactly that leak: the old guard passed it.
+
+`scripts/check-client-bundle.sh` now builds with a unique sentinel value in
+every secret from `.env.example` and searches client JS **and** prerendered
+page output for those values. Verified both ways: it fails on the planted
+leak and passes without it. Public configuration (`BETTER_AUTH_URL`,
+`AUTH_EMAIL_PROVIDER`, `AUTH_EMAIL_FROM`, `AWS_REGION`) is exempt.
+
+**Remaining limit:** pages rendered per request aren't in build output, so
+a leak on a dynamic page can only be caught at runtime or in review.

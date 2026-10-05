@@ -43,6 +43,13 @@
       "when": 1791216000000,
       "tag": "0005_recurring_occurrences",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791185613361,
+      "tag": "0006_auth_fixes",
+      "breakpoints": true
     }
   ]
 }

@@ -13,7 +13,9 @@ const goalSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullable()
     .optional()
-    .transform((value) => (value === "" || value === null || value === undefined ? null : value)),
+    .transform((value) =>
+      value === "" || value === null || value === undefined ? null : value
+    ),
 });
 
 export async function saveGoal(formData: FormData) {

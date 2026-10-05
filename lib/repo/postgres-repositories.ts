@@ -107,16 +107,19 @@ function toGoal(row: typeof goals.$inferSelect): GoalRecord {
   };
 }
 
+/** Every query that returns a ProjectRecord selects exactly these columns. */
+const projectColumns = {
+  id: projects.id,
+  name: projects.name,
+  description: projects.description,
+  dueDate: projects.dueDate,
+};
+
 export function createProjectRepository(db: AppDb, userId: string) {
   return {
     async list(): Promise<ProjectRecord[]> {
       return db
-        .select({
-          id: projects.id,
-          name: projects.name,
-          description: projects.description,
-          dueDate: projects.dueDate,
-        })
+        .select(projectColumns)
         .from(projects)
         .where(and(eq(projects.userId, userId), eq(projects.status, "active")))
         .orderBy(projects.name);
@@ -124,19 +127,18 @@ export function createProjectRepository(db: AppDb, userId: string) {
 
     async get(id: string): Promise<ProjectRecord | undefined> {
       const rows = await db
-        .select({
-          id: projects.id,
-          name: projects.name,
-          description: projects.description,
-          dueDate: projects.dueDate,
-        })
+        .select(projectColumns)
         .from(projects)
         .where(and(eq(projects.id, id), eq(projects.userId, userId)))
         .limit(1);
       return rows[0];
     },
 
-    async updateOutcome(id: string, description: string | null, dueDate: string | null): Promise<void> {
+    async updateOutcome(
+      id: string,
+      description: string | null,
+      dueDate: string | null
+    ): Promise<void> {
       await db
         .update(projects)
         .set({ description, dueDate, updatedAt: new Date() })
@@ -147,7 +149,7 @@ export function createProjectRepository(db: AppDb, userId: string) {
     async findOrCreate(name: string): Promise<ProjectRecord> {
       const trimmed = name.trim();
       const existing = await db
-        .select({ id: projects.id, name: projects.name })
+        .select(projectColumns)
         .from(projects)
         .where(
           and(eq(projects.userId, userId), sql`lower(${projects.name}) = lower(${trimmed})`)
@@ -157,7 +159,7 @@ export function createProjectRepository(db: AppDb, userId: string) {
       const rows = await db
         .insert(projects)
         .values({ userId, name: trimmed })
-        .returning({ id: projects.id, name: projects.name });
+        .returning(projectColumns);
       return rows[0];
     },
   };
@@ -344,7 +346,9 @@ export function createTaskEventRepository(db: AppDb, userId: string) {
         if (events.length < 3) recent.set(event.taskId, [...events, event.eventType]);
       }
       const ids = [...recent]
-        .filter(([, events]) => events.length === 3 && events.every((event) => event === "postponed"))
+        .filter(
+          ([, events]) => events.length === 3 && events.every((event) => event === "postponed")
+        )
         .map(([taskId]) => taskId);
       if (ids.length === 0) return [];
       return db
@@ -397,10 +401,20 @@ export function createUserRepository(db: AppDb, userId: string) {
         .where(eq(users.id, userId));
     },
     async ensure(input: { name: string; email: string; authId?: string }): Promise<void> {
-      await db
-        .insert(users)
-        .values({ id: userId, name: input.name, email: input.email })
-        .onConflictDoNothing();
+      const insert = db.insert(users).values({
+        id: userId,
+        name: input.name,
+        email: input.email,
+        authId: input.authId ?? null,
+      });
+      // users.auth_id is what makes deleting the login cascade to every row
+      // the person owns (migration 0004). An unlinked row survives account
+      // deletion, so link it even when the row already exists.
+      if (input.authId) {
+        await insert.onConflictDoUpdate({ target: users.id, set: { authId: input.authId } });
+      } else {
+        await insert.onConflictDoNothing();
+      }
     },
   };
 }

@@ -22,7 +22,9 @@ export function buildToday(
 ) {
   // Inbox and postponed work can block dependencies, but aren't candidates for today.
   const blockers = new Set(
-    tasks.filter((task) => task.status !== "completed" && task.status !== "dropped").map((task) => task.id)
+    tasks
+      .filter((task) => task.status !== "completed" && task.status !== "dropped")
+      .map((task) => task.id)
   );
   const candidates = tasks.filter(
     (task) => task.status === "todo" || task.status === "in_progress"

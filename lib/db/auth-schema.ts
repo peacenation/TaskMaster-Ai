@@ -51,7 +51,9 @@ export const authAccount = authNamespace.table(
 export const authVerification = authNamespace.table(
   "verification",
   {
-    id: uuid("id").primaryKey(),
+    // text, not uuid: Better Auth looks verification records up by id using
+    // non-UUID values (e.g. magic-link tokens), which a uuid column rejects.
+    id: text("id").primaryKey(),
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
