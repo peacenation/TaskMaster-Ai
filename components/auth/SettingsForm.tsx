@@ -118,6 +118,8 @@ export function SettingsForm({
               }
               for (const key of Object.keys(localStorage))
                 if (key.startsWith("taskmaster:timer:")) localStorage.removeItem(key);
+              // Full load (see AuthForm): no cached pages outlive the account.
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination
               window.location.assign("/signup");
             } catch {
               setError("Could not connect. Try again.");

@@ -43,7 +43,11 @@ export function AuthForm({
         setError(result.error.message || "Could not finish. Please try again.");
         return;
       }
+      // A full page load, not router.push: it drops the client router cache,
+      // so nothing rendered for a previous user survives the account change.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       if (mode === "signup") window.location.assign("/dump");
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       else if (mode === "signin") window.location.assign("/");
       else if (token) {
         setMessage("Password updated. You can sign in now.");

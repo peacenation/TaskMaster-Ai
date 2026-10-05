@@ -15,6 +15,8 @@ export function SignOut() {
           try {
             const result = await authClient.signOut();
             if (result.error) throw new Error();
+            // Full load (see AuthForm): no cached pages outlive the session.
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             window.location.assign("/signin");
           } catch {
             setError("Could not sign out. Try again.");
