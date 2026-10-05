@@ -1,3 +1,4 @@
+import { config } from "dotenv";
 import { expect, type Page } from "@playwright/test";
 
 export const PASSWORD = "correct horse battery";
@@ -51,4 +52,19 @@ export async function saveBrainDump(page: Page, text = PRD_DUMP) {
   await expect(page.getByRole("heading", { name: "Review before you save" })).toBeVisible();
   await page.getByRole("button", { name: /^Save \d+ items?$/ }).click();
   await expect(page.getByRole("heading", { name: "Saved" })).toBeVisible();
+}
+
+/**
+ * Owner connection to the throwaway e2e database, for seeding volumes a
+ * browser can't create quickly. Mirrors scripts/e2e-server.mjs; localhost
+ * only, like every test database.
+ */
+export function e2eDatabaseUrl(): string {
+  config({ path: ".env.local", quiet: true });
+  const url = new URL(process.env.LOCAL_DATABASE_URL || process.env.DATABASE_URL || "");
+  if (!["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)) {
+    throw new Error("e2e seeding is restricted to a local database.");
+  }
+  url.pathname = "/taskmaster_e2e";
+  return url.toString();
 }

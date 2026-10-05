@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/ui";
 import { zonedTimeToUtc } from "@/lib/domain/dates";
+import { weeklyInsights } from "@/lib/domain/insights";
 import { localDate } from "@/lib/execution/date";
 import { withRepositories } from "@/lib/repo";
 import { getCurrentUserId, getTimeZone } from "@/lib/server/session";
@@ -51,9 +52,13 @@ export default async function WeeklyReviewPage() {
     const completed = goalTasks.filter((task) => completedIds.has(task.id)).length;
     return { ...goal, goalTasks, completed };
   });
-  const neglected = activeGoals.filter(
-    (goal) => goal.goalTasks.length > 0 && goal.completed === 0
-  );
+  const insights = weeklyInsights({
+    goals: data.goals,
+    tasks: data.tasks.filter((task) => task.source !== "recurrence"),
+    events: data.events,
+    now: new Date(),
+    timeZone,
+  });
 
   return (
     <div className="wrap">
@@ -124,17 +129,15 @@ export default async function WeeklyReviewPage() {
               <p className="field-hint">No postponements recorded.</p>
             )}
           </section>
-          {neglected.length > 0 && (
+          {insights.length > 0 && (
             <section aria-labelledby="suggestions-heading">
-              <h2 id="suggestions-heading">A useful next move</h2>
+              <h2 id="suggestions-heading">Worth a look</h2>
               <ul className="review-list">
-                {neglected.map((goal) => (
-                  <li className="review-item" key={goal.id}>
-                    <span className="review-item-text">
-                      Choose one small action for <strong>{goal.title}</strong> next week.
-                    </span>
-                    <Link href="/goals" className="btn btn-secondary">
-                      Review goal tasks
+                {insights.map((insight) => (
+                  <li className="review-item" key={insight.kind}>
+                    <span className="review-item-text">{insight.message}</span>
+                    <Link href={insight.href} className="btn btn-secondary">
+                      {insight.actionLabel}
                     </Link>
                   </li>
                 ))}

@@ -3,6 +3,7 @@ import { createPostgresTaskRepository } from "./postgres-task-repository";
 import { createAccountRepository } from "./account-repository";
 import { createExecutionRepository } from "./execution-repository";
 import {
+  createAiUsageRepository,
   createBrainDumpRepository,
   createGoalRepository,
   createProjectRepository,
@@ -25,6 +26,7 @@ export function createRepositories(
     projects: createProjectRepository(db, userId),
     goals: createGoalRepository(db, userId),
     recurrenceRules: createRecurrenceRuleRepository(db, userId),
+    aiUsage: createAiUsageRepository(db, userId),
   };
 }
 

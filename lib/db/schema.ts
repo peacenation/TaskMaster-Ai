@@ -304,3 +304,18 @@ export const planItems = pgTable(
     index("plan_items_plan_id_idx").on(table.planId),
   ]
 );
+
+// One row per Claude extraction request, for the per-user hourly quota
+// (app/api/extract/route.ts). Rows older than the window are pruned on
+// each claim, so this never holds more than an hour of history.
+export const aiRequests = pgTable(
+  "ai_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("ai_requests_user_created_idx").on(table.userId, table.createdAt)]
+);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClaudeExtractor, hasClaudeCredentials } from "@/lib/ai/client";
+import { aiOrganisingEnabled, createClaudeExtractor } from "@/lib/ai/client";
 import { extractWithFallback } from "@/lib/capture/extract-with-fallback";
 import { systemClock } from "@/lib/domain/clock";
 import { withRepositories } from "@/lib/repo";
@@ -11,6 +11,12 @@ import { getCurrentUserId, getTimeZone } from "@/lib/server/session";
 // this is called, so nothing here can lose the user's words.
 
 const bodySchema = z.object({ brainDumpId: z.string().uuid() });
+
+// Per-user cap on Claude calls (PRD v2 §1.11 cost control; Phase 11
+// security review). Over it, the built-in rules organise instead — the
+// user still gets a proposal, just not an AI one.
+const AI_HOURLY_LIMIT = Number(process.env.AI_HOURLY_LIMIT) || 30;
+const HOUR_MS = 60 * 60 * 1000;
 
 export async function POST(request: Request) {
   const body = bodySchema.safeParse(await request.json().catch(() => null));
@@ -29,16 +35,21 @@ export async function POST(request: Request) {
   });
   if (!dump) return NextResponse.json({ error: "Brain dump not found" }, { status: 404 });
 
+  // Switched off, or no credentials: the heuristic runs, labelled "AI
+  // organising isn't set up". AI_EXTRACTION=off is the kill switch (and
+  // what the e2e server sets, so tests never make paid calls).
+  const aiConfigured = aiOrganisingEnabled();
+  const withinQuota =
+    aiConfigured &&
+    (await withRepositories(userId, (repos) =>
+      repos.aiUsage.claim(AI_HOURLY_LIMIT, new Date(Date.now() - HOUR_MS))
+    ));
+
   const outcome = await extractWithFallback(dump.rawText, {
     clock: systemClock,
     timeZone,
-    // Switched off, or no credentials: the heuristic runs, labelled "AI
-    // organising isn't set up". AI_EXTRACTION=off is the kill switch (and
-    // what the e2e server sets, so tests never make paid calls).
-    ai:
-      process.env.AI_EXTRACTION !== "off" && hasClaudeCredentials()
-        ? createClaudeExtractor()
-        : null,
+    ai: withinQuota ? createClaudeExtractor() : null,
+    skipReason: aiConfigured ? "quota" : "not_configured",
     signal: request.signal,
   });
 

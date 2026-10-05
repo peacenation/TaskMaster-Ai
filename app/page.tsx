@@ -19,6 +19,8 @@ import { toPlannable } from "@/lib/server/views";
 
 export const dynamic = "force-dynamic";
 
+const DEFERRED_SHOWN = 10;
+
 export default async function TodayPage({
   searchParams,
 }: {
@@ -104,6 +106,14 @@ export default async function TodayPage({
   ).length;
   const inboxCount = records.filter((task) => task.status === "inbox").length;
   const names = new Map(projects.map((project) => [project.id, project.name]));
+  // Large backlogs (Phase 11 load check): deadline warnings are always
+  // shown; the rest of what can wait is capped, highest-ranked first.
+  const isUrgent = (item: (typeof today.ranked)[number]) =>
+    !!item.task.dueAt && item.task.dueAt.getTime() <= now.getTime() + 86400000;
+  const deferred = plan.deferred;
+  const deferredUrgent = deferred.filter(isUrgent);
+  const deferredShown = deferred.filter((item) => !isUrgent(item)).slice(0, DEFERRED_SHOWN);
+  const deferredHidden = deferred.length - deferredUrgent.length - deferredShown.length;
   const row = (item: (typeof today.ranked)[number], reason?: string) => (
     <TaskRow
       key={item.task.id}
@@ -253,7 +263,7 @@ export default async function TodayPage({
           recommendation or increase your available time.
         </p>
       )}
-      {plan.deferred.length > 0 && (
+      {deferred.length > 0 && (
         <section aria-labelledby="wait-heading">
           <h2 id="wait-heading">What can wait</h2>
           <p className="field-hint">
@@ -261,15 +271,21 @@ export default async function TodayPage({
             dates nor status.
           </p>
           <ul className="today-task-list">
-            {plan.deferred.map((item) =>
+            {[...deferredUrgent, ...deferredShown].map((item) =>
               row(
                 item,
-                item.task.dueAt && item.task.dueAt.getTime() <= now.getTime() + 86400000
+                isUrgent(item)
                   ? "Deadline warning: this task is due within 24 hours or overdue and does not fit today's plan."
                   : "Left outside today's plan to preserve realistic capacity and buffer."
               )
             )}
           </ul>
+          {deferredHidden > 0 && (
+            <p className="field-hint">
+              And {deferredHidden} more that can wait —{" "}
+              <Link href="/projects">see all tasks</Link>.
+            </p>
+          )}
         </section>
       )}
       {today.blocked.length > 0 && (

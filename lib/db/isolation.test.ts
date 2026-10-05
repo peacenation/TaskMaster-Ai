@@ -48,7 +48,7 @@ async function runAsUser<T>(userId: string, fn: (tx: typeof appDb) => Promise<T>
 
 async function truncateAll() {
   await adminDb.execute(
-    sql`TRUNCATE TABLE users, goals, projects, brain_dumps, tasks, task_dependencies, task_events, recurrence_rules, plans, plan_items RESTART IDENTITY CASCADE`
+    sql`TRUNCATE TABLE users, goals, projects, brain_dumps, tasks, task_dependencies, task_events, recurrence_rules, plans, plan_items, ai_requests RESTART IDENTITY CASCADE`
   );
 }
 
@@ -96,6 +96,7 @@ beforeAll(async () => {
   await adminDb.execute(
     sql`INSERT INTO plan_items (user_id, plan_id, task_id, position) VALUES (${userA}, ${planIdA}, ${taskIdA}, 0), (${userB}, ${planIdB}, ${taskIdB}, 0)`
   );
+  await adminDb.execute(sql`INSERT INTO ai_requests (user_id) VALUES (${userA}), (${userB})`);
 
   fixtures = [
     { table: "users", ownerColumn: "id", insertAs: () => sql`` },
@@ -149,6 +150,11 @@ beforeAll(async () => {
       insertAs: (uid) =>
         sql`INSERT INTO plan_items (user_id, plan_id, task_id, position) VALUES (${uid}, ${planIdA}, ${taskIdA}, 1)`,
     },
+    {
+      table: "ai_requests",
+      ownerColumn: "user_id",
+      insertAs: (uid) => sql`INSERT INTO ai_requests (user_id) VALUES (${uid})`,
+    },
   ];
 });
 
@@ -182,7 +188,7 @@ describe("every user-scoped table has RLS enabled, forced, and a policy", () => 
       ORDER BY c.relname
     `);
 
-    expect(result.rows.length).toBe(10);
+    expect(result.rows.length).toBe(11);
     for (const row of result.rows) {
       expect(row.rowsecurity, `${row.tablename}.relrowsecurity`).toBe(true);
       expect(row.forcerowsecurity, `${row.tablename}.relforcerowsecurity`).toBe(true);
@@ -195,6 +201,7 @@ describe("cross-user access is blocked, per table, per operation", () => {
   it("every fixture table was captured (sanity check on the test itself)", () => {
     expect(fixtures.map((f) => f.table).sort()).toEqual(
       [
+        "ai_requests",
         "brain_dumps",
         "goals",
         "plan_items",
@@ -241,6 +248,7 @@ describe("cross-user access is blocked, per table, per operation", () => {
       recurrence_rules: "title = title",
       plans: "mode = mode",
       plan_items: "position = position",
+      ai_requests: "created_at = created_at",
     };
     for (const f of fixtures) {
       const result = await runAsUser(userA, (tx) =>

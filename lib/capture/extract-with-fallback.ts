@@ -21,19 +21,21 @@ export interface ExtractWithFallbackOptions {
   timeZone: string;
   /** null when AI extraction is switched off entirely. */
   ai: AiExtractor | null;
+  /** Why `ai` is null, when the caller knows better than "not configured". */
+  skipReason?: AiFailureReason;
   signal?: AbortSignal;
 }
 
 export async function extractWithFallback(
   rawText: string,
-  { clock, timeZone, ai, signal }: ExtractWithFallbackOptions
+  { clock, timeZone, ai, skipReason, signal }: ExtractWithFallbackOptions
 ): Promise<ExtractionOutcome> {
   const heuristic = (reason: AiFailureReason): ExtractionOutcome => ({
     proposal: extract(rawText, { clock, timeZone }),
     fallbackReason: reason,
   });
 
-  if (!ai) return heuristic("not_configured");
+  if (!ai) return heuristic(skipReason ?? "not_configured");
 
   try {
     const output = await ai({ rawText, now: clock.now(), timeZone, signal });

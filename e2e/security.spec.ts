@@ -27,3 +27,19 @@ test("the content security policy blocks nothing the app needs", async ({ page }
   }
   expect(violations).toEqual([]);
 });
+
+test("AI processing is disclosed before sign-up and where it happens (PRD §1.11)", async ({
+  page,
+}, info) => {
+  await page.goto("/privacy");
+  // The e2e server runs with AI_EXTRACTION=off, and the page must say so.
+  await expect(page.getByText("AI organising is currently off")).toBeVisible();
+  await page.goto("/signup");
+  await expect(
+    page.getByRole("link", { name: /How TaskMaster handles your data/ })
+  ).toBeVisible();
+
+  await signUp(page, uniqueEmail("privacy", info.project.name));
+  await expect(page.getByText("no AI service is used")).toBeVisible();
+  await expect(page.getByRole("link", { name: "How your data is handled" })).toBeVisible();
+});

@@ -20,6 +20,7 @@ export type AiFailureReason =
   | "not_configured"
   | "timeout"
   | "rate_limited"
+  | "quota"
   | "network"
   | "refused"
   | "invalid_response"
@@ -63,6 +64,11 @@ export function classifyError(error: unknown): AiFailureReason {
  * a plain Error with no typed class to classify — so "not set up" would
  * otherwise be reported as a generic failure.
  */
+/** AI_EXTRACTION=off is the kill switch; otherwise on whenever credentials exist. */
+export function aiOrganisingEnabled(): boolean {
+  return process.env.AI_EXTRACTION !== "off" && hasClaudeCredentials();
+}
+
 export function hasClaudeCredentials(
   env: Record<string, string | undefined> = process.env,
   home: string = homedir()

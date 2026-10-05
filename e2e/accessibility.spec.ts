@@ -20,7 +20,7 @@ async function expectNoViolations(page: import("@playwright/test").Page, label: 
 }
 
 test("public pages", async ({ page }) => {
-  for (const path of ["/signin", "/signup", "/reset", "/magic"]) {
+  for (const path of ["/signin", "/signup", "/reset", "/magic", "/privacy"]) {
     await page.goto(path);
     await expectNoViolations(page, path);
   }

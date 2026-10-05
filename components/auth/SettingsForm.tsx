@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { savePreferences } from "@/app/actions/account";
 import { Button, Field, Input, Select } from "@/components/ui";
@@ -73,6 +74,9 @@ export function SettingsForm({
         <a href="/api/account/export" className="btn btn-secondary">
           Export my data
         </a>
+        <p className="field-hint">
+          <Link href="/privacy">What TaskMaster stores and where AI is used</Link>
+        </p>
       </section>
       <section>
         <h2>Session</h2>

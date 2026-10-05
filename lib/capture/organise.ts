@@ -53,6 +53,8 @@ export const FALLBACK_MESSAGES: Record<OrganiseFailure, string> = {
   timeout: "AI organising took too long, so TaskMaster's built-in rules were used instead.",
   rate_limited:
     "AI organising is busy right now, so TaskMaster's built-in rules were used instead.",
+  quota:
+    "You've used this hour's AI organising, so TaskMaster's built-in rules were used. It's available again within the hour.",
   network:
     "AI organising couldn't be reached, so TaskMaster's built-in rules were used instead.",
   refused:

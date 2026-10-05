@@ -1,6 +1,7 @@
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 import type { AppDb } from "@/lib/db/client";
 import {
+  aiRequests,
   brainDumps,
   goals,
   projects,
@@ -415,6 +416,30 @@ export function createUserRepository(db: AppDb, userId: string) {
       } else {
         await insert.onConflictDoNothing();
       }
+    },
+  };
+}
+
+export function createAiUsageRepository(db: AppDb, userId: string) {
+  return {
+    /**
+     * Records one AI request if the user has made fewer than `limit` since
+     * `since`; returns whether it was allowed. The advisory lock serialises
+     * one user's concurrent claims, so parallel requests can't all slip
+     * under the limit. It is transaction-scoped and released on commit.
+     */
+    async claim(limit: number, since: Date): Promise<boolean> {
+      await db.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${userId}))`);
+      await db
+        .delete(aiRequests)
+        .where(and(eq(aiRequests.userId, userId), lt(aiRequests.createdAt, since)));
+      const [{ used }] = await db
+        .select({ used: count() })
+        .from(aiRequests)
+        .where(and(eq(aiRequests.userId, userId), gte(aiRequests.createdAt, since)));
+      if (used >= limit) return false;
+      await db.insert(aiRequests).values({ userId });
+      return true;
     },
   };
 }

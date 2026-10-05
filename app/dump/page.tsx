@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { finishOnboarding } from "@/app/actions/account";
+import { aiOrganisingEnabled } from "@/lib/ai/client";
 import { Button } from "@/components/ui";
 import { BrainDumpFlow } from "@/components/capture/BrainDumpFlow";
 import { withRepositories } from "@/lib/repo";
@@ -17,6 +19,12 @@ export default async function BrainDumpPage() {
         <p>
           Everything you write is saved before it&apos;s organised, so nothing you type is
           lost.
+        </p>
+        <p className="field-hint">
+          {aiOrganisingEnabled()
+            ? "Organising sends this text to Anthropic's Claude to suggest tasks. "
+            : "Organising runs on TaskMaster's own server; no AI service is used. "}
+          <Link href="/privacy">How your data is handled</Link>
         </p>
       </header>
       <BrainDumpFlow existingProjects={projects.map((p) => p.name)} />
