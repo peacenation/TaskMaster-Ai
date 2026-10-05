@@ -1,4 +1,13 @@
-import { boolean, index, pgSchema, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  index,
+  integer,
+  pgSchema,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 // Private server-only schema: never exposed by Supabase's public Data API.
 export const authNamespace = pgSchema("taskmaster_auth");
@@ -62,9 +71,19 @@ export const authVerification = authNamespace.table(
   },
   (table) => [index("auth_verification_identifier_idx").on(table.identifier)]
 );
+// Better Auth's rate-limit counters (rateLimit.storage = "database"). Stored
+// here rather than in server memory: on serverless hosting each instance has
+// its own memory, so an in-memory limit is barely a limit at all.
+export const authRateLimit = authNamespace.table("rate_limit", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});
 export const authSchema = {
   user: authUser,
   session: authSession,
   account: authAccount,
   verification: authVerification,
+  rateLimit: authRateLimit,
 };

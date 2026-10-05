@@ -95,6 +95,12 @@ async function main() {
       `GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE ${tables.map((table) => `public."${table}"`).join(", ")} TO ${role}`
     );
     await pool.query(`GRANT EXECUTE ON FUNCTION public.app_current_user_id() TO ${role}`);
+    // Future app tables created by this owner role by later migrations are
+    // granted automatically; every app table carries an RLS policy
+    // (lib/db/isolation.test.ts enumerates and enforces that).
+    await pool.query(
+      `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${role}`
+    );
     const connection = new URL(owner);
     connection.username = pooled ? `${role}.${owner.username.split(".").at(-1)}` : role;
     connection.password = password;

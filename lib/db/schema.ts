@@ -30,7 +30,13 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { authUser } from "./auth-schema";
-export { authUser, authSession, authAccount, authVerification } from "./auth-schema";
+export {
+  authUser,
+  authSession,
+  authAccount,
+  authVerification,
+  authRateLimit,
+} from "./auth-schema";
 
 export const taskStatusEnum = pgEnum("task_status", [
   "inbox",

@@ -32,8 +32,13 @@ export async function POST(request: Request) {
   const outcome = await extractWithFallback(dump.rawText, {
     clock: systemClock,
     timeZone,
-    // No credentials: the heuristic runs, labelled "AI organising isn't set up".
-    ai: hasClaudeCredentials() ? createClaudeExtractor() : null,
+    // Switched off, or no credentials: the heuristic runs, labelled "AI
+    // organising isn't set up". AI_EXTRACTION=off is the kill switch (and
+    // what the e2e server sets, so tests never make paid calls).
+    ai:
+      process.env.AI_EXTRACTION !== "off" && hasClaudeCredentials()
+        ? createClaudeExtractor()
+        : null,
     signal: request.signal,
   });
 

@@ -40,7 +40,7 @@
     {
       "idx": 5,
       "version": "7",
-      "when": 1791216000000,
+      "when": 1791170000000,
       "tag": "0005_recurring_occurrences",
       "breakpoints": true
     },
@@ -49,6 +49,13 @@
       "version": "7",
       "when": 1791185613361,
       "tag": "0006_auth_fixes",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791188854421,
+      "tag": "0007_auth_rate_limit",
       "breakpoints": true
     }
   ]

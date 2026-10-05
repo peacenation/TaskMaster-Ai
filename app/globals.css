@@ -587,8 +587,11 @@ label.field-label {
 }
 
 /* ---------- Capture & tasks (Phase 5) ---------- */
+/* Underlined, not colour alone: WCAG 2.1 1.4.1 (caught by e2e/accessibility). */
 .wrap a:not(.btn) {
   color: var(--action-primary);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 
 .notice {

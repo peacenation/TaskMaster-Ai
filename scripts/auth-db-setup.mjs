@@ -44,6 +44,12 @@ async function main() {
     await pool.query(
       `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA taskmaster_auth TO ${role}`
     );
+    // Tables added by later migrations (e.g. rate_limit, 0007), created by
+    // this same owner role, get the grant automatically — without it the
+    // auth role hits "permission denied" on the first deploy that adds one.
+    await pool.query(
+      `ALTER DEFAULT PRIVILEGES IN SCHEMA taskmaster_auth GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${role}`
+    );
     // The app role needs to check FK existence without reading auth accounts.
     const appUrl = new URL(process.env.DATABASE_URL_APP);
     const appRole = decodeURIComponent(appUrl.username).split(".")[0].replaceAll('"', '""');

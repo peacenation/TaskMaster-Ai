@@ -41,6 +41,11 @@ export function createAuth() {
       cookieCache: { enabled: false },
     },
     user: { deleteUser: { enabled: true } },
+    // On everywhere by default (Better Auth only enables it in production
+    // otherwise), counted in the database so the limit holds across
+    // serverless instances. AUTH_RATE_LIMIT=off exists for the e2e server
+    // only, where every test signs up from the same address.
+    rateLimit: { enabled: process.env.AUTH_RATE_LIMIT !== "off", storage: "database" },
     databaseHooks: {
       user: {
         create: {

@@ -11,3 +11,7 @@ design.html
 # drizzle-kit owns this file's exact formatting and rewrites it on every
 # `db:generate` — reformatting it here would just fight that.
 migrations/meta/
+
+# Playwright output
+test-results/
+playwright-report/
