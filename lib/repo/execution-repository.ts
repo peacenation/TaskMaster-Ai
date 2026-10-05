@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import type { AppDb } from "@/lib/db/client";
 import { plans, planItems, tasks, taskEvents, taskDependencies } from "@/lib/db/schema";
 import type { Plan } from "@/lib/domain/plan";
@@ -110,6 +110,27 @@ export function createExecutionRepository(db: AppDb, userId: string) {
         .select()
         .from(taskEvents)
         .where(and(eq(taskEvents.userId, userId), eq(taskEvents.taskId, taskId)))
+        .orderBy(asc(taskEvents.occurredAt));
+    },
+    async eventsBetween(start: Date, end: Date) {
+      return db
+        .select({
+          taskId: tasks.id,
+          title: tasks.title,
+          eventType: taskEvents.eventType,
+          fromStatus: taskEvents.fromStatus,
+          toStatus: taskEvents.toStatus,
+          occurredAt: taskEvents.occurredAt,
+        })
+        .from(taskEvents)
+        .innerJoin(tasks, eq(tasks.id, taskEvents.taskId))
+        .where(
+          and(
+            eq(taskEvents.userId, userId),
+            gte(taskEvents.occurredAt, start),
+            lt(taskEvents.occurredAt, end)
+          )
+        )
         .orderBy(asc(taskEvents.occurredAt));
     },
   };

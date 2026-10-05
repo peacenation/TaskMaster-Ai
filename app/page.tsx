@@ -1,15 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { RecoveryCheckIn } from "@/components/execution/RecoveryCheckIn";
+import { ProcrastinationAssist } from "@/components/execution/ProcrastinationAssist";
 import { PlanSettings } from "@/components/planning/PlanSettings";
 import { localDate } from "@/lib/execution/date";
 import { QuickAdd } from "@/components/capture/QuickAdd";
 import { CapacityMeter } from "@/components/planning/CapacityMeter";
+import { RealityCheck } from "@/components/planning/RealityCheck";
 import { NextBestAction } from "@/components/planning/NextBestAction";
 import { PlanView } from "@/components/planning/PlanView";
 import { TaskRow } from "@/components/planning/TaskRow";
 import { EmptyState } from "@/components/ui";
 import { buildToday, todaySettingsSchema } from "@/lib/planning/today";
+import { realityCheckSummary } from "@/lib/domain/reality-check";
 import { withRepositories } from "@/lib/repo";
 import { getCurrentUserId, getTimeZone } from "@/lib/server/session";
 import { toPlannable } from "@/lib/server/views";
@@ -25,7 +28,7 @@ export default async function TodayPage({
 
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
-  const { records, dependencies, projects, chosenId, profile } = await withRepositories(
+  const { records, dependencies, projects, chosenId, profile, procrastinationCandidates } = await withRepositories(
     userId,
     async (repos) => ({
       records: await repos.tasks.list(),
@@ -33,6 +36,7 @@ export default async function TodayPage({
       projects: await repos.projects.list(),
       chosenId: await repos.users.nextTaskId(),
       profile: await repos.users.profile(),
+      procrastinationCandidates: await repos.taskEvents.procrastinationCandidates(),
     })
   );
   if (!profile?.preferences.onboardingCompleted) redirect("/dump");
@@ -64,6 +68,10 @@ export default async function TodayPage({
     };
   });
   const { plan, recommendation } = today;
+  const realityCheck = realityCheckSummary(
+    plan.capacity.mustDoMinutes,
+    plan.capacity.usableMinutes ?? settings.dayMinutes
+  );
   if (saved) {
     const scored = new Map(today.ranked.map((item) => [item.task.id, item]));
     plan.items = saved.items.flatMap((item) => {
@@ -126,7 +134,11 @@ export default async function TodayPage({
       )}
       <p className="notice">
         {completedToday} completed today ·{" "}
-        {records.filter((task) => ["todo", "in_progress"].includes(task.status)).length} active
+        {
+          records.filter(
+            (task) => task.source !== "recurrence" && ["todo", "in_progress"].includes(task.status)
+          ).length
+        } active
         tasks
       </p>
       <PlanSettings
@@ -135,6 +147,7 @@ export default async function TodayPage({
         energy={settings.energy}
       />
       {recovery.length > 0 && <RecoveryCheckIn items={recovery} />}
+      <ProcrastinationAssist candidates={procrastinationCandidates} />
       {recommendation ? (
         <NextBestAction recommendation={recommendation} overridden={today.overridden} />
       ) : (
@@ -166,6 +179,18 @@ export default async function TodayPage({
         }
         gapMinutes={today.gapMinutes}
       />
+      {realityCheck && (
+        <RealityCheck
+          summary={realityCheck}
+          tasks={today.ranked
+            .filter((item) => item.task.dueAt && item.task.dueAt.getTime() <= now.getTime() + 86400000)
+            .map((item) => ({
+              id: item.task.id,
+              title: item.task.title,
+              minutes: item.task.estimatedMinutes ?? 30,
+            }))}
+        />
+      )}
       {today.overridden &&
         recommendation &&
         !plan.items.some((item) => item.task.id === recommendation.task.id) && (

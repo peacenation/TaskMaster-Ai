@@ -1,15 +1,17 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { AppDb } from "@/lib/db/client";
 import {
   brainDumps,
   goals,
   projects,
   recurrenceRules,
+  tasks,
   taskEvents,
   users,
 } from "@/lib/db/schema";
 import type { ExtractionProposal } from "@/lib/domain/proposal";
 import type { TaskStatus } from "@/lib/domain/task";
+import { occurrencesBetween } from "@/lib/domain/recurrence";
 
 // Postgres-only repositories for the aggregates beyond tasks. No in-memory
 // twins: nothing needs one yet (ADR-008 — tooling arrives with its first
@@ -83,6 +85,8 @@ export function createBrainDumpRepository(db: AppDb, userId: string) {
 export interface ProjectRecord {
   id: string;
   name: string;
+  description: string | null;
+  dueDate: string | null;
 }
 
 export interface GoalRecord {
@@ -107,10 +111,36 @@ export function createProjectRepository(db: AppDb, userId: string) {
   return {
     async list(): Promise<ProjectRecord[]> {
       return db
-        .select({ id: projects.id, name: projects.name })
+        .select({
+          id: projects.id,
+          name: projects.name,
+          description: projects.description,
+          dueDate: projects.dueDate,
+        })
         .from(projects)
         .where(and(eq(projects.userId, userId), eq(projects.status, "active")))
         .orderBy(projects.name);
+    },
+
+    async get(id: string): Promise<ProjectRecord | undefined> {
+      const rows = await db
+        .select({
+          id: projects.id,
+          name: projects.name,
+          description: projects.description,
+          dueDate: projects.dueDate,
+        })
+        .from(projects)
+        .where(and(eq(projects.id, id), eq(projects.userId, userId)))
+        .limit(1);
+      return rows[0];
+    },
+
+    async updateOutcome(id: string, description: string | null, dueDate: string | null): Promise<void> {
+      await db
+        .update(projects)
+        .set({ description, dueDate, updatedAt: new Date() })
+        .where(and(eq(projects.id, id), eq(projects.userId, userId)));
     },
 
     /** Case-insensitive, so "work" and "Work" don't become two projects. */
@@ -196,6 +226,84 @@ export function createRecurrenceRuleRepository(db: AppDb, userId: string) {
         .returning({ id: recurrenceRules.id });
       return rows[0];
     },
+
+    async generateThrough(fromDate: string, throughDate: string): Promise<number> {
+      const rules = await db
+        .select()
+        .from(recurrenceRules)
+        .where(and(eq(recurrenceRules.userId, userId), isNull(recurrenceRules.stoppedAt)));
+      let created = 0;
+      for (const rule of rules) {
+        const occurrences = occurrencesBetween(
+          {
+            frequency: rule.frequency,
+            intervalCount: rule.intervalCount,
+            timesPerPeriod: rule.timesPerPeriod,
+            startDate: rule.startDate,
+            endDate: rule.endDate,
+            daysOfWeek: Array.isArray(rule.daysOfWeek) ? (rule.daysOfWeek as number[]) : null,
+          },
+          fromDate,
+          throughDate
+        );
+        for (const occurrence of occurrences) {
+          const inserted = await db
+            .insert(tasks)
+            .values({
+              userId,
+              title: rule.title,
+              status: "todo",
+              source: "recurrence",
+              recurrenceRuleId: rule.id,
+              occurrenceDate: occurrence.date,
+              occurrenceSlot: occurrence.slot,
+            })
+            .onConflictDoNothing({
+              target: [tasks.recurrenceRuleId, tasks.occurrenceDate, tasks.occurrenceSlot],
+            })
+            .returning({ id: tasks.id });
+          created += inserted.length;
+        }
+      }
+      return created;
+    },
+
+    async list() {
+      return db
+        .select({
+          id: recurrenceRules.id,
+          title: recurrenceRules.title,
+          frequency: recurrenceRules.frequency,
+          intervalCount: recurrenceRules.intervalCount,
+          timesPerPeriod: recurrenceRules.timesPerPeriod,
+          startDate: recurrenceRules.startDate,
+          endDate: recurrenceRules.endDate,
+          stoppedAt: recurrenceRules.stoppedAt,
+        })
+        .from(recurrenceRules)
+        .where(eq(recurrenceRules.userId, userId))
+        .orderBy(recurrenceRules.title);
+    },
+
+    async stop(id: string): Promise<void> {
+      await db
+        .update(recurrenceRules)
+        .set({ stoppedAt: new Date(), updatedAt: new Date() })
+        .where(and(eq(recurrenceRules.id, id), eq(recurrenceRules.userId, userId)));
+    },
+
+    async occurrences(ruleId: string) {
+      return db
+        .select({
+          id: tasks.id,
+          title: tasks.title,
+          status: tasks.status,
+          occurrenceDate: tasks.occurrenceDate,
+        })
+        .from(tasks)
+        .where(and(eq(tasks.userId, userId), eq(tasks.recurrenceRuleId, ruleId)))
+        .orderBy(tasks.occurrenceDate);
+    },
   };
 }
 
@@ -222,6 +330,34 @@ export function createTaskEventRepository(db: AppDb, userId: string) {
         fromStatus: input.fromStatus ?? null,
         toStatus: input.toStatus ?? null,
       });
+    },
+
+    async procrastinationCandidates(): Promise<Array<{ taskId: string; title: string }>> {
+      const history = await db
+        .select({ taskId: taskEvents.taskId, eventType: taskEvents.eventType })
+        .from(taskEvents)
+        .where(eq(taskEvents.userId, userId))
+        .orderBy(desc(taskEvents.occurredAt));
+      const recent = new Map<string, string[]>();
+      for (const event of history) {
+        const events = recent.get(event.taskId) ?? [];
+        if (events.length < 3) recent.set(event.taskId, [...events, event.eventType]);
+      }
+      const ids = [...recent]
+        .filter(([, events]) => events.length === 3 && events.every((event) => event === "postponed"))
+        .map(([taskId]) => taskId);
+      if (ids.length === 0) return [];
+      return db
+        .select({ taskId: tasks.id, title: tasks.title })
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.userId, userId),
+            inArray(tasks.id, ids),
+            sql`${tasks.status} IN ('todo','in_progress','postponed')`
+          )
+        )
+        .orderBy(tasks.createdAt);
     },
   };
 }

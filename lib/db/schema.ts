@@ -160,6 +160,11 @@ export const tasks = pgTable(
     energyRequirement: energyEnum("energy_requirement"),
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     goalId: uuid("goal_id").references(() => goals.id, { onDelete: "set null" }),
+    recurrenceRuleId: uuid("recurrence_rule_id").references(() => recurrenceRules.id, {
+      onDelete: "set null",
+    }),
+    occurrenceDate: date("occurrence_date"),
+    occurrenceSlot: integer("occurrence_slot"),
     source: taskSourceEnum("source").notNull().default("manual"),
     // clock_timestamp(), not now(): now() is the *transaction's* start time,
     // so every task in a Brain Dump commit would tie, and "oldest first"
@@ -175,6 +180,11 @@ export const tasks = pgTable(
     index("tasks_user_status_idx").on(table.userId, table.status),
     index("tasks_project_id_idx").on(table.projectId),
     index("tasks_due_date_idx").on(table.dueDate),
+    unique("tasks_recurrence_occurrence_unique").on(
+      table.recurrenceRuleId,
+      table.occurrenceDate,
+      table.occurrenceSlot
+    ),
   ]
 );
 
@@ -238,6 +248,7 @@ export const recurrenceRules = pgTable(
     startDate: date("start_date").notNull(),
     endDate: date("end_date"),
     nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+    stoppedAt: timestamp("stopped_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

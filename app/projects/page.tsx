@@ -35,8 +35,12 @@ export default async function ProjectsPage() {
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
   const { open, postponed, projects } = await withRepositories(userId, async (repos) => ({
-    open: await repos.tasks.list({ statuses: ["todo", "in_progress"] }),
-    postponed: await repos.tasks.list({ statuses: ["postponed"] }),
+    open: (await repos.tasks.list({ statuses: ["todo", "in_progress"] })).filter(
+      (task) => task.source !== "recurrence"
+    ),
+    postponed: (await repos.tasks.list({ statuses: ["postponed"] })).filter(
+      (task) => task.source !== "recurrence"
+    ),
     projects: await repos.projects.list(),
   }));
 
@@ -71,9 +75,7 @@ export default async function ProjectsPage() {
         .filter((g) => g.tasks.length > 0 || (g.name !== "No project" && open.length > 0))
         .map((group) => (
           <section key={group.name} aria-label={group.name}>
-            <h2>
-              {group.name} <span className="review-count">{group.tasks.length}</span>
-            </h2>
+            <h2>{group.name} <span className="review-count">{group.tasks.length}</span></h2>
             {group.tasks.length === 0 ? (
               <p className="field-hint">No open tasks.</p>
             ) : (
@@ -105,6 +107,24 @@ export default async function ProjectsPage() {
           </ul>
         </section>
       )}
+      <section aria-labelledby="project-outcomes-heading">
+        <h2 id="project-outcomes-heading">Project outcomes</h2>
+        {projects.length ? (
+          <ul className="review-list">
+            {projects.map((project) => {
+              const projectTasks = [...open, ...postponed].filter((task) => task.projectId === project.id);
+              return (
+                <li className="review-item" key={project.id}>
+                  <span className="review-item-text">
+                    <Link href={`/projects/${project.id}`}>{project.name}</Link>
+                    <span className="field-hint"> · {projectTasks.length} active or postponed</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : <p className="field-hint">Projects appear here as tasks are grouped.</p>}
+      </section>
     </div>
   );
 }

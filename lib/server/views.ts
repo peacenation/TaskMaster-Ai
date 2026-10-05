@@ -12,7 +12,7 @@ export function toPlannable(
   for (const { taskId, dependsOnTaskId } of dependencies) {
     dependsOn.set(taskId, [...(dependsOn.get(taskId) ?? []), dependsOnTaskId]);
   }
-  return records.map((r) => ({
+  return records.filter((record) => record.source !== "recurrence").map((r) => ({
     id: r.id,
     title: r.title,
     status: r.status,

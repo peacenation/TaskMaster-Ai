@@ -26,6 +26,9 @@ export interface TaskRecord {
   energy: Energy | null;
   projectId: string | null;
   goalId: string | null;
+  recurrenceRuleId: string | null;
+  occurrenceDate: string | null;
+  occurrenceSlot: number | null;
   source: TaskSource;
   createdAt: Date;
   updatedAt: Date;
@@ -65,6 +68,9 @@ export const TASK_DEFAULTS: Omit<Editable, "title"> = {
   energy: null,
   projectId: null,
   goalId: null,
+  recurrenceRuleId: null,
+  occurrenceDate: null,
+  occurrenceSlot: null,
   source: "manual",
   completedAt: null,
 };
