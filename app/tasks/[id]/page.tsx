@@ -18,11 +18,12 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
 
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
-  const { task, projects, children, events } = await withRepositories(
+  const { task, projects, goals, children, events } = await withRepositories(
     userId,
     async (repos) => ({
       task: await repos.tasks.get(id),
       projects: await repos.projects.list(),
+      goals: await repos.goals.list(),
       children: await repos.execution.children(id),
       events: await repos.execution.events(id),
     })
@@ -56,6 +57,7 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
       )}
       <TaskForm
         projects={projects.map((p) => p.name)}
+        goals={goals.map((goal) => goal.title)}
         task={{
           id: task.id,
           title: task.title,
@@ -68,6 +70,7 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
           energy: task.energy ?? "",
           status: task.status,
           project: projects.find((p) => p.id === task.projectId)?.name ?? "",
+          goal: goals.find((goal) => goal.id === task.goalId)?.title ?? "",
         }}
       />
       <section>

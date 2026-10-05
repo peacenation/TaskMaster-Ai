@@ -85,6 +85,24 @@ export interface ProjectRecord {
   name: string;
 }
 
+export interface GoalRecord {
+  id: string;
+  title: string;
+  description: string | null;
+  targetDate: string | null;
+  status: "active" | "completed" | "archived";
+}
+
+function toGoal(row: typeof goals.$inferSelect): GoalRecord {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    targetDate: row.targetDate,
+    status: row.status,
+  };
+}
+
 export function createProjectRepository(db: AppDb, userId: string) {
   return {
     async list(): Promise<ProjectRecord[]> {
@@ -117,15 +135,49 @@ export function createProjectRepository(db: AppDb, userId: string) {
 
 export function createGoalRepository(db: AppDb, userId: string) {
   return {
-    async create(input: {
+    async list(): Promise<GoalRecord[]> {
+      const rows = await db
+        .select()
+        .from(goals)
+        .where(and(eq(goals.userId, userId), eq(goals.status, "active")))
+        .orderBy(goals.title);
+      return rows.map(toGoal);
+    },
+
+    async findOrCreate(input: {
       title: string;
-      targetDate: string | null;
-    }): Promise<{ id: string }> {
+      targetDate?: string | null;
+      description?: string | null;
+    }): Promise<GoalRecord> {
+      const trimmed = input.title.trim();
+      if (!trimmed) throw new Error("Goal title is required.");
+
+      const existing = await db
+        .select()
+        .from(goals)
+        .where(and(eq(goals.userId, userId), sql`lower(${goals.title}) = lower(${trimmed})`))
+        .limit(1);
+      if (existing[0]) return toGoal(existing[0]);
+
       const rows = await db
         .insert(goals)
-        .values({ userId, title: input.title, targetDate: input.targetDate })
-        .returning({ id: goals.id });
-      return rows[0];
+        .values({
+          userId,
+          title: trimmed,
+          targetDate: input.targetDate ?? null,
+          description: input.description ?? null,
+        })
+        .returning();
+      return toGoal(rows[0]);
+    },
+
+    async create(input: {
+      title: string;
+      targetDate?: string | null;
+      description?: string | null;
+    }): Promise<{ id: string }> {
+      const created = await this.findOrCreate(input);
+      return { id: created.id };
     },
   };
 }

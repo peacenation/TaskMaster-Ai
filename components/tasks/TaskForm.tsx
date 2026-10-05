@@ -20,6 +20,7 @@ export interface TaskFormValues {
   energy: string;
   status: string;
   project: string;
+  goal: string;
 }
 
 export const EMPTY_TASK: TaskFormValues = {
@@ -33,6 +34,7 @@ export const EMPTY_TASK: TaskFormValues = {
   energy: "",
   status: "todo",
   project: "",
+  goal: "",
 };
 
 const SCALE = [
@@ -44,9 +46,18 @@ const SCALE = [
   ["1", "1 · Very low"],
 ] as const;
 
-export function TaskForm({ task, projects }: { task: TaskFormValues; projects: string[] }) {
+export function TaskForm({
+  task,
+  projects,
+  goals,
+}: {
+  task: TaskFormValues;
+  projects: string[];
+  goals: string[];
+}) {
   const [state, action, pending] = useActionState<TaskFormState, FormData>(saveTask, {});
-  const listId = useId();
+  const projectListId = useId();
+  const goalListId = useId();
   const error = (field: string) =>
     state.errors?.[field] ? (
       <p className="field-hint field-error">{state.errors[field]}</p>
@@ -135,12 +146,26 @@ export function TaskForm({ task, projects }: { task: TaskFormValues; projects: s
             <Input
               id="project"
               name="project"
-              list={listId}
+              list={projectListId}
               defaultValue={task.project}
               maxLength={200}
             />
-            <datalist id={listId}>
+            <datalist id={projectListId}>
               {projects.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          </Field>
+          <Field label="Goal" htmlFor="goal">
+            <Input
+              id="goal"
+              name="goal"
+              list={goalListId}
+              defaultValue={task.goal}
+              maxLength={200}
+            />
+            <datalist id={goalListId}>
+              {goals.map((name) => (
                 <option key={name} value={name} />
               ))}
             </datalist>

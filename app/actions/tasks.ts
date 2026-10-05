@@ -36,6 +36,7 @@ const taskFormSchema = z.object({
     .enum(["inbox", "todo", "in_progress", "postponed", "completed", "dropped"])
     .default("todo"),
   project: optional(z.string().trim().max(200)),
+  goal: optional(z.string().trim().max(200)),
 });
 
 export interface TaskFormState {
@@ -60,17 +61,19 @@ export async function saveTask(
     for (const issue of parsed.error.issues) errors[String(issue.path[0])] ??= issue.message;
     return { errors };
   }
-  const { id, dueLocal, project, ...fields } = parsed.data;
+  const { id, dueLocal, project, goal, ...fields } = parsed.data;
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
 
   try {
     await withRepositories(userId, async (repos) => {
       const projectRecord = project ? await repos.projects.findOrCreate(project) : null;
+      const goalRecord = goal ? await repos.goals.findOrCreate({ title: goal }) : null;
       const values = {
         ...fields,
         dueAt: dueLocal ? toUtc(dueLocal, timeZone) : null,
         projectId: projectRecord?.id ?? null,
+        goalId: goalRecord?.id ?? null,
         completedAt: fields.status === "completed" ? new Date() : null,
       };
       if (id) {
