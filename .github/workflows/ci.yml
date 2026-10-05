@@ -69,13 +69,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Bootstrap local roles and dev database
+      - name: README quick start (bootstrap, migrate, auth setup, dev server)
         run: |
-          bash scripts/db-bootstrap.sh
-          printf '%s\n' \
-            "LOCAL_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/taskmaster_dev" \
-            "LOCAL_DATABASE_URL_APP=postgresql://taskmaster_app:taskmaster_app_local_dev@localhost:5432/taskmaster_dev" \
-            > .env.local
+          npm run db:bootstrap
+          cp .env.example .env.local
+          {
+            echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/taskmaster_dev"
+            echo "DATABASE_URL_APP=postgresql://taskmaster_app:taskmaster_app_local_dev@localhost:5432/taskmaster_dev"
+            echo "LOCAL_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/taskmaster_dev"
+            echo "LOCAL_DATABASE_URL_APP=postgresql://taskmaster_app:taskmaster_app_local_dev@localhost:5432/taskmaster_dev"
+          } >> .env.local
+          npm run db:migrate
+          npm run db:auth:setup
+          npm run dev > dev.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            curl --fail --silent http://localhost:3000/api/health && break
+            sleep 2
+          done
+          curl --fail --silent --show-error http://localhost:3000/api/health
+          curl --fail --silent --show-error --output /dev/null http://localhost:3000/signup
+          kill %1 || true
 
       - name: Database tests (RLS isolation, repositories, auth)
         run: npm run db:test

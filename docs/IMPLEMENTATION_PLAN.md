@@ -1648,6 +1648,93 @@ cross-user select/update/delete/insert checks passed; temporary test records
 were rolled back. The 20 database tests still run successfully against local
 `taskmaster_test`, using preserved local URLs. Local task data was not copied.
 
+
+### Progress checkpoint — Phases 7–12 (2026-10-05)
+
+All twelve phases are implemented. Every exit criterion below that a
+machine can check is checked by an automated test in CI. The remaining
+items need the live production account or a person, and are listed at the
+end with who owns them.
+
+**Verification at this checkpoint:** 250 unit tests (99.5% domain
+coverage), 37 database tests, 44 end-to-end tests on desktop and phone
+width, production build, client-bundle secret scan. Evidence in detail:
+[`HARDENING.md`](HARDENING.md).
+
+**Phase 7 — Execute**
+
+| Exit criterion | Evidence |
+|---|---|
+| Full loop dump → plan → focus → complete → plan updates | e2e `§2.10 #16–#18` |
+| Completing removes the task from the open plan and updates counts | same test; `lib/execution/operations.db.test.ts` |
+| Missed planned work opens a Recovery decision, never a silent reschedule | DB test "keeps a missed block on reload, asks for a decision, and does not silently move its times"; a stale decision rolls back the whole batch |
+| Nothing deleted without explicit action | Complete, postpone and drop are status changes with events; DB test "logs completion, postponement and drop without deleting work" |
+| Focus Mode usable on a phone without horizontal scroll | e2e on Pixel 7 (412px); 375px checked manually at Phase 6 |
+| 20-minute timer survives refresh | `lib/execution/timer.test.ts` |
+
+**Phase 8 — Accounts and cross-device**
+
+| Exit criterion | Evidence |
+|---|---|
+| Sign up → dump → plan → sign out → sign in elsewhere → data present | e2e `§2.10 #1`, `#2–#3` (second browser context) |
+| Unauthenticated requests refused | e2e "unauthenticated requests are refused" (401) |
+| No cross-user read/write/delete | `lib/db/isolation.test.ts`, all 11 tables, all four operations |
+| Account deletion removes the data, verifiable in the database | e2e `§2.10 #22`; DB test of the cascade |
+| Session survives reload; sign-out invalidates it | e2e revoked-cookie test; cookie cache disabled for immediate revocation |
+| Timezone changes deadline interpretation | DB test of per-user timezone; date parser unit tests per zone |
+
+**Phase 9 — Projects, goals, recurring responsibilities**
+
+| Exit criterion | Evidence |
+|---|---|
+| A goal linked to a task changes its score | `lib/domain/prioritize.test.ts` (goal signal) |
+| Recurring items generate on schedule without clutter | `lib/domain/recurrence.test.ts`; idempotent generation (DB test). Occurrences live on Responsibilities and are kept out of the daily plan |
+| Stopping a rule stops generation, keeps history | DB test "keeps existing history when stopped" |
+| Task in a project and a goal at once | Task form and Projects/Goals pages; seeded in the demo account |
+
+**Phase 10 — Reality Check, reviews, insights**
+
+| Exit criterion | Evidence |
+|---|---|
+| Overload triggers Reality Check with correct arithmetic | `lib/domain/reality-check.test.ts`; e2e `reality.spec.ts` (192 usable minutes from a 240-minute day) |
+| Each reduction names its trade-off and needs confirmation | Postpone / Simplify / Delegate / Drop each described; only explicit "Confirm" buttons act |
+| No reduction applied automatically: verified by test | e2e: viewing and reloading change nothing in the database; one confirmation changes exactly one task |
+| Three consecutive postponements trigger Procrastination Assist | `lib/repo/procrastination.db.test.ts` (fires on the third, not the second; resets when interrupted) |
+| Every insight is a recommendation, not a metric | `lib/domain/insights.ts`: up to three suggestions, each with one action; unit-tested |
+| Daily Review under two minutes | Not timed with users. The review is a single page of four short lists |
+
+Delegation is shown but disabled: it needs shared accounts, which are out of
+scope (§1.2).
+
+**Phase 11 — Hardening:** all 22 §2.10 criteria as named e2e tests; axe
+WCAG 2.1 AA on 17 states with 0 violations; security review with one open
+High (credential rotation, below); performance budgets under a throttled
+connection, including a 600-task account; security headers; scrubbed error
+reporting; per-account AI quota; visual regression (local). Details and
+numbers in `HARDENING.md`.
+
+**Phase 12 — Deploy, document, hand over:** gated deploy pipeline
+(`.github/workflows/deploy.yml`: CI → migrate → deploy → health check),
+production migration script with grant refresh, `/api/health`, TLS via
+`DATABASE_CA_CERT`, demo-account seed, `README.md` (its quick start is
+executed by CI on a fresh Postgres), `ARCHITECTURE.md`, `OPERATIONS.md`
+(deploy, rollback, rotation, restore, monitoring). The git history was
+scanned: no credentials.
+
+**Open: needs the product owner or the live environment**
+
+| Item | Owner | How |
+|---|---|---|
+| Rotate Supabase `postgres` and `taskmaster_auth_service` passwords (printed in a dev session) | Product owner | `OPERATIONS.md` → Rotating secrets. **Do before launch** |
+| Apply migrations 0005–0008 to Supabase, then re-run both setup scripts | Product owner | `OPERATIONS.md` → First production launch, step 2 |
+| Vercel project, domain and TLS, GitHub environment and secrets, `DEPLOY_ENABLED` | Product owner | `OPERATIONS.md` → Configuration |
+| Uptime monitor and alert, verified by triggering one | Product owner | `OPERATIONS.md` → Monitoring |
+| Rollback rehearsal, timed | After first deploy | `OPERATIONS.md` → Rolling back |
+| Email provider (Resend/SES) for magic links and resets | Product owner | Vercel env |
+| Live Claude validation (`npm run ai:smoke`) | Product owner, with an API key | Makes one paid call |
+| Manual screen-reader pass | Person with VoiceOver/NVDA | `HARDENING.md` §2 |
+| Human review of `SCORING.md` weights | Product owner | — |
+
 ---
 
 *Prepared from `docs/PRD_v2.md` and `docs/archive/PRD_v1.md` against an empty

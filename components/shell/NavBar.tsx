@@ -24,7 +24,7 @@ const NAV_ITEMS = [
 export function NavBar() {
   const pathname = usePathname();
   if (
-    ["/signin", "/signup", "/reset", "/magic"].includes(pathname) ||
+    ["/signin", "/signup", "/reset", "/magic", "/privacy"].includes(pathname) ||
     pathname?.startsWith("/design")
   )
     return null;

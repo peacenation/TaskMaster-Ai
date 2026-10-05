@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default function PrivacyPage() {
   const aiOn = aiOrganisingEnabled();
   return (
-    <div className="wrap">
+    <div className="wrap prose">
       <header className="hero">
         <p className="eyebrow">Privacy</p>
         <h1>What happens to what you write</h1>

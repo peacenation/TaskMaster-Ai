@@ -12,7 +12,11 @@ application**, authenticated accounts, relational cloud database, cross-device
 persistence, server-side AI calls. There is no local-only, browser-storage or
 account-free variant in scope.
 
-## Current build milestone — single local page
+## First build milestone — single local page (superseded)
+
+> **Superseded (2026-10-05):** accounts, Supabase hosting and a deploy
+> pipeline are now built. See `ARCHITECTURE.md` and `OPERATIONS.md`. Kept
+> for history.
 
 > **The app and the database both run locally, for now.** `npm run dev` on
 > `localhost`, PostgreSQL on `localhost`. No cloud services, no accounts, no
@@ -34,6 +38,11 @@ governs: the finished product is cloud-based, authenticated, and
 cross-device. A local prototype is milestone one, not the destination.
 
 ## Documents
+
+**Start here:** [`../README.md`](../README.md) (run it locally),
+[`ARCHITECTURE.md`](ARCHITECTURE.md), [`OPERATIONS.md`](OPERATIONS.md) (deploy,
+rollback, rotation, monitoring), [`HARDENING.md`](HARDENING.md) (accessibility,
+security, performance evidence).
 
 **Database-hosting update (2026-10-04):** Supabase database hosting is now
 approved, with the app still running locally and authentication deferred.
