@@ -92,7 +92,7 @@ function deadlineClusters({ tasks, now, timeZone }: InsightInput): Insight[] {
       return {
         kind: "deadline_cluster",
         message: `${dayTasks.length} deadlines land on ${label}. Starting "${first.title}" earlier spreads the load.`,
-        actionLabel: `Open "${first.title}"`,
+        actionLabel: "Open that task",
         href: `/tasks/${first.id}`,
       };
     });

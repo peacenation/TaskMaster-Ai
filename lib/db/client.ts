@@ -10,6 +10,7 @@ import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { sql } from "drizzle-orm";
 import * as schema from "./schema";
 import { authSchema } from "./auth-schema";
+import { poolConfig } from "./pool-config";
 
 // Safe to call unconditionally: dotenv never overwrites a variable Next.js
 // has already loaded from .env.local itself, and standalone scripts (the
@@ -34,14 +35,9 @@ let authDb: NodePgDatabase<typeof authSchema> | undefined;
 
 /** Auth service role can reach only the private authentication schema. */
 export function getAuthDb() {
-  authDb ??= drizzle(
-    new Pool({
-      connectionString: requireEnv("DATABASE_URL_AUTH"),
-      max: 5,
-      connectionTimeoutMillis: 10000,
-    }),
-    { schema: authSchema }
-  );
+  authDb ??= drizzle(new Pool({ ...poolConfig(requireEnv("DATABASE_URL_AUTH")), max: 5 }), {
+    schema: authSchema,
+  });
   return authDb;
 }
 
@@ -51,7 +47,7 @@ export function getAuthDb() {
  * see docs/adr/ADR-004-row-level-security.md.
  */
 export function getAdminDb(): AppDb {
-  admin ??= drizzle(new Pool({ connectionString: requireEnv("DATABASE_URL") }), { schema });
+  admin ??= drizzle(new Pool(poolConfig(requireEnv("DATABASE_URL"))), { schema });
   return admin;
 }
 
@@ -61,7 +57,7 @@ export function getAdminDb(): AppDb {
  * `app_current_user_id()` resolves before any policy check runs.
  */
 export function getAppDb(): AppDb {
-  app ??= drizzle(new Pool({ connectionString: requireEnv("DATABASE_URL_APP") }), { schema });
+  app ??= drizzle(new Pool(poolConfig(requireEnv("DATABASE_URL_APP"))), { schema });
   return app;
 }
 

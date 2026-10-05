@@ -23,7 +23,9 @@
     "db:supabase:setup": "node scripts/supabase-setup.mjs",
     "db:check": "node scripts/db-check.mjs",
     "db:auth:setup": "node scripts/auth-db-setup.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "db:migrate:deploy": "node --import tsx scripts/deploy-migrate.ts",
+    "db:seed:demo": "node --import tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

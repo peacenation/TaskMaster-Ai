@@ -45,7 +45,7 @@ CA certificate at `.certs/supabase-ca.pem` (gitignored), referenced with
 
    Setup creates `taskmaster_app` with a generated password, no superuser,
    role-creation, database-creation or RLS-bypass privileges, and grants access
-   to TaskMaster's ten tables and its context helper. It writes
+   to TaskMaster's eleven tables and its context helper. It writes
    `DATABASE_URL_APP` into `.env.local` without printing credentials. The setup
    can be re-run with the existing matching application connection string;
    it does not reset an existing role's password. Re-run setup when new

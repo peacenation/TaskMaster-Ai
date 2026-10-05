@@ -44,7 +44,16 @@ export default async function WeeklyReviewPage() {
     (task) =>
       task.source !== "recurrence" && task.dueAt && task.dueAt >= start && task.dueAt < end
   );
-  const postponed = data.events.filter((event) => event.eventType === "postponed");
+  // One row per task, however many times it moved.
+  const postponed = [
+    ...data.events
+      .filter((event) => event.eventType === "postponed")
+      .reduce((byTask, event) => {
+        const seen = byTask.get(event.taskId);
+        return byTask.set(event.taskId, { ...event, times: (seen?.times ?? 0) + 1 });
+      }, new Map<string, (typeof data.events)[number] & { times: number }>())
+      .values(),
+  ];
   const activeGoals = data.goals.map((goal) => {
     const goalTasks = data.tasks.filter(
       (task) => task.goalId === goal.id && task.status !== "dropped"
@@ -119,9 +128,12 @@ export default async function WeeklyReviewPage() {
             <h2 id="postponed-heading">Postponed this week</h2>
             {postponed.length ? (
               <ul className="review-list">
-                {postponed.map((event, index) => (
-                  <li className="review-item" key={`${event.taskId}-${index}`}>
+                {postponed.map((event) => (
+                  <li className="review-item" key={event.taskId}>
                     <Link href={`/tasks/${event.taskId}`}>{event.title}</Link>
+                    {event.times > 1 && (
+                      <span className="field-hint"> · moved {event.times} times</span>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -43,3 +43,9 @@ test("AI processing is disclosed before sign-up and where it happens (PRD §1.11
   await expect(page.getByText("no AI service is used")).toBeVisible();
   await expect(page.getByRole("link", { name: "How your data is handled" })).toBeVisible();
 });
+
+test("the health check is public and reveals nothing but status", async ({ request }) => {
+  const response = await request.get("/api/health");
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toEqual({ ok: true });
+});

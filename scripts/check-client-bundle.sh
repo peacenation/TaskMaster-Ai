@@ -16,7 +16,7 @@
 set -euo pipefail
 
 # Configuration, not secrets: safe (and sometimes intended) in the browser.
-PUBLIC_CONFIG='^(BETTER_AUTH_URL|AUTH_EMAIL_PROVIDER|AUTH_EMAIL_FROM|AWS_REGION)$'
+PUBLIC_CONFIG='^(BETTER_AUTH_URL|AUTH_EMAIL_PROVIDER|AUTH_EMAIL_FROM|AWS_REGION|AI_EXTRACTION|AI_HOURLY_LIMIT|DATABASE_POOL_MAX)$'
 
 secrets=$(grep -E '^[A-Z_]+=' .env.example | cut -d= -f1 | grep -v '^NEXT_PUBLIC_' | grep -Ev "$PUBLIC_CONFIG" || true)
 if [ -z "$secrets" ]; then

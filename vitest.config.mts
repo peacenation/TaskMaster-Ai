@@ -5,13 +5,13 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["lib/**/*.test.ts"],
-    // Anything needing a real Postgres (lib/db/**, the Postgres repository
-    // test, and any *.db.test.ts) has no place in `npm run test`, which CI
+    // Anything needing a real Postgres (the isolation test, the Postgres
+    // repository test, and any *.db.test.ts) has no place in `npm run test`, which CI
     // runs with no database. Run those via `npm run db:test`
     // (vitest.config.db.mts) after scripts/db-bootstrap.sh.
     exclude: [
       "**/node_modules/**",
-      "lib/db/**",
+      "lib/db/isolation.test.ts",
       "lib/repo/postgres-task-repository.test.ts",
       "**/*.db.test.ts",
     ],

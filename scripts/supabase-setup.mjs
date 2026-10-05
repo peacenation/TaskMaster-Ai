@@ -15,6 +15,7 @@ const tables = [
   "recurrence_rules",
   "plans",
   "plan_items",
+  "ai_requests",
 ];
 
 async function main() {

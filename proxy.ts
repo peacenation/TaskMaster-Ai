@@ -10,7 +10,15 @@ import { getSessionCookie } from "better-auth/cookies";
 // deliberately disabled so revocation is immediate (lib/auth/server.ts), and
 // with it off that cookie never exists — every request would look signed out.
 
-const PUBLIC = new Set(["/signin", "/signup", "/reset", "/magic", "/design", "/privacy"]);
+const PUBLIC = new Set([
+  "/signin",
+  "/signup",
+  "/reset",
+  "/magic",
+  "/design",
+  "/privacy",
+  "/api/health",
+]);
 
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
