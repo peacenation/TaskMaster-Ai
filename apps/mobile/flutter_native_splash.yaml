@@ -1,0 +1,15 @@
+# Native launch screen (dart run flutter_native_splash:create): shown by the
+# OS before Flutter starts, then the in-app intro (lib/ui/splash.dart)
+# continues the same picture with a short animation.
+flutter_native_splash:
+  color: "#F7F3EC"
+  image: assets/branding/splash_logo.png
+  color_dark: "#1A120E"
+  image_dark: assets/branding/splash_logo.png
+  android_12:
+    color: "#F7F3EC"
+    image: assets/branding/splash_android12.png
+    color_dark: "#1A120E"
+    image_dark: assets/branding/splash_android12.png
+  ios_content_mode: center
+  fullscreen: false

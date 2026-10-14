@@ -318,4 +318,18 @@ void main() {
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.themeMode, ThemeMode.dark);
   });
+
+  testWidgets('launch: the intro plays, then the right first screen', (
+    tester,
+  ) async {
+    final session = Session(api: FakeApi(), auth: FakeAuth());
+    await tester.pumpWidget(TaskMasterApp(session: session));
+    await session.restore();
+    await tester.pump();
+    expect(find.text('Clarity. Momentum. Done.'), findsOneWidget);
+    expect(find.text('Welcome back'), findsNothing);
+
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome back'), findsOneWidget);
+  });
 }

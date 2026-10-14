@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide Session;
 
@@ -10,7 +11,10 @@ import 'state/appearance.dart';
 import 'state/session.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // Keep the native launch screen up until Flutter's first frame (the
+  // matching SplashIntro), not a blank frame in between.
+  final binding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: binding);
   if (AppConfig.supabaseUrl.isEmpty ||
       AppConfig.supabasePublishableKey.isEmpty) {
     throw StateError(
@@ -43,5 +47,6 @@ Future<void> main() async {
   final appearance = Appearance(SecureAppearanceStore());
   await appearance.load();
   runApp(TaskMasterApp(session: session, appearance: appearance));
+  FlutterNativeSplash.remove();
   await session.restore();
 }
