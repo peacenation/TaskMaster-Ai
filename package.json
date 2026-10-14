@@ -31,10 +31,12 @@
     "mobile:get": "cd apps/mobile && flutter pub get",
     "mobile:analyze": "cd apps/mobile && flutter analyze",
     "mobile:test": "cd apps/mobile && flutter test",
-    "mobile:run": "cd apps/mobile && flutter run --dart-define=API_BASE_URL=${API_BASE_URL:-http://10.0.2.2:3000} --dart-define=SUPABASE_URL=${SUPABASE_URL:-http://10.0.2.2:54321} --dart-define=SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY:?set SUPABASE_PUBLISHABLE_KEY (npm run supabase:status)}",
+    "mobile:run": "cd apps/mobile && flutter run --dart-define-from-file=${MOBILE_ENV:-env/local.json}",
     "supabase:start": "npm run supabase:start -w @taskmaster/web",
     "supabase:stop": "npm run supabase:stop -w @taskmaster/web",
-    "supabase:status": "npm run supabase:status -w @taskmaster/web"
+    "supabase:status": "npm run supabase:status -w @taskmaster/web",
+    "mobile:build:android": "cd apps/mobile && flutter build appbundle --release --dart-define-from-file=env/production.json",
+    "mobile:build:ios": "cd apps/mobile && flutter build ipa --release --dart-define-from-file=env/production.json"
   },
   "engines": {
     "node": ">=22"

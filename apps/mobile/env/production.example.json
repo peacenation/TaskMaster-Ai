@@ -1,0 +1,5 @@
+{
+  "API_BASE_URL": "https://tasksmaster-ai.netlify.app",
+  "SUPABASE_URL": "https://cpfmxwvaddfixgwujekn.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_REPLACE_ME"
+}

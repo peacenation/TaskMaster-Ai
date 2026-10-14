@@ -46,3 +46,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Build configuration with real values (see env/README.md)
+/env/*.json
+!/env/*.example.json

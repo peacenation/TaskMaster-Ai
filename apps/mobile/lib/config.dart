@@ -12,7 +12,7 @@
 abstract final class AppConfig {
   static const apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://taskmaster-ai-omega.vercel.app',
+    defaultValue: 'https://tasksmaster-ai.netlify.app',
   );
   static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 
