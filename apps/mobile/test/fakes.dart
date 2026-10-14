@@ -59,8 +59,15 @@ Map<String, dynamic> task(String id, String title, {int? priority}) => {
 };
 
 class FakeApi implements TaskMasterApi {
+  FakeApi({this.onboarded = true});
+
+  /// Flips to true when a Brain Dump is committed, like the server.
+  bool onboarded;
   final statusCalls = <(String, TaskStatus)>[];
-  final added = <String>[];
+  final added = <(String, String?)>[];
+  final committed = <List<String>>[];
+  final planRequests = <String>[];
+  final applied = <List<String>>[];
   bool expired = false;
 
   @override
@@ -69,12 +76,19 @@ class FakeApi implements TaskMasterApi {
     name: 'Jerry Mbawa',
     email: 'jerry@example.com',
     timeZone: 'Europe/London',
-    onboarded: true,
+    onboarded: onboarded,
   );
 
   @override
   Future<Today> today() async {
     if (expired) throw ApiException(401, 'Unauthorized');
+    if (!onboarded) {
+      return Today.fromJson({
+        'onboarded': false,
+        'greeting': 'Good morning',
+        'firstName': 'Jerry',
+      });
+    }
     return Today.fromJson(todayJson());
   }
 
@@ -86,8 +100,8 @@ class FakeApi implements TaskMasterApi {
   ];
 
   @override
-  Future<Task> quickAdd(String title) async {
-    added.add(title);
+  Future<Task> quickAdd(String title, {String? projectId}) async {
+    added.add((title, projectId));
     return Task.fromJson(task('new', title));
   }
 
@@ -99,6 +113,73 @@ class FakeApi implements TaskMasterApi {
   Future<List<ProjectProgress>> projects() async => [
     ProjectProgress(id: 'p1', name: 'Website redesign', done: 8, total: 12),
   ];
+
+  @override
+  Future<ProjectDetail> project(String id) async => ProjectDetail.fromJson({
+    'project': {'id': id, 'name': 'Website redesign', 'done': 8, 'total': 12},
+    'inProgress': [task('t2', 'Review website designs', priority: 3)],
+    'todo': [task('t1', 'Finalise project proposal', priority: 5)],
+    'postponed': <Object>[],
+  });
+
+  @override
+  Future<DumpProposal> createDump(String text) async => DumpProposal.fromJson({
+    'dumpId': 'd1',
+    'engine': 'heuristic',
+    'notice': "Organised by TaskMaster's built-in rules — AI organising isn't set up.",
+    'items': [
+      for (final title in ['Finish the report', 'Book the dentist', 'Call Mum'])
+        {
+          'kind': 'task',
+          'title': title,
+          'deadline': null,
+          'recurrence': null,
+          'estimatedMinutes': null,
+          'project': null,
+        },
+    ],
+  });
+
+  @override
+  Future<void> commitDump(String dumpId, List<ProposedItem> items) async {
+    committed.add([for (final item in items) item.title]);
+    onboarded = true;
+  }
+
+  @override
+  Future<PlannerProposal> proposePlan(
+    String message,
+    List<PlannerTurn> history,
+  ) async {
+    planRequests.add(message);
+    return PlannerProposal.fromJson({
+      'engine': 'ai',
+      'reply':
+          'Focused work this morning, your meeting at 14:00, then a buffer.',
+      'blocks': [
+        {
+          'kind': 'task',
+          'taskId': 't1',
+          'title': 'Finalise project proposal',
+          'project': 'Website redesign',
+          'start': '09:00',
+          'minutes': 60,
+        },
+        {
+          'kind': 'event',
+          'taskId': null,
+          'title': 'Team meeting',
+          'project': null,
+          'start': '14:00',
+          'minutes': 60,
+        },
+      ],
+    });
+  }
+
+  @override
+  Future<void> applyPlan(List<PlannerBlock> blocks) async =>
+      applied.add([for (final b in blocks) b.taskId!]);
 }
 
 /// Supabase Auth stand-in: signs in unless told the password is wrong.

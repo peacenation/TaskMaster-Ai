@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:taskmaster/api/models.dart';
 import 'package:taskmaster/app.dart';
 import 'package:taskmaster/state/session.dart';
+import 'package:taskmaster/ui/widgets.dart';
 
 import 'fakes.dart';
 
@@ -138,9 +139,14 @@ void main() {
       find.widgetWithText(TextField, 'Task'),
       'Call the plumber',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.widgetWithText(FilledButton, 'Add task'),
+      ),
+    );
     await tester.pumpAndSettle();
-    expect(api.added, ['Call the plumber']);
+    expect(api.added, [('Call the plumber', null)]);
     expect(find.text('Added to your Inbox'), findsOneWidget);
   });
 
@@ -153,7 +159,7 @@ void main() {
 
     await tester.tap(find.text('AI'));
     await tester.pumpAndSettle();
-    expect(find.text('Your planned timeline'), findsOneWidget);
+    expect(find.text('Today’s timeline'), findsOneWidget);
   });
 
   testWidgets('dark theme builds', (tester) async {
@@ -161,5 +167,155 @@ void main() {
     addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
     await pumpApp(tester, signedIn: true);
     expect(find.text('What to do next'), findsOneWidget);
+  });
+
+  testWidgets('first run: Plan my day → Brain Dump → review → Today', (
+    tester,
+  ) async {
+    final (api, _, _) = await pumpApp(
+      tester,
+      signedIn: true,
+      api: FakeApi(onboarded: false),
+    );
+    expect(find.text('Good morning, Jerry'), findsOneWidget);
+    expect(find.text('Let’s plan your day'), findsOneWidget);
+
+    await tester.tap(find.text('Plan my day'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Brain Dump'),
+      'Finish the report, book the dentist, call Mum',
+    );
+    await tester.pump();
+    await tester.tap(find.text('Organise it'));
+    await tester.pumpAndSettle();
+    expect(find.text('Review before you save'), findsOneWidget);
+    expect(find.textContaining('built-in rules'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Remove Call Mum'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Book the dentist'),
+      'Book the dentist for Friday',
+    );
+    await tester.pump();
+    await tester.tap(find.text('Save 2 items'));
+    await tester.pumpAndSettle();
+
+    expect(api.committed, [
+      ['Finish the report', 'Book the dentist for Friday'],
+    ]);
+    expect(find.text('What to do next'), findsOneWidget);
+  });
+
+  testWidgets('Today: daily progress and View all → Tasks', (tester) async {
+    await pumpApp(tester, signedIn: true);
+    // 2 completed today, 2 still planned.
+    await tester.scrollUntilVisible(find.text('Daily progress'), 200);
+    expect(find.text('50%'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('View all'), 200);
+    await tester.tap(find.text('View all'));
+    await tester.pumpAndSettle();
+    expect(find.text('My Tasks'), findsOneWidget);
+  });
+
+  testWidgets('Tasks: search and the … menu', (tester) async {
+    final (api, _, _) = await pumpApp(tester, signedIn: true);
+    await tester.tap(find.text('Tasks'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Search tasks and projects'),
+      'launch',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Update launch checklist'), findsOneWidget);
+    expect(find.text('Finalise project proposal'), findsNothing);
+
+    await tester.tap(find.byTooltip('More for Update launch checklist'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Postpone'));
+    await tester.pumpAndSettle();
+    expect(api.statusCalls.last, ('t3', TaskStatus.postponed));
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Search tasks and projects'),
+      'zzz',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('No matches'), findsOneWidget);
+  });
+
+  testWidgets('Projects: open a project, add a task to it', (tester) async {
+    final (api, _, _) = await pumpApp(tester, signedIn: true);
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Website redesign'));
+    await tester.pumpAndSettle();
+    expect(find.text('In progress'), findsOneWidget);
+    expect(find.text('To do'), findsOneWidget);
+    expect(find.text('8 of 12 tasks complete'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
+    await tester.pumpAndSettle();
+    expect(find.text('Goes straight into Website redesign.'), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Task'),
+      'Draft slides',
+    );
+    await tester.tap(
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.widgetWithText(FilledButton, 'Add task'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(api.added, [('Draft slides', 'p1')]);
+  });
+
+  testWidgets('AI Planner: ask, see the timeline, apply task blocks only', (
+    tester,
+  ) async {
+    final (api, _, _) = await pumpApp(tester, signedIn: true);
+    await tester.tap(find.text('AI'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Plan my day around a 2pm meeting'));
+    await tester.pumpAndSettle();
+
+    expect(api.planRequests, ['Plan my day around a 2pm meeting']);
+    expect(find.textContaining('your meeting at 14:00'), findsOneWidget);
+    expect(find.text('Your planned timeline'), findsOneWidget);
+    expect(find.text('Team meeting'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Apply plan'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Apply plan'));
+    await tester.pumpAndSettle();
+    expect(api.applied, [
+      ['t1'],
+    ]);
+    expect(find.text('Applied to Today'), findsOneWidget);
+  });
+
+  testWidgets('AI Planner before onboarding offers a Brain Dump', (
+    tester,
+  ) async {
+    await pumpApp(tester, signedIn: true, api: FakeApi(onboarded: false));
+    await tester.tap(find.text('AI'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nothing to plan yet'), findsOneWidget);
+    expect(find.text('Start a Brain Dump'), findsOneWidget);
+  });
+
+  testWidgets('Appearance: choose Dark from the account sheet', (tester) async {
+    await pumpApp(tester, signedIn: true);
+    await tester.tap(find.byType(AccountAvatar).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dark'));
+    await tester.pumpAndSettle();
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.themeMode, ThemeMode.dark);
   });
 }

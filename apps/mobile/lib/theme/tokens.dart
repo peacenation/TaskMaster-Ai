@@ -87,7 +87,7 @@ class TmColors extends ThemeExtension<TmColors> {
     page: Color(0xFF1A120E),
     card: Color(0xFF251A15),
     sunken: Color(0xFF1F1611),
-    border: Color(0xFF3A2C24),
+    border: Color(0xFF4A392E), // visible card edges on the dark page
     borderStrong: Color(0xFF8A7256),
     textPrimary: Color(0xFFF3EBE1),
     textMuted: Color(0xFFCDBDAD),

@@ -23,9 +23,27 @@ abstract interface class TaskMasterApi {
   Future<Me> me();
   Future<Today> today();
   Future<List<Task>> tasks(TaskView view);
-  Future<Task> quickAdd(String title);
+
+  /// Into the Inbox, or straight into a project as a to-do.
+  Future<Task> quickAdd(String title, {String? projectId});
   Future<void> setStatus(String taskId, TaskStatus status);
   Future<List<ProjectProgress>> projects();
+  Future<ProjectDetail> project(String id);
+
+  /// Save and organise a Brain Dump (nothing becomes a task yet).
+  Future<DumpProposal> createDump(String text);
+
+  /// Save the reviewed items; the first commit completes onboarding.
+  Future<void> commitDump(String dumpId, List<ProposedItem> items);
+
+  /// AI Planner: propose a timeline for today (nothing is saved).
+  Future<PlannerProposal> proposePlan(
+    String message,
+    List<PlannerTurn> history,
+  );
+
+  /// Save a proposal's task blocks as today's plan.
+  Future<void> applyPlan(List<PlannerBlock> blocks);
 }
 
 class HttpTaskMasterApi implements TaskMasterApi {
@@ -115,8 +133,12 @@ class HttpTaskMasterApi implements TaskMasterApi {
   }
 
   @override
-  Future<Task> quickAdd(String title) async {
-    final json = await _json('POST', '/api/v1/tasks', body: {'title': title});
+  Future<Task> quickAdd(String title, {String? projectId}) async {
+    final json = await _json(
+      'POST',
+      '/api/v1/tasks',
+      body: {'title': title, 'projectId': ?projectId},
+    );
     return Task.fromJson(json['task'] as Map<String, dynamic>);
   }
 
@@ -135,5 +157,54 @@ class HttpTaskMasterApi implements TaskMasterApi {
     return (json['projects'] as List)
         .map((e) => ProjectProgress.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  @override
+  Future<ProjectDetail> project(String id) async =>
+      ProjectDetail.fromJson(await _json('GET', '/api/v1/projects/$id'));
+
+  @override
+  Future<DumpProposal> createDump(String text) async => DumpProposal.fromJson(
+    await _json('POST', '/api/v1/dumps', body: {'text': text}),
+  );
+
+  @override
+  Future<void> commitDump(String dumpId, List<ProposedItem> items) async {
+    await _send(
+      'POST',
+      '/api/v1/dumps/$dumpId/commit',
+      body: {
+        'items': [for (final item in items) item.toReviewedJson()],
+      },
+    );
+  }
+
+  @override
+  Future<PlannerProposal> proposePlan(
+    String message,
+    List<PlannerTurn> history,
+  ) async => PlannerProposal.fromJson(
+    await _json(
+      'POST',
+      '/api/v1/planner',
+      body: {
+        'message': message,
+        'history': [for (final turn in history) turn.toJson()],
+      },
+    ),
+  );
+
+  @override
+  Future<void> applyPlan(List<PlannerBlock> blocks) async {
+    await _send(
+      'POST',
+      '/api/v1/planner/apply',
+      body: {
+        'blocks': [
+          for (final b in blocks)
+            {'taskId': b.taskId, 'start': b.start, 'minutes': b.minutes},
+        ],
+      },
+    );
   }
 }

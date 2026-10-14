@@ -19,25 +19,28 @@ class _TasksScreenState extends State<TasksScreen> {
   TaskView _view = TaskView.today;
   // Bumped after Quick Add so the list reloads even if the view is unchanged.
   int _generation = 0;
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   Future<void> _add() async {
-    final title = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => const _QuickAddSheet(),
-    );
-    if (title == null || !mounted) return;
-    final api = SessionScope.read(context).api;
-    final ok = await runAction(context, () => api.quickAdd(title));
-    if (ok && mounted) {
+    if (await showQuickAdd(context) && mounted) {
       setState(() {
         _view = TaskView.inbox;
         _generation++;
       });
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Added to your Inbox')));
     }
+  }
+
+  bool _matches(Task task) {
+    final query = _search.text.trim().toLowerCase();
+    if (query.isEmpty) return true;
+    return task.title.toLowerCase().contains(query) ||
+        (task.project?.name.toLowerCase().contains(query) ?? false);
   }
 
   @override
@@ -68,6 +71,25 @@ class _TasksScreenState extends State<TasksScreen> {
           ),
         ),
         Padding(
+          padding: const EdgeInsets.fromLTRB(Tm.s4, Tm.s3, Tm.s4, 0),
+          child: TextField(
+            controller: _search,
+            onChanged: (_) => setState(() {}),
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'Search tasks and projects',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _search.text.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Clear search',
+                      icon: const Icon(Icons.close),
+                      onPressed: () => setState(_search.clear),
+                    ),
+            ),
+          ),
+        ),
+        Padding(
           padding: const EdgeInsets.all(Tm.s4),
           child: SegmentedButton<TaskView>(
             showSelectedIcon: false,
@@ -85,53 +107,83 @@ class _TasksScreenState extends State<TasksScreen> {
           child: Loader<List<Task>>(
             key: ValueKey((_view, _generation)),
             load: () => api.tasks(_view),
-            builder: (context, tasks, reload) => tasks.isEmpty
-                ? ListView(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(Tm.s8),
-                        child: Text(
-                          _emptyText(_view),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: context.tm.textMuted),
-                        ),
-                      ),
-                    ],
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(Tm.s4, 0, Tm.s4, Tm.s8),
-                    itemCount: tasks.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: Tm.s2),
-                    itemBuilder: (context, i) => _TaskCard(
-                      task: tasks[i],
-                      onDone: () async {
-                        final ok = await runAction(
-                          context,
-                          () =>
-                              api.setStatus(tasks[i].id, TaskStatus.completed),
-                        );
-                        if (ok) await reload();
-                      },
-                    ),
-                  ),
+            builder: (context, all, reload) {
+              final tasks = all.where(_matches).toList();
+              Future<void> act(Task task, TaskStatus status) async {
+                final ok = await runAction(
+                  context,
+                  () => api.setStatus(task.id, status),
+                );
+                if (ok) await reload();
+              }
+
+              if (tasks.isEmpty) {
+                return ListView(
+                  children: [
+                    _search.text.trim().isNotEmpty
+                        ? EmptyState(
+                            icon: Icons.search_off,
+                            title: 'No matches',
+                            message:
+                                'Nothing in this view matches “${_search.text.trim()}”.',
+                          )
+                        : EmptyState(
+                            icon: Icons.check_circle_outline,
+                            title: _emptyTitle(_view),
+                            message: _emptyText(_view),
+                          ),
+                  ],
+                );
+              }
+              return ListView.separated(
+                padding: const EdgeInsets.fromLTRB(Tm.s4, 0, Tm.s4, Tm.s4),
+                itemCount: tasks.length,
+                separatorBuilder: (_, _) => const SizedBox(height: Tm.s2),
+                itemBuilder: (context, i) => _TaskCard(
+                  task: tasks[i],
+                  onDone: () => act(tasks[i], TaskStatus.completed),
+                  onAction: (status) => act(tasks[i], status),
+                ),
+              );
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(Tm.s4, Tm.s2, Tm.s4, Tm.s4),
+          child: FilledButton.icon(
+            onPressed: _add,
+            icon: const Icon(Icons.add),
+            label: const Text('Add task'),
           ),
         ),
       ],
     );
   }
 
+  static String _emptyTitle(TaskView view) => switch (view) {
+    TaskView.today => 'Nothing due today',
+    TaskView.upcoming => 'No upcoming deadlines',
+    TaskView.all => 'No open tasks yet',
+    TaskView.inbox => 'Inbox zero',
+  };
+
   static String _emptyText(TaskView view) => switch (view) {
-    TaskView.today => 'Nothing due today. Enjoy the room to breathe.',
-    TaskView.upcoming => 'No upcoming deadlines.',
-    TaskView.all => 'No open tasks yet. Add one with +.',
-    TaskView.inbox => 'Your Inbox is empty.',
+    TaskView.today => 'Enjoy the room to breathe.',
+    TaskView.upcoming => 'Nothing has a deadline coming up.',
+    TaskView.all => 'Add one below, or start a Brain Dump from Today.',
+    TaskView.inbox => 'Everything you captured has been organised.',
   };
 }
 
 class _TaskCard extends StatelessWidget {
-  const _TaskCard({required this.task, required this.onDone});
+  const _TaskCard({
+    required this.task,
+    required this.onDone,
+    required this.onAction,
+  });
   final Task task;
   final VoidCallback onDone;
+  final void Function(TaskStatus status) onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -150,12 +202,20 @@ class _TaskCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      task.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            task.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        _TaskMenu(task: task, onAction: onAction),
+                      ],
                     ),
                     if (task.project != null)
                       Text(
@@ -207,63 +267,33 @@ class _TaskCard extends StatelessWidget {
   }
 }
 
-class _QuickAddSheet extends StatefulWidget {
-  const _QuickAddSheet();
-
-  @override
-  State<_QuickAddSheet> createState() => _QuickAddSheetState();
-}
-
-class _QuickAddSheetState extends State<_QuickAddSheet> {
-  final _text = TextEditingController();
-
-  @override
-  void dispose() {
-    _text.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final title = _text.text.trim();
-    if (title.isNotEmpty) Navigator.of(context).pop(title);
-  }
+/// The "…" menu: start, postpone or drop a task (same transitions as web).
+class _TaskMenu extends StatelessWidget {
+  const _TaskMenu({required this.task, required this.onAction});
+  final Task task;
+  final void Function(TaskStatus status) onAction;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        Tm.s4,
-        0,
-        Tm.s4,
-        MediaQuery.viewInsetsOf(context).bottom + Tm.s4,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Quick Add', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: Tm.s3),
-          TextField(
-            controller: _text,
-            autofocus: true,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _submit(),
-            decoration: const InputDecoration(
-              labelText: 'Task',
-              hintText: 'Send Sarah the figures',
+    return SizedBox(
+      height: 28,
+      width: 36,
+      child: PopupMenuButton<TaskStatus>(
+        tooltip: 'More for ${task.title}',
+        padding: EdgeInsets.zero,
+        icon: Icon(Icons.more_horiz, color: context.tm.textMuted),
+        onSelected: onAction,
+        itemBuilder: (_) => [
+          if (task.status != TaskStatus.inProgress)
+            const PopupMenuItem(
+              value: TaskStatus.inProgress,
+              child: Text('Start'),
             ),
+          const PopupMenuItem(
+            value: TaskStatus.postponed,
+            child: Text('Postpone'),
           ),
-          const SizedBox(height: Tm.s2),
-          Text(
-            'Lands in your Inbox to organise later.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: Tm.s4),
-          FilledButton.icon(
-            onPressed: _submit,
-            icon: const Icon(Icons.add),
-            label: const Text('Add task'),
-          ),
+          const PopupMenuItem(value: TaskStatus.dropped, child: Text('Drop')),
         ],
       ),
     );

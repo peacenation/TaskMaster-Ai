@@ -6,6 +6,7 @@ import 'api/client.dart';
 import 'app.dart';
 import 'auth/auth_gateway.dart';
 import 'config.dart';
+import 'state/appearance.dart';
 import 'state/session.dart';
 
 Future<void> main() async {
@@ -39,6 +40,8 @@ Future<void> main() async {
     accessToken: () => auth.accessToken,
   );
   final session = Session(api: api, auth: auth);
-  runApp(TaskMasterApp(session: session));
+  final appearance = Appearance(SecureAppearanceStore());
+  await appearance.load();
+  runApp(TaskMasterApp(session: session, appearance: appearance));
   await session.restore();
 }

@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import '../api/models.dart';
 import '../state/session.dart';
 import '../theme/tokens.dart';
+import 'brain_dump_screen.dart';
+import 'home_shell.dart';
 import 'widgets.dart';
 
 /// "01. Today — your day at a glance": the same plan as the web's Today
@@ -24,28 +26,28 @@ class TodayScreen extends StatelessWidget {
         children: [
           const _Header(),
           const SizedBox(height: Tm.s4),
+          Text(
+            today.firstName.isEmpty
+                ? today.greeting
+                : '${today.greeting}, ${today.firstName}',
+            style: Theme.of(context).textTheme.headlineLarge,
+          ),
+          const SizedBox(height: Tm.s1),
+          Text(
+            DateFormat('EEEE, d MMMM').format((now ?? DateTime.now)()),
+            style: TextStyle(color: context.tm.textMuted, fontSize: 16),
+          ),
+          const SizedBox(height: Tm.s4),
           if (!today.onboarded)
-            const _NotOnboarded()
+            _PlanYourDay(onSaved: reload)
           else ...[
-            Text(
-              today.firstName.isEmpty
-                  ? today.greeting
-                  : '${today.greeting}, ${today.firstName}',
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
-            const SizedBox(height: Tm.s1),
-            Text(
-              DateFormat('EEEE, d MMMM').format((now ?? DateTime.now)()),
-              style: TextStyle(color: context.tm.textMuted, fontSize: 16),
-            ),
-            const SizedBox(height: Tm.s4),
             if (today.attentionCount > 0) ...[
               _AttentionBanner(count: today.attentionCount),
               const SizedBox(height: Tm.s3),
             ],
             _NextBestAction(today: today, reload: reload),
             const SizedBox(height: Tm.s3),
-            _Stats(stats: today.stats!),
+            _Stats(today: today),
             const SizedBox(height: Tm.s3),
             _Priorities(today: today, reload: reload),
             if (_nextBlock(today, (now ?? DateTime.now)())
@@ -76,18 +78,77 @@ class _Header extends StatelessWidget {
       const Row(children: [BrandWordmark(), Spacer(), AccountAvatar()]);
 }
 
-class _NotOnboarded extends StatelessWidget {
-  const _NotOnboarded();
+/// First run: the concept's "Let's plan your day" hero. Plan my day opens
+/// Brain Dump on the phone; saving it builds Today.
+class _PlanYourDay extends StatelessWidget {
+  const _PlanYourDay({required this.onSaved});
+  final Future<void> Function() onSaved;
 
   @override
-  Widget build(BuildContext context) => const SectionCard(
-    title: 'Start with a Brain Dump',
-    child: Text(
-      'Your plan builds from everything on your mind. Do your first Brain '
-      'Dump on the TaskMasterAi website, then pull down here to refresh. '
-      'Brain Dump on your phone is coming next.',
-    ),
-  );
+  Widget build(BuildContext context) {
+    final tm = context.tm;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: tm.heroGradient),
+            borderRadius: BorderRadius.circular(Tm.radiusLg),
+            border: Border.all(color: tm.aiBadge),
+          ),
+          child: Stack(
+            children: [
+              const Positioned(right: 0, top: 0, child: HillsArt()),
+              Padding(
+                padding: const EdgeInsets.all(Tm.s5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: tm.card,
+                      child: Icon(Icons.auto_awesome, color: tm.aiText),
+                    ),
+                    const SizedBox(height: Tm.s4),
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        'Let’s plan your day',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                    ),
+                    const SizedBox(height: Tm.s2),
+                    const Text(
+                      'Write down everything on your mind. TaskMasterAi turns '
+                      'it into tasks you review, then a realistic plan for today.',
+                    ),
+                    const SizedBox(height: Tm.s5),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        iconAlignment: IconAlignment.end,
+                        onPressed: () async {
+                          if (await openBrainDump(context)) await onSaved();
+                        },
+                        icon: const Icon(Icons.arrow_forward),
+                        label: const Text('Plan my day'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Tm.s3),
+        TextButton(
+          onPressed: () => showQuickAdd(context),
+          child: const Text('Or add a single task to your Inbox'),
+        ),
+      ],
+    );
+  }
 }
 
 class _AttentionBanner extends StatelessWidget {
@@ -141,72 +202,80 @@ class _NextBestAction extends StatelessWidget {
         borderRadius: BorderRadius.circular(Tm.radiusLg),
         border: Border.all(color: confirmed ? tm.success : tm.aiBadge),
       ),
-      padding: const EdgeInsets.all(Tm.s4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: tm.card,
-                child: Icon(
-                  Icons.auto_awesome,
-                  color: confirmed ? tm.success : tm.aiText,
-                ),
-              ),
-              const SizedBox(width: Tm.s3),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          if (!confirmed) const Positioned(right: 0, top: 0, child: HillsArt()),
+          Padding(
+            padding: const EdgeInsets.all(Tm.s4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Semantics(
-                      header: true,
-                      child: Text(
-                        'What to do next',
-                        style: TextStyle(
-                          color: tm.textMuted,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: tm.card,
+                      child: Icon(
+                        Icons.auto_awesome,
+                        color: confirmed ? tm.success : tm.aiText,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    _Kicker(confirmed: confirmed),
+                    const SizedBox(width: Tm.s3),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Semantics(
+                            header: true,
+                            child: Text(
+                              'What to do next',
+                              style: TextStyle(
+                                color: tm.textMuted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          _Kicker(confirmed: confirmed),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Tm.s3),
-          Text(
-            rec?.task.title ?? 'Nothing active yet',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: Tm.s1),
-          Text(
-            rec?.message ??
-                'Capture new work or organise your Inbox to get started.',
-          ),
-          if (rec != null) ...[
-            const SizedBox(height: Tm.s4),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => act(TaskStatus.completed),
-                    child: const Text('Complete'),
-                  ),
+                const SizedBox(height: Tm.s3),
+                Text(
+                  rec?.task.title ?? 'Nothing active yet',
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                const SizedBox(width: Tm.s2),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => act(TaskStatus.postponed),
-                    child: const Text('Postpone'),
-                  ),
+                const SizedBox(height: Tm.s1),
+                Text(
+                  rec?.message ??
+                      'Capture new work or organise your Inbox to get started.',
                 ),
+                if (rec != null) ...[
+                  const SizedBox(height: Tm.s4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () => act(TaskStatus.completed),
+                          child: const Text('Complete'),
+                        ),
+                      ),
+                      const SizedBox(width: Tm.s2),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => act(TaskStatus.postponed),
+                          child: const Text('Postpone'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -240,12 +309,13 @@ class _Kicker extends StatelessWidget {
 }
 
 class _Stats extends StatelessWidget {
-  const _Stats({required this.stats});
-  final TodayStats stats;
+  const _Stats({required this.today});
+  final Today today;
 
   @override
   Widget build(BuildContext context) {
-    Widget tile(String label, int value, IconData icon, TileTone tone) =>
+    final stats = today.stats!;
+    Widget tile(String label, Object value, IconData icon, TileTone tone) =>
         Expanded(
           child: Card(
             child: Padding(
@@ -290,8 +360,8 @@ class _Stats extends StatelessWidget {
             ),
             const SizedBox(width: Tm.s3),
             tile(
-              'Done today',
-              stats.completedToday,
+              'Daily progress',
+              '${(today.dailyProgress * 100).round()}%',
               Icons.bar_chart_rounded,
               TileTone.sage,
             ),
@@ -331,9 +401,11 @@ class _Priorities extends StatelessWidget {
     final time = DateFormat.Hm();
     return SectionCard(
       title: 'Today’s priorities',
-      trailing: Text(
-        '${today.plannedMinutes} of ${today.availableMinutes ?? 0} min',
-        style: TextStyle(color: context.tm.textMuted, fontSize: 13),
+      trailing: TextButton.icon(
+        onPressed: () => ShellTabs.go(context, AppTab.tasks),
+        iconAlignment: IconAlignment.end,
+        icon: const Icon(Icons.arrow_forward, size: 16),
+        label: const Text('View all'),
       ),
       child: today.plan.isEmpty
           ? const Padding(

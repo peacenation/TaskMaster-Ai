@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/client.dart';
+import '../state/appearance.dart';
 import '../state/session.dart';
 import '../theme/tokens.dart';
 
@@ -115,6 +116,13 @@ class AccountAvatar extends StatelessWidget {
                     style: Theme.of(sheet).textTheme.bodySmall,
                   ),
                   const SizedBox(height: Tm.s6),
+                  Text(
+                    'Appearance',
+                    style: Theme.of(sheet).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: Tm.s2),
+                  const _AppearancePicker(),
+                  const SizedBox(height: Tm.s6),
                   OutlinedButton(
                     onPressed: () {
                       Navigator.of(sheet).pop();
@@ -137,6 +145,25 @@ class AccountAvatar extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AppearancePicker extends StatelessWidget {
+  const _AppearancePicker();
+
+  @override
+  Widget build(BuildContext context) {
+    final appearance = AppearanceScope.of(context);
+    return SegmentedButton<ThemeMode>(
+      showSelectedIcon: false,
+      segments: const [
+        ButtonSegment(value: ThemeMode.system, label: Text('System')),
+        ButtonSegment(value: ThemeMode.light, label: Text('Light')),
+        ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+      ],
+      selected: {appearance.value},
+      onSelectionChanged: (s) => appearance.choose(s.first),
     );
   }
 }
@@ -393,4 +420,194 @@ String formatMinutes(int minutes) {
   final h = minutes ~/ 60;
   final m = minutes % 60;
   return m == 0 ? '$h h' : '$h h $m min';
+}
+
+/// Centred empty state: an icon, what's going on, and the next step.
+class EmptyState extends StatelessWidget {
+  const EmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final tm = context.tm;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Tm.s6, vertical: Tm.s8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: tm.accentSubtle,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: tm.aiText, size: 30),
+          ),
+          const SizedBox(height: Tm.s4),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: Tm.s2),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: tm.textMuted),
+          ),
+          if (action != null) ...[const SizedBox(height: Tm.s5), action!],
+        ],
+      ),
+    );
+  }
+}
+
+/// Sun over hills — the web hero's motif (apps/web: Today and the auth panel).
+class HillsArt extends StatelessWidget {
+  const HillsArt({super.key, this.width = 140, this.height = 76});
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: CustomPaint(size: Size(width, height), painter: _HillsPainter()),
+  );
+}
+
+class _HillsPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final paint = Paint()..color = TmColors.caramel.withValues(alpha: 0.75);
+    canvas.drawCircle(Offset(w * 0.68, h * 0.3), h * 0.16, paint);
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, h)
+        ..cubicTo(w * 0.18, h * 0.42, w * 0.38, h * 0.36, w * 0.55, h * 0.62)
+        ..cubicTo(w * 0.72, h * 0.4, w * 0.9, h * 0.44, w, h * 0.5)
+        ..lineTo(w, h)
+        ..close(),
+      Paint()..color = TmColors.caramel.withValues(alpha: 0.28),
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.15, h)
+        ..cubicTo(w * 0.4, h * 0.7, w * 0.62, h * 0.74, w * 0.75, h * 0.82)
+        ..cubicTo(w * 0.86, h * 0.68, w * 0.95, h * 0.7, w, h * 0.74)
+        ..lineTo(w, h)
+        ..close(),
+      Paint()..color = TmColors.caramel.withValues(alpha: 0.38),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Quick Add: into the Inbox, or straight into [projectId]. True when added.
+Future<bool> showQuickAdd(
+  BuildContext context, {
+  String? projectId,
+  String? projectName,
+}) async {
+  final title = await showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => _QuickAddSheet(projectName: projectName),
+  );
+  if (title == null || !context.mounted) return false;
+  final api = SessionScope.read(context).api;
+  final ok = await runAction(
+    context,
+    () => api.quickAdd(title, projectId: projectId),
+  );
+  if (ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          projectName == null ? 'Added to your Inbox' : 'Added to $projectName',
+        ),
+      ),
+    );
+  }
+  return ok;
+}
+
+class _QuickAddSheet extends StatefulWidget {
+  const _QuickAddSheet({this.projectName});
+  final String? projectName;
+
+  @override
+  State<_QuickAddSheet> createState() => _QuickAddSheetState();
+}
+
+class _QuickAddSheetState extends State<_QuickAddSheet> {
+  final _text = TextEditingController();
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final title = _text.text.trim();
+    if (title.isNotEmpty) Navigator.of(context).pop(title);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        Tm.s4,
+        0,
+        Tm.s4,
+        MediaQuery.viewInsetsOf(context).bottom + Tm.s4,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Quick Add', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: Tm.s3),
+          TextField(
+            controller: _text,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _submit(),
+            decoration: const InputDecoration(
+              labelText: 'Task',
+              hintText: 'Send Sarah the figures',
+            ),
+          ),
+          const SizedBox(height: Tm.s2),
+          Text(
+            widget.projectName == null
+                ? 'Lands in your Inbox to organise later.'
+                : 'Goes straight into ${widget.projectName}.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: Tm.s4),
+          FilledButton.icon(
+            onPressed: _submit,
+            icon: const Icon(Icons.add),
+            label: const Text('Add task'),
+          ),
+        ],
+      ),
+    );
+  }
 }
