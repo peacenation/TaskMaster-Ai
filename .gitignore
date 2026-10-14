@@ -50,3 +50,6 @@ blob-report/
 
 # Supabase CLI: local Google placeholders example is committed; real values are not.
 !supabase/.env.example
+
+# Netlify local build output
+.netlify/

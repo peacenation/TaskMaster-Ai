@@ -1,0 +1,14 @@
+# Netlify: the Next.js app lives in apps/web (npm workspaces monorepo).
+# Building from apps/web puts the output where @netlify/plugin-nextjs looks
+# for it (apps/web/.next); `npm install` there installs the whole workspace.
+# Overrides the build settings in the Netlify UI.
+[build]
+  base = "apps/web"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
