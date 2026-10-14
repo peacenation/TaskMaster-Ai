@@ -8,7 +8,13 @@ export const dynamic = "force-dynamic";
 // told they are pending (`attention`) so it can point the user there.
 export const GET = apiRoute(async ({ userId, timeZone, profile }) => {
   const view = await loadToday(userId, timeZone, {}, profile);
-  if (!view.onboarded) return json({ onboarded: false });
+  // Not onboarded yet: still greet them, so the app can offer a Brain Dump.
+  if (!view.onboarded)
+    return json({
+      onboarded: false,
+      greeting: greeting(new Date(), timeZone),
+      firstName: profile.name.trim().split(/\s+/)[0] ?? "",
+    });
   const { now, plan, recommendation, records, projectNames, today } = view;
   const byId = new Map(records.map((task) => [task.id, task]));
   const task = (id: string) => {

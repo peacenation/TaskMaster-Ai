@@ -22,6 +22,10 @@ tags:
     description: Listing, capturing and acting on tasks.
   - name: Projects
     description: Projects and their progress.
+  - name: Capture
+    description: Brain Dump — organise, review, commit.
+  - name: Planner
+    description: AI Planner — propose and apply a timeline for today.
 paths:
   /api/v1/me:
     get:
@@ -114,6 +118,10 @@ paths:
                 dueAt:
                   type: [string, "null"]
                   format: date-time
+                projectId:
+                  description: Add straight into this project as a to-do (otherwise the Inbox).
+                  type: [string, "null"]
+                  format: uuid
       responses:
         "201":
           description: Created
@@ -191,6 +199,269 @@ paths:
                               type: integer
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /api/v1/dumps:
+    post:
+      tags: [Capture]
+      operationId: createBrainDump
+      summary: Save a Brain Dump and organise it into a proposal
+      description: |
+        The text is saved first, then organised by Claude (when configured and
+        within the hourly quota) or the built-in rules. Nothing becomes a task
+        until the reviewed items are committed.
+      parameters:
+        - $ref: "#/components/parameters/TimeZone"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 20000
+      responses:
+        "201":
+          description: Proposal to review
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dumpId, engine, notice, items]
+                properties:
+                  dumpId:
+                    type: string
+                    format: uuid
+                  engine:
+                    type: string
+                    enum: [ai, heuristic]
+                  notice:
+                    description: Why the built-in rules were used, when they were.
+                    type: [string, "null"]
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ProposedItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/dumps/{id}/commit:
+    post:
+      tags: [Capture]
+      operationId: commitBrainDump
+      summary: Save the reviewed items (all or nothing); completes onboarding
+      parameters:
+        - $ref: "#/components/parameters/TimeZone"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    $ref: "#/components/schemas/ReviewedItem"
+      responses:
+        "201":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [summary]
+                properties:
+                  summary:
+                    type: object
+                    required: [dumpId, tasks, projects, goals, habits, notes]
+                    properties:
+                      dumpId:
+                        type: string
+                        format: uuid
+                      tasks:
+                        type: integer
+                      projects:
+                        type: integer
+                      goals:
+                        type: integer
+                      habits:
+                        type: integer
+                      notes:
+                        type: integer
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/projects/{id}:
+    get:
+      tags: [Projects]
+      operationId: getProject
+      summary: One project with its tasks, grouped by status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project, inProgress, todo, postponed]
+                properties:
+                  project:
+                    $ref: "#/components/schemas/ProjectProgress"
+                  inProgress:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+                  todo:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+                  postponed:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/planner:
+    post:
+      tags: [Planner]
+      operationId: proposePlan
+      summary: AI Planner — propose a timeline for today (nothing is saved)
+      description: |
+        Claude when configured and within the hourly quota (`engine: ai`),
+        otherwise today's rules plan (`engine: rules`). Task blocks only ever
+        reference the user's own open tasks; breaks and events are suggestions.
+      parameters:
+        - $ref: "#/components/parameters/TimeZone"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                history:
+                  type: array
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [role, text]
+                    properties:
+                      role:
+                        type: string
+                        enum: [user, assistant]
+                      text:
+                        type: string
+                        maxLength: 2000
+      responses:
+        "200":
+          description: Proposed timeline
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [engine, reply, blocks]
+                properties:
+                  engine:
+                    type: string
+                    enum: [ai, rules]
+                  reply:
+                    type: string
+                  blocks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PlannerBlock"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Not onboarded yet — nothing to plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/planner/apply:
+    post:
+      tags: [Planner]
+      operationId: applyPlan
+      summary: Save a proposed timeline's task blocks as today's plan
+      parameters:
+        - $ref: "#/components/parameters/TimeZone"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [blocks]
+              properties:
+                blocks:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [taskId, start, minutes]
+                    properties:
+                      taskId:
+                        type: string
+                        format: uuid
+                      start:
+                        type: string
+                        pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                      minutes:
+                        type: integer
+                        minimum: 5
+                        maximum: 480
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, scheduled]
+                properties:
+                  ok:
+                    type: boolean
+                  scheduled:
+                    type: integer
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   securitySchemes:
     bearerAuth:
@@ -325,10 +596,96 @@ components:
           type: integer
     NotOnboarded:
       type: object
-      required: [onboarded]
+      required: [onboarded, greeting, firstName]
       properties:
         onboarded:
           const: false
+        greeting:
+          type: string
+        firstName:
+          type: string
+    ProposedItem:
+      type: object
+      required: [kind, title, deadline, recurrence, estimatedMinutes, project]
+      properties:
+        kind:
+          type: string
+          enum: [task, project, goal, note, recurring]
+        title:
+          type: string
+        deadline:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [at, confidence, source]
+              properties:
+                at:
+                  type: string
+                  format: date-time
+                confidence:
+                  type: number
+                source:
+                  type: string
+        recurrence:
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/Recurrence"
+        estimatedMinutes:
+          type: [integer, "null"]
+        project:
+          type: [string, "null"]
+    ReviewedItem:
+      type: object
+      required: [kind, title, dueAt, recurrence, estimatedMinutes, project, importance]
+      properties:
+        kind:
+          type: string
+          enum: [task, project, goal, note, recurring]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        dueAt:
+          type: [string, "null"]
+          format: date-time
+        recurrence:
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/Recurrence"
+        estimatedMinutes:
+          type: [integer, "null"]
+        project:
+          type: [string, "null"]
+        importance:
+          type: [integer, "null"]
+    Recurrence:
+      type: object
+      required: [frequency, timesPerPeriod]
+      properties:
+        frequency:
+          type: string
+          enum: [daily, weekly, monthly]
+        timesPerPeriod:
+          type: integer
+    PlannerBlock:
+      type: object
+      required: [kind, taskId, title, project, start, minutes]
+      properties:
+        kind:
+          type: string
+          enum: [task, break, event]
+        taskId:
+          type: [string, "null"]
+          format: uuid
+        title:
+          type: string
+        project:
+          type: [string, "null"]
+        start:
+          description: Local 24-hour time, HH:MM.
+          type: string
+        minutes:
+          type: integer
     Today:
       type: object
       required: [onboarded, date, greeting, firstName, stats, recommendation, plan, capacity, projects, attention]

@@ -42,7 +42,10 @@ test("mobile API: Supabase token, profile, quick add, status changes", async ({}
   expect(me.body).toMatchObject({ name: "Ada Mobile", email, timeZone: "Europe/London" });
 
   // New accounts haven't onboarded (Brain Dump) yet.
-  expect((await call("/api/v1/today", token)).body).toEqual({ onboarded: false });
+  expect((await call("/api/v1/today", token)).body).toMatchObject({
+    onboarded: false,
+    firstName: "Ada",
+  });
 
   const created = await call("/api/v1/tasks", token, {
     method: "POST",

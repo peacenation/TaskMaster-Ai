@@ -115,3 +115,20 @@ export async function commitReviewedItems(
   await repos.brainDumps.markCommitted(dumpId);
   return summary;
 }
+
+/**
+ * Commit, then mark onboarding done: the first saved Brain Dump is what
+ * unlocks Today. Shared by the web action and the mobile API.
+ */
+export async function commitAndOnboard(
+  repos: Repositories,
+  input: CommitInput,
+  now: Date
+): Promise<CommitSummary> {
+  const summary = await commitReviewedItems(repos, input, now);
+  const profile = await repos.users.profile();
+  await repos.users.savePreferences(profile?.timezone ?? "UTC", {
+    onboardingCompleted: true,
+  });
+  return summary;
+}

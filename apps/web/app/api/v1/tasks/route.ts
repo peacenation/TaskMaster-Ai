@@ -45,26 +45,39 @@ export const GET = apiRoute(async ({ userId, timeZone }, request) => {
 const createSchema = z.object({
   title: z.string().trim().min(1).max(500),
   dueAt: z.iso.datetime({ offset: true }).nullable().optional(),
+  projectId: z.string().uuid().nullable().optional(),
 });
 
 // Quick Add from the phone: lands in the Inbox, like the web's Quick Add.
+// Added from a project screen (projectId), it goes straight into that
+// project as a to-do, since it's already organised.
 export const POST = apiRoute(async ({ userId }, request) => {
   const parsed = createSchema.safeParse(await readJson(request));
   if (!parsed.success) throw new ApiError(400, "Give the task a title.");
-  const task = await withRepositories(userId, async (repos) => {
+  const { title, dueAt, projectId } = parsed.data;
+  const { task, names } = await withRepositories(userId, async (repos) => {
+    const project = projectId
+      ? (await repos.projects.list()).find((p) => p.id === projectId)
+      : undefined;
+    if (projectId && !project) throw new ApiError(404, "Project not found.");
+    const status = project ? "todo" : "inbox";
     const created = await repos.tasks.create({
-      title: parsed.data.title,
-      dueAt: parsed.data.dueAt ? new Date(parsed.data.dueAt) : null,
+      title,
+      dueAt: dueAt ? new Date(dueAt) : null,
       source: "quick_add",
-      status: "inbox",
+      status,
+      projectId: project?.id ?? null,
     });
     await repos.taskEvents.record({
       taskId: created.id,
       eventType: "created",
-      toStatus: "inbox",
+      toStatus: status,
     });
-    return created;
+    return {
+      task: created,
+      names: new Map(project ? [[project.id, project.name]] : []),
+    };
   });
   revalidatePath("/", "layout");
-  return json({ task: toTaskDto(task, new Map()) }, 201);
+  return json({ task: toTaskDto(task, names) }, 201);
 });

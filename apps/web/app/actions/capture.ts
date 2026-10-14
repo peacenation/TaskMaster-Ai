@@ -2,11 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import {
-  commitInputSchema,
-  commitReviewedItems,
-  type CommitSummary,
-} from "@/lib/capture/commit";
+import { commitAndOnboard, commitInputSchema, type CommitSummary } from "@/lib/capture/commit";
 import { withRepositories } from "@/lib/repo";
 import { getCurrentUserId } from "@/lib/server/session";
 
@@ -38,14 +34,7 @@ export async function commitBrainDump(input: unknown): Promise<CommitResult> {
   const userId = await getCurrentUserId();
   try {
     const summary = await withRepositories(userId, (repos) =>
-      (async () => {
-        const summary = await commitReviewedItems(repos, parsed.data, new Date());
-        const profile = await repos.users.profile();
-        await repos.users.savePreferences(profile?.timezone ?? "UTC", {
-          onboardingCompleted: true,
-        });
-        return summary;
-      })()
+      commitAndOnboard(repos, parsed.data, new Date())
     );
     revalidatePath("/", "layout");
     return { ok: true, summary };
