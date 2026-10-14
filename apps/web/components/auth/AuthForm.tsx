@@ -12,6 +12,8 @@ const RETURN_ERRORS: Record<string, string> = {
   link_invalid: "That link is invalid or has expired. Request a new one.",
   otp_expired: "That link has expired. Request a new one.",
   email_not_confirmed: "Confirm your email first — check your inbox for the link.",
+  account_conflict:
+    "This email already belongs to an older TaskMasterAi account. Sign in with that account's password (or reset it), then connect Google in Settings.",
 };
 
 // Supabase Auth error codes worth explaining better than its default text.

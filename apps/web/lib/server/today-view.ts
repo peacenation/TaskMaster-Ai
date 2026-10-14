@@ -1,7 +1,7 @@
 import { localDate } from "@/lib/execution/date";
 import { buildToday, todaySettingsSchema } from "@/lib/planning/today";
 import { realityCheckSummary } from "@/lib/domain/reality-check";
-import { withRepositories } from "@/lib/repo";
+import { withRepositories, type Repositories } from "@/lib/repo";
 import type { TaskRecord } from "@/lib/repo/task-repository";
 import { toPlannable } from "@/lib/server/views";
 
@@ -22,48 +22,78 @@ export function isOpenTask(task: TaskRecord) {
   return task.source !== "recurrence" && ["todo", "in_progress"].includes(task.status);
 }
 
+type Profile = NonNullable<Awaited<ReturnType<Repositories["users"]["profile"]>>>;
+
+/**
+ * One transaction for the whole page: every query here is a database round
+ * trip, and on serverless hosts far from the database each one costs
+ * ~100ms, so they share one BEGIN/COMMIT. Pass the profile when the caller
+ * already has it (getCurrentProfile) to skip re-reading it.
+ */
 export async function loadToday(
   userId: string,
   timeZone: string,
-  query: Record<string, string | string[] | undefined> = {}
+  query: Record<string, string | string[] | undefined> = {},
+  knownProfile?: Profile
 ) {
-  const { records, dependencies, projects, chosenId, profile, procrastinationCandidates } =
-    await withRepositories(userId, async (repos) => ({
-      records: await repos.tasks.list(),
-      dependencies: await repos.tasks.dependencies(),
-      projects: await repos.projects.list(),
-      chosenId: await repos.users.nextTaskId(),
-      profile: await repos.users.profile(),
-      procrastinationCandidates: await repos.taskEvents.procrastinationCandidates(),
-    }));
-  if (!profile?.preferences.onboardingCompleted) return { onboarded: false as const };
-  const settings = todaySettingsSchema.parse({
-    dayMinutes: profile.preferences.dayMinutes ?? 240,
-    availableMinutes: profile.preferences.availableMinutes ?? undefined,
-    energy: profile.preferences.energy ?? undefined,
-    ...query,
-  });
   const now = new Date();
-  const today = buildToday(
-    toPlannable(records, dependencies),
-    {
-      now,
-      timeZone,
-      availableMinutes: settings.availableMinutes,
-      energy: settings.energy,
-    },
-    settings.dayMinutes,
-    chosenId
-  );
   const date = localDate(now, timeZone);
-  const { saved, recovery } = await withRepositories(userId, async (repos) => {
-    if (!(await repos.execution.plan(date)))
+  const loaded = await withRepositories(userId, async (repos) => {
+    const profile = knownProfile ?? (await repos.users.profile());
+    if (!profile?.preferences.onboardingCompleted) return null;
+    const records = await repos.tasks.list();
+    const dependencies = await repos.tasks.dependencies();
+    const projects = await repos.projects.list();
+    const procrastinationCandidates = await repos.taskEvents.procrastinationCandidates();
+    const next = profile.preferences.nextTaskId;
+    const chosenId = typeof next === "string" ? next : null;
+    const settings = todaySettingsSchema.parse({
+      dayMinutes: profile.preferences.dayMinutes ?? 240,
+      availableMinutes: profile.preferences.availableMinutes ?? undefined,
+      energy: profile.preferences.energy ?? undefined,
+      ...query,
+    });
+    const today = buildToday(
+      toPlannable(records, dependencies),
+      {
+        now,
+        timeZone,
+        availableMinutes: settings.availableMinutes,
+        energy: settings.energy,
+      },
+      settings.dayMinutes,
+      chosenId
+    );
+    let saved = await repos.execution.plan(date);
+    if (!saved) {
       await repos.execution.savePlan(date, today.plan, false);
+      saved = await repos.execution.plan(date);
+    }
+    const recovery = await repos.execution.recovery(now);
     return {
-      saved: await repos.execution.plan(date),
-      recovery: await repos.execution.recovery(now),
+      profile,
+      records,
+      projects,
+      chosenId,
+      procrastinationCandidates,
+      settings,
+      today,
+      saved,
+      recovery,
     };
   });
+  if (!loaded) return { onboarded: false as const };
+  const {
+    profile,
+    records,
+    projects,
+    chosenId,
+    procrastinationCandidates,
+    settings,
+    today,
+    saved,
+    recovery,
+  } = loaded;
   const { plan, recommendation } = today;
   const realityCheck = realityCheckSummary(
     plan.capacity.mustDoMinutes,

@@ -17,6 +17,17 @@ export interface AuthSession {
   signedInAt: Date | null;
 }
 
+/** Postgres unique_violation (23505), however the driver wraps it. */
+function isUniqueViolation(error: unknown): boolean {
+  for (
+    let e: unknown = error;
+    e && typeof e === "object";
+    e = (e as { cause?: unknown }).cause
+  )
+    if ((e as { code?: unknown }).code === "23505") return true;
+  return false;
+}
+
 /** JWT payload, read only after the Auth server has accepted the token. */
 function claims(token: string): { amr?: { method: string; timestamp: number }[] } {
   try {
@@ -64,26 +75,49 @@ export const getSession = cache(async (): Promise<AuthSession | null> => {
   };
 });
 
-export async function getCurrentUserId(): Promise<string> {
+/**
+ * The signed-in user and their profile, loaded once per request (React
+ * cache) in one transaction: pages call getCurrentUserId() and
+ * getTimeZone(), and each used to cost its own database round trips. The
+ * profile is created on first sign-in (and its auth link repaired if a
+ * previous attempt was interrupted) — otherwise this is a single read.
+ */
+export const getCurrentProfile = cache(async () => {
   const session = await getSession();
   if (!session) redirect("/signin");
-  // Creates the profile on first sign-in (and repairs one if a previous
-  // attempt was interrupted).
-  await withRepositories(session.user.id, (repos) =>
-    repos.users.ensure({
-      name: session.user.name,
-      email: session.user.email,
-      authId: session.user.id,
-    })
-  );
-  return session.user.id;
+  let profile;
+  try {
+    profile = await withRepositories(session.user.id, async (repos) => {
+      const existing = await repos.users.profile();
+      if (existing?.authId) return existing;
+      await repos.users.ensure({
+        name: session.user.name,
+        email: session.user.email,
+        authId: session.user.id,
+      });
+      return repos.users.profile();
+    });
+  } catch (error) {
+    // Another account's profile already has this email (e.g. a second login
+    // created before an existing account was moved to Supabase Auth). Explain
+    // instead of failing with a 500.
+    if (isUniqueViolation(error)) redirect("/signin?error=account_conflict");
+    throw error;
+  }
+  if (!profile) throw new Error("Profile could not be created.");
+  return { session, profile };
+});
+
+export async function getCurrentUserId(): Promise<string> {
+  return (await getCurrentProfile()).session.user.id;
 }
 export const TIME_ZONE_COOKIE = "tz";
 export async function getTimeZone(): Promise<string> {
   const session = await getSession();
   if (session) {
-    const profile = await withRepositories(session.user.id, (repos) => repos.users.profile());
-    if (profile && isValidTimeZone(profile.timezone) && profile.preferences.timezoneSet)
+    // Same cached profile the page already loaded: no extra round trip.
+    const { profile } = await getCurrentProfile();
+    if (isValidTimeZone(profile.timezone) && profile.preferences.timezoneSet)
       return profile.timezone;
   }
   const value = (await cookies()).get(TIME_ZONE_COOKIE)?.value;

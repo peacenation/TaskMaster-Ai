@@ -17,7 +17,7 @@ import {
 import { PlusIcon } from "@/components/shell/icons";
 import { PlanView } from "@/components/planning/PlanView";
 import { TaskRow } from "@/components/planning/TaskRow";
-import { getCurrentUserId, getTimeZone } from "@/lib/server/session";
+import { getCurrentProfile, getTimeZone } from "@/lib/server/session";
 import { greeting, loadToday } from "@/lib/server/today-view";
 import { formatDue } from "@/lib/server/views";
 
@@ -31,9 +31,9 @@ export default async function TodayPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const query = await searchParams;
-  const userId = await getCurrentUserId();
+  const { session, profile: currentProfile } = await getCurrentProfile();
   const timeZone = await getTimeZone();
-  const view = await loadToday(userId, timeZone, query);
+  const view = await loadToday(session.user.id, timeZone, query, currentProfile);
   if (!view.onboarded) redirect("/dump");
   const {
     now,

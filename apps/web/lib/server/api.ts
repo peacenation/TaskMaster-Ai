@@ -1,5 +1,5 @@
 import { isValidTimeZone } from "@/lib/domain/dates";
-import { withRepositories } from "@/lib/repo";
+import { withRepositories, type Repositories } from "@/lib/repo";
 import type { TaskRecord } from "@/lib/repo/task-repository";
 import { getSession } from "@/lib/server/session";
 
@@ -11,6 +11,7 @@ import { getSession } from "@/lib/server/session";
 export interface ApiContext {
   userId: string;
   timeZone: string;
+  profile: NonNullable<Awaited<ReturnType<Repositories["users"]["profile"]>>>;
 }
 
 export class ApiError extends Error {
@@ -40,7 +41,10 @@ export function apiRoute<Args extends unknown[]>(
     try {
       const session = await getSession();
       if (!session) return json({ error: "Unauthorized" }, 401);
+      // One read per request; the profile is only written on first use.
       const profile = await withRepositories(session.user.id, async (repos) => {
+        const existing = await repos.users.profile();
+        if (existing?.authId) return existing;
         await repos.users.ensure({
           name: session.user.name,
           email: session.user.email,
@@ -48,15 +52,16 @@ export function apiRoute<Args extends unknown[]>(
         });
         return repos.users.profile();
       });
+      if (!profile) throw new ApiError(500, "Profile could not be created.");
       // A saved profile time zone wins; otherwise the device's, sent as a header.
       const header = request.headers.get("x-time-zone");
       const timeZone =
-        profile && profile.preferences.timezoneSet && isValidTimeZone(profile.timezone)
+        profile.preferences.timezoneSet && isValidTimeZone(profile.timezone)
           ? profile.timezone
           : header && isValidTimeZone(header)
             ? header
             : "UTC";
-      return await handler({ userId: session.user.id, timeZone }, request, ...args);
+      return await handler({ userId: session.user.id, timeZone, profile }, request, ...args);
     } catch (error) {
       if (error instanceof ApiError) return json({ error: error.message }, error.status);
       console.error("api error", error instanceof Error ? error.name : "unknown");

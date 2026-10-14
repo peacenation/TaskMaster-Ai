@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 // Today for the mobile app: the same plan app/page.tsx renders, as JSON.
 // Recovery and Reality Check decisions stay web-only for now; the app is
 // told they are pending (`attention`) so it can point the user there.
-export const GET = apiRoute(async ({ userId, timeZone }) => {
-  const view = await loadToday(userId, timeZone);
+export const GET = apiRoute(async ({ userId, timeZone, profile }) => {
+  const view = await loadToday(userId, timeZone, {}, profile);
   if (!view.onboarded) return json({ onboarded: false });
   const { now, plan, recommendation, records, projectNames, today } = view;
   const byId = new Map(records.map((task) => [task.id, task]));
