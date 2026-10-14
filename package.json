@@ -35,8 +35,9 @@
     "supabase:start": "npm run supabase:start -w @taskmaster/web",
     "supabase:stop": "npm run supabase:stop -w @taskmaster/web",
     "supabase:status": "npm run supabase:status -w @taskmaster/web",
-    "mobile:build:android": "cd apps/mobile && flutter build appbundle --release --dart-define-from-file=env/production.json",
-    "mobile:build:ios": "cd apps/mobile && flutter build ipa --release --dart-define-from-file=env/production.json"
+    "mobile:build:android": "cd apps/mobile && flutter build apk --release --dart-define-from-file=env/production.json && flutter build appbundle --release --dart-define-from-file=env/production.json",
+    "mobile:build:ios": "cd apps/mobile && flutter build ipa --release --dart-define-from-file=env/production.json",
+    "mobile:install:android": "~/Library/Android/sdk/platform-tools/adb install -r apps/mobile/build/app/outputs/flutter-apk/app-release.apk"
   },
   "engines": {
     "node": ">=22"
