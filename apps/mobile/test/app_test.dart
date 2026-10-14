@@ -48,6 +48,32 @@ void main() {
     expect(find.text('Good morning, Jerry'), findsOneWidget);
   });
 
+  testWidgets('Google button is hidden until a client ID is configured', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    expect(find.text('Continue with Google'), findsNothing);
+  });
+
+  testWidgets('Continue with Google signs in; cancelling stays quiet', (
+    tester,
+  ) async {
+    final auth = FakeAuth()
+      ..google = true
+      ..cancelGoogle = true;
+    await pumpApp(tester, auth: auth);
+    await tester.tap(find.text('Continue with Google'));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.textContaining('Try again'), findsNothing);
+
+    auth.cancelGoogle = false;
+    await tester.tap(find.text('Continue with Google'));
+    await tester.pumpAndSettle();
+    expect(auth.googleCalls, 2);
+    expect(find.text('Good morning, Jerry'), findsOneWidget);
+  });
+
   testWidgets('a wrong password explains itself', (tester) async {
     await pumpApp(tester, auth: FakeAuth()..rejectPassword = true);
     await tester.enterText(

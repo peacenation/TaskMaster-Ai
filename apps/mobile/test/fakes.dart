@@ -106,6 +106,19 @@ class FakeAuth implements AuthGateway {
   FakeAuth({this.signedIn = false});
   bool signedIn;
   bool rejectPassword = false;
+  bool google = false;
+  bool cancelGoogle = false;
+  int googleCalls = 0;
+
+  @override
+  bool get googleAvailable => google;
+
+  @override
+  Future<void> signInWithGoogle() async {
+    googleCalls++;
+    if (cancelGoogle) throw SignInCancelled();
+    signedIn = true;
+  }
 
   @override
   bool get hasSession => signedIn;

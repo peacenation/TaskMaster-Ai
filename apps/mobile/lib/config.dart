@@ -21,4 +21,16 @@ abstract final class AppConfig {
   static const supabasePublishableKey = String.fromEnvironment(
     'SUPABASE_PUBLISHABLE_KEY',
   );
+
+  /// Google sign-in (optional; the button hides when unset). The **Web**
+  /// OAuth client ID — the one entered in Supabase → Auth → Google — so the
+  /// ID token Google issues is one Supabase accepts. Public, not a secret.
+  static const googleWebClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+  );
+
+  /// iOS only: the iOS OAuth client ID from Google Cloud. Public.
+  static const googleIosClientId = String.fromEnvironment(
+    'GOOGLE_IOS_CLIENT_ID',
+  );
 }

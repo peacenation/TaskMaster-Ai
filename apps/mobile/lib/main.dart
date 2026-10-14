@@ -29,7 +29,10 @@ Future<void> main() async {
   } on Exception {
     timeZone = 'UTC';
   }
-  final auth = SupabaseAuthGateway();
+  final auth = SupabaseAuthGateway(
+    googleWebClientId: AppConfig.googleWebClientId,
+    googleIosClientId: AppConfig.googleIosClientId,
+  );
   final api = HttpTaskMasterApi(
     baseUrl: Uri.parse(AppConfig.apiBaseUrl),
     timeZone: timeZone,

@@ -44,9 +44,28 @@ class _SignInScreenState extends State<SignInScreen> {
     }
   }
 
+  Future<void> _google() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await SessionScope.read(context).signInWithGoogle();
+    } on SignInCancelled {
+      // Closed the account picker: nothing to explain.
+    } on SignInException catch (e) {
+      setState(() => _error = e.message);
+    } on ApiException catch (e) {
+      setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tm = context.tm;
+    final google = SessionScope.of(context).auth.googleAvailable;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -74,6 +93,30 @@ class _SignInScreenState extends State<SignInScreen> {
                         style: Theme.of(context).textTheme.headlineLarge,
                       ),
                       const SizedBox(height: Tm.s6),
+                      if (google) ...[
+                        OutlinedButton.icon(
+                          onPressed: _busy ? null : _google,
+                          icon: const _GoogleMark(),
+                          label: const Text('Continue with Google'),
+                        ),
+                        const SizedBox(height: Tm.s4),
+                        Row(
+                          children: [
+                            const Expanded(child: Divider()),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: Tm.s3,
+                              ),
+                              child: Text(
+                                'or sign in with email',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                            const Expanded(child: Divider()),
+                          ],
+                        ),
+                        const SizedBox(height: Tm.s4),
+                      ],
                       TextFormField(
                         controller: _email,
                         keyboardType: TextInputType.emailAddress,
@@ -130,4 +173,67 @@ class _SignInScreenState extends State<SignInScreen> {
       ),
     );
   }
+}
+
+/// Google's "G", drawn as the brand guidelines require for the sign-in button.
+class _GoogleMark extends StatelessWidget {
+  const _GoogleMark();
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(size: const Size.square(18), painter: _GooglePainter());
+}
+
+class _GooglePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final stroke = size.width * 0.2;
+    final arcRect = rect.deflate(stroke / 2);
+    Paint arc(Color c) => Paint()
+      ..color = c
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+    const deg = 3.1415926535 / 180;
+    canvas.drawArc(
+      arcRect,
+      -40 * deg,
+      -100 * deg,
+      false,
+      arc(const Color(0xFFEA4335)),
+    );
+    canvas.drawArc(
+      arcRect,
+      -140 * deg,
+      -90 * deg,
+      false,
+      arc(const Color(0xFFFBBC05)),
+    );
+    canvas.drawArc(
+      arcRect,
+      -230 * deg,
+      -95 * deg,
+      false,
+      arc(const Color(0xFF34A853)),
+    );
+    canvas.drawArc(
+      arcRect,
+      -325 * deg,
+      -35 * deg,
+      false,
+      arc(const Color(0xFF4285F4)),
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(
+        size.width / 2,
+        size.height / 2 - stroke / 2,
+        size.width / 2,
+        stroke,
+      ),
+      Paint()..color = const Color(0xFF4285F4),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

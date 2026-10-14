@@ -38,6 +38,13 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> signInWithGoogle() async {
+    await auth.signInWithGoogle();
+    me = await api.me();
+    state = SessionState.signedIn;
+    notifyListeners();
+  }
+
   Future<void> signOut() async {
     await auth.signOut();
     _signedOut();
