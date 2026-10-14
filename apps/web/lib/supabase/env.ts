@@ -2,10 +2,18 @@
 // URL and publishable key are public by design (they ship to the browser);
 // the secret key is server-only and checked by `npm run check:client-bundle`.
 
+/**
+ * The project's origin (`https://<ref>.supabase.co`). Only the origin is
+ * used, so a value pasted from the dashboard's REST endpoint
+ * (`…supabase.co/rest/v1/`) still reaches Auth at `/auth/v1`.
+ */
+export function supabaseOrigin(value: string | undefined): string {
+  if (!value) throw new Error("Configure NEXT_PUBLIC_SUPABASE_URL.");
+  return new URL(value).origin;
+}
+
 export function supabaseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) throw new Error("Configure NEXT_PUBLIC_SUPABASE_URL.");
-  return url;
+  return supabaseOrigin(process.env.NEXT_PUBLIC_SUPABASE_URL);
 }
 
 export function supabasePublishableKey(): string {
