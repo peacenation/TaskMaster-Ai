@@ -1,0 +1,6 @@
+extends:
+  - recommended
+rules:
+  # Single production server comes from deployment config, not the spec.
+  no-server-example.com: off
+  operation-4xx-response: error

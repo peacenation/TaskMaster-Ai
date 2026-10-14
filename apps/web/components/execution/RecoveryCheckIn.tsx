@@ -9,7 +9,7 @@ export function RecoveryCheckIn({ items }: { items: Array<{ id: string; title: s
   const [error, setError] = useState("");
   const router = useRouter();
   return (
-    <section className="notice" aria-labelledby="recovery-heading">
+    <section className="dash-card dash-card-attention" aria-labelledby="recovery-heading">
       <h2 id="recovery-heading">Your day changed. What should happen?</h2>
       <p>
         These planned blocks have passed and the tasks are still open. Nothing has been moved.

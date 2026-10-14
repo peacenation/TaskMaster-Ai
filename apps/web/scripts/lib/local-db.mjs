@@ -1,18 +1,42 @@
 // Prepares a throwaway local PostgreSQL database for automated tests:
-// creates it, applies every migration, and grants the app and auth roles.
+// creates it, applies every migration, and grants the app role. Sign-in
+// comes from the local Supabase stack (`npm run supabase:start`), whose
+// URL and keys are read from the CLI (ADR-013).
 // Shared by scripts/db-test.mjs (DB tests) and scripts/e2e-server.mjs
 // (end-to-end tests). Refuses to touch anything but localhost, so it can
 // never truncate or migrate a cloud database (e.g. Supabase) by accident.
 import { config } from "dotenv";
 import { Pool } from "pg";
-import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 config({ path: ".env.local", quiet: true });
 
 const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
-const AUTH_ROLE = "taskmaster_auth_test";
-const AUTH_PASSWORD = "taskmaster_auth_test_local";
+const REPO_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+
+/** URL and keys of the local Supabase stack, from `supabase status`. */
+export function localSupabase() {
+  const result = spawnSync("supabase", ["status", "-o", "json", "--workdir", REPO_ROOT], {
+    encoding: "utf8",
+  });
+  let status;
+  try {
+    status = JSON.parse(result.stdout.slice(result.stdout.indexOf("{")));
+  } catch {
+    throw new Error("Local Supabase isn't running. Start it with: npm run supabase:start");
+  }
+  if (!LOCAL_HOSTS.includes(new URL(status.API_URL).hostname)) {
+    throw new Error("Refusing to use a non-local Supabase for tests.");
+  }
+  return {
+    NEXT_PUBLIC_SUPABASE_URL: status.API_URL,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: status.PUBLISHABLE_KEY,
+    SUPABASE_SECRET_KEY: status.SECRET_KEY,
+    SUPABASE_AUTH_DB_URL: status.DB_URL,
+    MAILPIT_URL: status.MAILPIT_URL ?? status.INBUCKET_URL,
+  };
+}
 
 /**
  * @param {string} name database to (re)use, e.g. "taskmaster_test"
@@ -48,7 +72,7 @@ export async function prepareLocalDatabase(name) {
     DATABASE_URL: owner.toString(),
     DATABASE_URL_APP: app.toString(),
     TASKMASTER_TEST_DATABASE: name,
-    BETTER_AUTH_SECRET: randomBytes(48).toString("hex"),
+    ...localSupabase(),
   };
 
   const migrate = spawnSync("npm", ["run", "db:migrate"], { env, stdio: "inherit" });
@@ -63,36 +87,27 @@ export async function prepareLocalDatabase(name) {
       `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "${appRole}"`
     );
     await pool.query(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO "${appRole}"`);
-    const found = await pool.query("SELECT 1 FROM pg_roles WHERE rolname=$1", [AUTH_ROLE]);
-    if (!found.rowCount) {
-      await pool.query(
-        `CREATE ROLE ${AUTH_ROLE} LOGIN PASSWORD '${AUTH_PASSWORD}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`
-      );
-    }
-    await pool.query(`GRANT CONNECT ON DATABASE ${name} TO ${AUTH_ROLE}`);
-    await pool.query(`GRANT USAGE ON SCHEMA taskmaster_auth TO ${AUTH_ROLE}, "${appRole}"`);
-    await pool.query(
-      `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA taskmaster_auth TO ${AUTH_ROLE}`
-    );
   } finally {
     await pool.end();
   }
 
-  const authUrl = new URL(owner);
-  authUrl.username = AUTH_ROLE;
-  authUrl.password = AUTH_PASSWORD;
-  env.DATABASE_URL_AUTH = authUrl.toString();
   return env;
 }
 
-/** Empties every user-owned table, keeping the schema and roles. */
+/** Empties every user-owned table and every local Supabase login. */
 export async function resetLocalDatabase(env) {
   const pool = new Pool({ connectionString: env.DATABASE_URL });
   try {
-    await pool.query(
-      `TRUNCATE TABLE users, taskmaster_auth."user", taskmaster_auth.verification RESTART IDENTITY CASCADE`
-    );
+    await pool.query(`TRUNCATE TABLE users RESTART IDENTITY CASCADE`);
   } finally {
     await pool.end();
   }
+  // localSupabase() already refused anything but localhost.
+  const auth = new Pool({ connectionString: env.SUPABASE_AUTH_DB_URL });
+  try {
+    await auth.query("DELETE FROM auth.users");
+  } finally {
+    await auth.end();
+  }
+  if (env.MAILPIT_URL) await fetch(`${env.MAILPIT_URL}/api/v1/messages`, { method: "DELETE" });
 }

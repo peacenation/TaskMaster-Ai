@@ -1,14 +1,10 @@
 import { AuthForm } from "@/components/auth/AuthForm";
-import { emailConfigured } from "@/lib/auth/email";
+import { AuthShell } from "@/components/auth/AuthShell";
 export const dynamic = "force-dynamic";
 export default function Page() {
   return (
-    <div className="wrap auth-wrap">
-      <header className="hero">
-        <p className="eyebrow">TaskMaster</p>
-        <h1>Sign in by email</h1>
-      </header>
-      <AuthForm mode="magic" emailReady={emailConfigured()} />
-    </div>
+    <AuthShell title="Sign in by email" subtitle="We'll send you a one-time sign-in link.">
+      <AuthForm mode="magic" />
+    </AuthShell>
   );
 }

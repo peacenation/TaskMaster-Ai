@@ -1,8 +1,8 @@
 // Creates a reviewer demo account with a realistic week of data
-// (IMPLEMENTATION_PLAN.md Phase 12, work item 7). It signs up through
-// Better Auth exactly as the sign-up page does, then writes through the
-// same RLS-scoped repositories the app uses, so the account is
-// indistinguishable from a real one.
+// (IMPLEMENTATION_PLAN.md Phase 12, work item 7). It creates the login in
+// Supabase Auth (email already confirmed, so reviewers can sign straight
+// in), then writes through the same RLS-scoped repositories the app uses,
+// so the account is indistinguishable from a real one.
 //
 //   DEMO_PASSWORD=... npm run db:seed:demo                 # local database
 //   DEMO_PASSWORD=... npm run db:seed:demo -- --confirm    # any other host
@@ -28,7 +28,7 @@ async function main() {
   }
 
   // Imported after the guard and dotenv, so nothing connects before them.
-  const { getAuth } = await import("../lib/auth/server");
+  const { supabaseAdmin } = await import("../lib/supabase/server");
   const { withRepositories } = await import("../lib/repo");
   const { changeStatus } = await import("../lib/execution/operations");
   const { zonedParts, zonedTimeToUtc } = await import("../lib/domain/dates");
@@ -44,11 +44,17 @@ async function main() {
     return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
   };
 
-  const { user } = await getAuth().api.signUpEmail({
-    body: { name: "Demo Reviewer", email, password },
+  const { data, error } = await supabaseAdmin().auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { name: "Demo Reviewer" },
   });
+  if (error || !data.user) throw new Error(`Could not create ${email}: ${error?.message}`);
+  const user = data.user;
 
   await withRepositories(user.id, async (repos) => {
+    await repos.users.ensure({ name: "Demo Reviewer", email, authId: user.id });
     await repos.users.savePreferences(timeZone, { onboardingCompleted: true });
 
     const dump = await repos.brainDumps.create(

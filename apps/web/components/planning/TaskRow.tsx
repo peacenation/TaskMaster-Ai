@@ -20,21 +20,23 @@ export function TaskRow({
   const { task } = item;
   return (
     <li className="today-task">
-      <div>
-        <Link href={`/tasks/${task.id}`} className="today-task-title">
-          {task.title}
-        </Link>
-        <p className="field-hint">
+      <div className="today-task-main">
+        <div className="today-task-line">
+          <Link href={`/tasks/${task.id}`} className="today-task-title">
+            {task.title}
+          </Link>
+          {task.priority !== null && (
+            <Badge tone="success">Your priority: {task.priority}/5</Badge>
+          )}
+          {chosen && <Badge tone="success">Your next action</Badge>}
+        </div>
+        <p className="today-task-meta">
           {task.dueAt ? `Due ${formatDue(task.dueAt, timeZone)}` : "No deadline"} ·{" "}
           {task.estimatedMinutes !== null
             ? `${task.estimatedMinutes} min`
             : "30 min suggested"}
           {project ? ` · ${project}` : ""}
         </p>
-        {task.priority !== null && (
-          <Badge tone="success">Your priority: {task.priority}/5</Badge>
-        )}
-        {chosen && <Badge tone="success">Your next action</Badge>}
         {reason && <p className="field-hint">{reason}</p>}
         <details>
           <summary>Why this ranking · score {Math.round(item.score * 10) / 10}</summary>
@@ -58,6 +60,7 @@ export function TaskRow({
           <Select
             id={`priority-${task.id}`}
             name="priority"
+            className="select-sm"
             defaultValue={task.priority ?? ""}
           >
             <option value="">Unset</option>
@@ -68,12 +71,12 @@ export function TaskRow({
               </option>
             ))}
           </Select>
-          <Button type="submit" variant="secondary">
+          <Button type="submit" variant="secondary" className="btn-sm">
             Save priority
           </Button>
         </form>
         <form action={chooseNext.bind(null, task.id)}>
-          <Button type="submit" variant="secondary">
+          <Button type="submit" variant="secondary" className="btn-sm">
             Choose next
           </Button>
         </form>

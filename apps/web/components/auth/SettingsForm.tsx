@@ -1,23 +1,69 @@
 "use client";
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useCallback, useState } from "react";
 import { savePreferences } from "@/app/actions/account";
+import { supabaseBrowser } from "@/lib/supabase/browser";
+import { usePageRestore } from "@/lib/auth/use-page-restore";
 import { Button, Field, Input, Select } from "@/components/ui";
 import { SignOut } from "./SignOut";
 export function SettingsForm({
   timezone,
   preferences,
   email,
+  hasPassword,
+  googleEnabled,
+  googleLinked,
+  recentSignIn,
+  linkError,
 }: {
   timezone: string;
   preferences: Record<string, unknown>;
   email: string;
+  hasPassword: boolean;
+  googleEnabled: boolean;
+  googleLinked: boolean;
+  /** Signed in within the re-auth window (lib/auth/reauth.ts). */
+  recentSignIn: boolean;
+  /** `?error=` from a failed Google redirect. */
+  linkError?: string;
 }) {
   const [state, action, pending] = useActionState(savePreferences, {});
   const [confirmation, setConfirmation] = useState("");
   const [password, setPassword] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [googleError, setGoogleError] = useState(
+    linkError === "identity_already_exists"
+      ? "That Google account is already connected to a different TaskMasterAi account."
+      : linkError === "access_denied"
+        ? "Google sign-in was cancelled."
+        : linkError
+          ? "Google didn't finish connecting. Try again."
+          : ""
+  );
+  const [googlePending, setGooglePending] = useState(false);
+  usePageRestore(useCallback(() => setGooglePending(false), []));
+  // Both connecting and re-confirming go to Google and come back here.
+  async function goToGoogle(intent: "link" | "confirm") {
+    setGooglePending(true);
+    setGoogleError("");
+    const options = {
+      redirectTo: `${window.location.origin}/auth/callback?next=/settings`,
+      queryParams: { prompt: "select_account" },
+    };
+    try {
+      const auth = supabaseBrowser().auth;
+      const { error } =
+        intent === "link"
+          ? await auth.linkIdentity({ provider: "google", options })
+          : await auth.signInWithOAuth({ provider: "google", options });
+      if (error) throw error;
+    } catch {
+      setGoogleError("Could not reach Google. Try again.");
+      setGooglePending(false);
+    }
+  }
+  const canDelete = confirmation === "DELETE" && (hasPassword ? !!password : recentSignIn);
   return (
     <>
       <p>Signed in as {email}</p>
@@ -78,6 +124,46 @@ export function SettingsForm({
           <Link href="/privacy">What TaskMaster stores and where AI is used</Link>
         </p>
       </section>
+      {googleEnabled && (
+        <section>
+          <h2>Sign-in methods</h2>
+          <ul className="review-list">
+            <li className="review-item">
+              <span className="review-item-text">
+                <strong>Password</strong>
+                <span className="field-hint">
+                  {" "}
+                  · {hasPassword ? "Set" : "Not set — use Reset password to add one"}
+                </span>
+              </span>
+            </li>
+            <li className="review-item">
+              <span className="review-item-text">
+                <strong>Google</strong>
+                <span className="field-hint">
+                  {" "}
+                  · {googleLinked ? "Connected" : "Not connected"}
+                </span>
+              </span>
+              {!googleLinked && (
+                <Button
+                  variant="secondary"
+                  className="btn-sm"
+                  disabled={googlePending}
+                  onClick={() => goToGoogle("link")}
+                >
+                  Connect Google
+                </Button>
+              )}
+            </li>
+          </ul>
+          {googleError && (
+            <p className="notice notice-danger" role="alert">
+              {googleError}
+            </p>
+          )}
+        </section>
+      )}
       <section>
         <h2>Session</h2>
         <SignOut />
@@ -95,18 +181,36 @@ export function SettingsForm({
             onChange={(e) => setConfirmation(e.target.value)}
           />
         </Field>
-        <Field label="Current password" htmlFor="delete-password">
-          <Input
-            id="delete-password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </Field>
+        {hasPassword ? (
+          <Field label="Current password" htmlFor="delete-password">
+            <Input
+              id="delete-password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </Field>
+        ) : recentSignIn ? (
+          <p className="field-hint">You confirmed with Google just now.</p>
+        ) : (
+          <div className="field">
+            <p className="field-hint">
+              Your account uses Google sign-in. For your security, confirm with Google first —
+              it brings you back here.
+            </p>
+            <Button
+              variant="secondary"
+              disabled={googlePending}
+              onClick={() => goToGoogle("confirm")}
+            >
+              Confirm with Google
+            </Button>
+          </div>
+        )}
         <Button
           variant="danger"
-          disabled={deleting || confirmation !== "DELETE" || !password}
+          disabled={deleting || !canDelete}
           onClick={async () => {
             setDeleting(true);
             setError("");
@@ -114,10 +218,13 @@ export function SettingsForm({
               const response = await fetch("/api/account/delete", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ confirmation, password }),
+                body: JSON.stringify(
+                  hasPassword ? { confirmation, password } : { confirmation }
+                ),
               });
               if (!response.ok) {
-                setError("Could not delete your account. Check your password and try again.");
+                const body = await response.json().catch(() => null);
+                setError(body?.error ?? "Could not delete your account. Try again.");
                 return;
               }
               for (const key of Object.keys(localStorage))

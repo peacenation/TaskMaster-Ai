@@ -49,11 +49,14 @@ jobs:
         run: npm ci
 
       - name: Migrate production database
+        working-directory: apps/web
         run: npm run db:migrate:deploy
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
           DATABASE_CA_CERT: ${{ secrets.DATABASE_CA_CERT }}
 
+      # Run from the repo root: the Vercel project's Root Directory is
+      # apps/web (Project Settings → Build and Deployment).
       - name: Build
         run: |
           npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"

@@ -6,15 +6,19 @@ import type { NextConfig } from "next";
 // any page this policy breaks fails CI.
 //
 // 'unsafe-inline' for scripts is required by Next.js's inline bootstrap
-// scripts without a per-request nonce; everything is same-origin (the
-// Claude API is called server-side), so connect-src stays 'self'.
+// scripts without a per-request nonce. connect-src is same-origin plus the
+// Supabase Auth origin: sign-in forms call Supabase Auth from the browser
+// (ADR-013). The Claude API is called server-side.
+const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin
+  : "";
 const contentSecurityPolicy = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self'",
+  `connect-src 'self' ${supabaseOrigin}`.trim(),
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -35,7 +39,14 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
     if (process.env.NODE_ENV !== "production") return [];
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // Always revalidate the service worker so updates reach installed apps.
+      {
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
+      },
+    ];
   },
 };
 

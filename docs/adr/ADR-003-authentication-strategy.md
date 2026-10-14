@@ -1,6 +1,6 @@
 # ADR-003 — Authentication and session handling
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-013](ADR-013-supabase-auth.md) (2026-10-12)
 - **Date:** 2026-09-28
 - **Deciders:** Product Owner, AI agent
 - **Affects:** Phase 2 (this ADR), Phase 8 (implementation)

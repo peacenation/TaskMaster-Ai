@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.taskmaster_ai_omega.twa",
+      "sha256_cert_fingerprints": [
+        "ED:01:35:0F:2E:1D:74:05:F9:AF:7C:5F:CD:7E:3C:BC:93:A9:B3:E6:E9:B7:D6:4B:EA:DB:D2:F3:7F:58:D0:53"
+      ]
+    }
+  }
+]

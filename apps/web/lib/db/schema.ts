@@ -29,7 +29,6 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { authUser } from "./auth-schema";
 export {
   authUser,
   authSession,
@@ -78,9 +77,10 @@ export const taskEventTypeEnum = pgEnum("task_event_type", [
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
-  authId: uuid("auth_id")
-    .unique()
-    .references(() => authUser.id, { onDelete: "cascade" }),
+  // The Supabase Auth user (auth.users.id; equal to `id`). No foreign key:
+  // locally the Auth service keeps its users in its own database (ADR-013).
+  // In Supabase, a trigger on auth.users deletes this row (migration 0009).
+  authId: uuid("auth_id").unique(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   timezone: text("timezone").notNull().default("UTC"),

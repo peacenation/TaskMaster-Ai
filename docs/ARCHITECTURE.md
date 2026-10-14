@@ -9,14 +9,14 @@ One Next.js 16 application (App Router) on a serverless host, one PostgreSQL
 database, two optional outside services:
 
 ```
-Browser ──HTTPS──▶ Next.js (Vercel)
-                    ├─ proxy.ts                 session-cookie gate on every route
-                    ├─ pages (server components) ┐
+Browser ─┬─HTTPS──▶ Next.js (Vercel)
+Flutter ─┘          ├─ proxy.ts                 session-cookie gate + token refresh
+  app               ├─ pages (server components) ┐
                     ├─ server actions            ├─▶ lib/repo ──▶ Postgres (Supabase)
-                    ├─ /api/* route handlers     ┘     RLS-scoped transaction per request
-                    ├─ Better Auth ──────────────────▶ taskmaster_auth schema (own role)
-                    ├─ /api/extract ─────────────────▶ Anthropic Claude API (optional)
-                    └─ auth emails ──────────────────▶ Resend / Amazon SES (optional)
+                    ├─ /api/* and /api/v1/*      ┘     RLS-scoped transaction per request
+                    ├─ every request: getUser() ─────▶ Supabase Auth (verifies the session)
+                    └─ /api/extract ─────────────────▶ Anthropic Claude API (optional)
+Browser / app ──sign-in, Google, email links──▶ Supabase Auth ──email──▶ Resend SMTP
 ```
 
 There is no client-side data store and no public API: pages render on the
@@ -47,18 +47,24 @@ nothing rather than someone else's data.
 fails if one lacks forced RLS and a policy. It then checks that one user
 cannot select, insert, update or delete another user's rows in each table.
 
-Authentication data lives in a separate `taskmaster_auth` schema, reached only
-through a third role, `taskmaster_auth_service`. Deleting the auth user
-cascades to every application row through `users.auth_id`.
+Sign-in is Supabase Auth (ADR-013). The app never queries Supabase's Data
+API: it keeps its own restricted connection and sets the RLS user from the
+verified Supabase user ID, and migration 0009 revokes the Data API roles
+from every app table. `users.id` equals the Supabase user ID. Deleting an
+account removes the `users` row first, which cascades to every application
+row, then the login. In Supabase a trigger on `auth.users` does the same
+for logins deleted elsewhere.
 
 ## Request lifecycle
 
 1. `proxy.ts` lets public paths through (`/signin`, `/signup`, `/reset`,
-   `/magic`, `/privacy`, `/design`, `/api/health`, `/api/auth/*`). Without a
-   session cookie, it redirects pages to `/signin` and gives `/api/*` a 401.
-2. The page or action calls `getCurrentUserId()`, which validates the session
-   against the database. The session cookie cache is disabled, so sign-out and
-   deletion take effect immediately.
+   `/magic`, `/privacy`, `/design`, `/api/health`, `/auth/confirm`,
+   `/auth/callback`) and refreshes an expired Supabase access token. Without
+   a session, it redirects pages to `/signin` and gives `/api/*` a 401. The
+   mobile app's bearer token passes through to `/api/v1`.
+2. The page or action calls `getCurrentUserId()`, which asks Supabase Auth to
+   verify the token (`getUser`) on every request, so sign-out, password reset
+   and deletion take effect immediately.
 3. All reads and writes for the request run in `withRepositories(userId, …)`:
    one transaction, scoped by RLS.
 
@@ -109,7 +115,7 @@ three suggestions, each with one action).
 | 000 | PRD v2 is the source of truth |
 | 001 | Next.js + Postgres + Drizzle |
 | 002 | Transactional email via Resend or SES |
-| 003 | Better Auth, email/password + magic link |
+| 003 | Better Auth, email/password + magic link (superseded by 013) |
 | 004 | RLS on a transaction-local user id |
 | 005 | Repository boundary |
 | 006–007, 011 | Server-side Claude with heuristic fallback |
@@ -117,3 +123,4 @@ three suggestions, each with one action).
 | 009 | Environments and secrets |
 | 010 | Observability without personal data |
 | 012 | Supabase for database hosting |
+| 013 | Supabase Auth: email, email links, Google; server verifies every request |

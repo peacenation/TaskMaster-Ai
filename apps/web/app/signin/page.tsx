@@ -1,14 +1,30 @@
+import Link from "next/link";
 import { AuthForm } from "@/components/auth/AuthForm";
-import { emailConfigured } from "@/lib/auth/email";
+import { AuthShell } from "@/components/auth/AuthShell";
+import { googleConfigured } from "@/lib/auth/providers";
 export const dynamic = "force-dynamic";
-export default function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   return (
-    <div className="wrap auth-wrap">
-      <header className="hero">
-        <p className="eyebrow">TaskMaster</p>
-        <h1>Welcome back</h1>
-      </header>
-      <AuthForm mode="signin" emailReady={emailConfigured()} />
-    </div>
+    <AuthShell
+      title="Welcome back"
+      subtitle="Pick up your plan where you left it."
+      footer={
+        <>
+          New to TaskMasterAi? <Link href="/signup">Create an account</Link>
+        </>
+      }
+    >
+      <AuthForm
+        mode="signin"
+
+        googleEnabled={await googleConfigured()}
+        oauthError={error}
+      />
+    </AuthShell>
   );
 }

@@ -7,7 +7,7 @@ export function ProcrastinationAssist({
 }) {
   if (candidates.length === 0) return null;
   return (
-    <section aria-labelledby="procrastination-heading">
+    <section className="dash-card" aria-labelledby="procrastination-heading">
       <p className="eyebrow">A pattern worth noticing</p>
       <h2 id="procrastination-heading">A task has moved three times</h2>
       <p>That can mean the next step, scope, timing, or priority needs a second look.</p>

@@ -1,0 +1,404 @@
+openapi: 3.1.0
+info:
+  title: TaskMasterAi API
+  version: 1.0.0
+  description: |
+    Versioned JSON API for the TaskMasterAi mobile app. Every endpoint
+    requires `Authorization: Bearer <session token>` (see README.md).
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: http://localhost:3000
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: Account
+    description: The signed-in user.
+  - name: Today
+    description: The daily plan and Next Best Action.
+  - name: Tasks
+    description: Listing, capturing and acting on tasks.
+  - name: Projects
+    description: Projects and their progress.
+paths:
+  /api/v1/me:
+    get:
+      tags: [Account]
+      operationId: getMe
+      summary: The signed-in user
+      parameters:
+        - $ref: "#/components/parameters/TimeZone"
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/today:
+    get:
+      tags: [Today]
+      operationId: getToday
+      summary: Today's plan, Next Best Action and stats
+      description: |
+        The same plan the web's Today page renders. `onboarded: false` means
+        the user hasn't completed their first Brain Dump yet.
+      parameters:
+        - $ref: "#/components/parameters/TimeZone"
+      responses:
+        "200":
+          description: Today
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/Today"
+                  - $ref: "#/components/schemas/NotOnboarded"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/tasks:
+    get:
+      tags: [Tasks]
+      operationId: listTasks
+      summary: My Tasks, filtered by view
+      parameters:
+        - $ref: "#/components/parameters/TimeZone"
+        - name: view
+          in: query
+          description: |
+            today — open work due today or overdue; upcoming — due later;
+            all — every open task; inbox — captured, not yet organised.
+          schema:
+            type: string
+            enum: [today, upcoming, all, inbox]
+            default: today
+      responses:
+        "200":
+          description: Tasks, earliest deadline first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [view, tasks]
+                properties:
+                  view:
+                    type: string
+                  tasks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Tasks]
+      operationId: quickAdd
+      summary: Quick Add — capture a task into the Inbox
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                dueAt:
+                  type: [string, "null"]
+                  format: date-time
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [task]
+                properties:
+                  task:
+                    $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/tasks/{id}/status:
+    post:
+      tags: [Tasks]
+      operationId: setTaskStatus
+      summary: Start, complete, postpone or drop a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [todo, in_progress, completed, postponed, dropped]
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/projects:
+    get:
+      tags: [Projects]
+      operationId: listProjects
+      summary: Projects with completion progress
+      responses:
+        "200":
+          description: Projects
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projects]
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: "#/components/schemas/ProjectProgress"
+                        - type: object
+                          required: [open]
+                          properties:
+                            open:
+                              type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Supabase Auth access token (the session's `access_token`).
+  parameters:
+    TimeZone:
+      name: X-Time-Zone
+      in: header
+      required: false
+      description: Device IANA time zone; used until the user saves one in Settings.
+      schema:
+        type: string
+        example: Europe/London
+  responses:
+    Unauthorized:
+      description: Missing, invalid, expired or revoked token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Not found (or not yours)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    Ok:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+    Me:
+      type: object
+      required: [id, name, email, timeZone, onboarded]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        timeZone:
+          type: string
+        onboarded:
+          type: boolean
+    TaskStatus:
+      type: string
+      enum: [inbox, todo, in_progress, completed, postponed, dropped]
+    Task:
+      type: object
+      required: [id, title, status, priority, dueAt, estimatedMinutes, project]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        priority:
+          description: The user's own priority, 1 (low) to 5 (high).
+          type: [integer, "null"]
+          minimum: 1
+          maximum: 5
+        dueAt:
+          type: [string, "null"]
+          format: date-time
+        estimatedMinutes:
+          type: [integer, "null"]
+        project:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [id, name]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+    PlanItem:
+      type: object
+      required: [task, position, minutes, estimateIsDefault, protected, scheduledStart, scheduledEnd]
+      properties:
+        task:
+          $ref: "#/components/schemas/Task"
+        position:
+          type: integer
+        minutes:
+          type: integer
+        estimateIsDefault:
+          type: boolean
+        protected:
+          description: Held for long-term work so urgent tasks don't crowd it out.
+          type: boolean
+        scheduledStart:
+          type: [string, "null"]
+          format: date-time
+        scheduledEnd:
+          type: [string, "null"]
+          format: date-time
+    ProjectProgress:
+      type: object
+      required: [id, name, done, total]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        done:
+          type: integer
+        total:
+          type: integer
+    NotOnboarded:
+      type: object
+      required: [onboarded]
+      properties:
+        onboarded:
+          const: false
+    Today:
+      type: object
+      required: [onboarded, date, greeting, firstName, stats, recommendation, plan, capacity, projects, attention]
+      properties:
+        onboarded:
+          const: true
+        date:
+          description: The user's local date (YYYY-MM-DD).
+          type: string
+          format: date
+        greeting:
+          type: string
+        firstName:
+          type: string
+        stats:
+          type: object
+          required: [active, dueToday, completedToday, inbox]
+          properties:
+            active:
+              type: integer
+            dueToday:
+              type: integer
+            completedToday:
+              type: integer
+            inbox:
+              type: integer
+        recommendation:
+          description: The Next Best Action — an AI suggestion unless `overridden`.
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [task, message, reasons, overridden]
+              properties:
+                task:
+                  $ref: "#/components/schemas/Task"
+                message:
+                  type: string
+                reasons:
+                  type: array
+                  items:
+                    type: string
+                overridden:
+                  description: True when the user chose their own next action.
+                  type: boolean
+        plan:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlanItem"
+        capacity:
+          type: object
+          required: [plannedMinutes, availableMinutes, usableMinutes, overloaded]
+          properties:
+            plannedMinutes:
+              type: integer
+            availableMinutes:
+              type: [integer, "null"]
+            usableMinutes:
+              type: [integer, "null"]
+            overloaded:
+              type: boolean
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectProgress"
+        attention:
+          description: Decisions waiting on the web (recovery check-in, Reality Check).
+          type: object
+          required: [recovery, realityCheck]
+          properties:
+            recovery:
+              type: integer
+            realityCheck:
+              type: boolean

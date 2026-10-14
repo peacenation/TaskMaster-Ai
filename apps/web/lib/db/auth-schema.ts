@@ -1,3 +1,6 @@
+// LEGACY (ADR-013): Better Auth's tables, kept only until every account has
+// been moved to Supabase Auth (scripts/migrate-auth-users.ts reads them).
+// Nothing at runtime uses them; a later migration drops the schema.
 import {
   bigint,
   boolean,

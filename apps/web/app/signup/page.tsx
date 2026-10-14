@@ -1,18 +1,31 @@
 import Link from "next/link";
 import { AuthForm } from "@/components/auth/AuthForm";
-import { emailConfigured } from "@/lib/auth/email";
+import { AuthShell } from "@/components/auth/AuthShell";
+import { googleConfigured } from "@/lib/auth/providers";
 export const dynamic = "force-dynamic";
-export default function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   return (
-    <div className="wrap auth-wrap">
-      <header className="hero">
-        <p className="eyebrow">TaskMaster</p>
-        <h1>Make room for what matters</h1>
-      </header>
-      <AuthForm mode="signup" emailReady={emailConfigured()} />
-      <p className="field-hint">
-        <Link href="/privacy">How TaskMaster handles your data</Link>, including AI organising.
-      </p>
-    </div>
+    <AuthShell
+      title="Make room for what matters"
+      subtitle="Create your account and start with a Brain Dump."
+      footer={
+        <>
+          <Link href="/privacy">How TaskMaster handles your data</Link>, including AI
+          organising.
+        </>
+      }
+    >
+      <AuthForm
+        mode="signup"
+
+        googleEnabled={await googleConfigured()}
+        oauthError={error}
+      />
+    </AuthShell>
   );
 }

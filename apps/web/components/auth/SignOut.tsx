@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { authClient } from "@/lib/auth/client";
+import { supabaseBrowser } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui";
 export function SignOut() {
   const [error, setError] = useState("");
@@ -13,8 +13,9 @@ export function SignOut() {
         onClick={async () => {
           setPending(true);
           try {
-            const result = await authClient.signOut();
-            if (result.error) throw new Error();
+            // This device only; the session is revoked server-side too.
+            const { error } = await supabaseBrowser().auth.signOut({ scope: "local" });
+            if (error) throw error;
             // Full load (see AuthForm): no cached pages outlive the session.
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             window.location.assign("/signin");

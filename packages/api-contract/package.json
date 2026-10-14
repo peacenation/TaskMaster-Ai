@@ -1,0 +1,12 @@
+{
+  "name": "@taskmaster/api-contract",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenAPI contract for /api/v1 — shared by apps/web (server) and apps/mobile (client).",
+  "scripts": {
+    "lint": "redocly lint openapi.yaml"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^2.0.0"
+  }
+}

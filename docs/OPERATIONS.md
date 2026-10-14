@@ -13,6 +13,11 @@ setup is in [`SUPABASE.md`](SUPABASE.md).
 | Preview | Vercel, one per pull request | **A separate staging Supabase project, never production** | Vercel Git integration |
 | Production | Vercel, custom domain | Production Supabase project | `.github/workflows/deploy.yml` only |
 
+**Monorepo:** the web app lives in `apps/web`. In the Vercel project set
+**Settings → Build and Deployment → Root Directory** to `apps/web` (deploys
+run the Vercel CLI from the repo root and rely on this setting). Database
+scripts run from the root (`npm run db:…`) or inside `apps/web`.
+
 `vercel.json` turns off Vercel's own deploys of `main`. Production ships only
 through the deploy workflow: **CI green → migrate → build → deploy → health
 check**. A deploy can never run code ahead of its migrations.
@@ -26,19 +31,17 @@ Set **Production** and **Preview** separately. Preview points at staging.
 | Variable | Value |
 |---|---|
 | `DATABASE_URL_APP` | `taskmaster_app` connection (from `db:supabase:setup`) |
-| `DATABASE_URL_AUTH` | `taskmaster_auth_service` connection (from `db:auth:setup`) |
 | `DATABASE_CA_CERT` | Supabase root CA, PEM text (Dashboard → Database → SSL). Gives verify-full TLS without a file |
 | `DATABASE_POOL_MAX` | `3`: serverless instances multiply connections |
-| `BETTER_AUTH_SECRET` | 48+ random bytes, hex (`openssl rand -hex 48`). Different per environment |
-| `BETTER_AUTH_URL` | `https://<your domain>` |
-| `AUTH_EMAIL_PROVIDER`, `AUTH_EMAIL_FROM`, `RESEND_API_KEY` | Verified sender and key, for magic links and resets |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co` (Production: the production project; Preview: staging) |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Dashboard → Project Settings → API Keys → publishable. Public by design |
+| `SUPABASE_SECRET_KEY` | Same page → secret key. **Server-only**; used for account deletion. Never prefix with `NEXT_PUBLIC_` |
 | `ANTHROPIC_API_KEY` | Optional. Without it the built-in rules organise |
 | `AI_HOURLY_LIMIT` | Optional, default `30` Claude calls per account per hour |
 
 **Never set `DATABASE_URL` (the owner/`postgres` connection) in Vercel.**
 The running app doesn't use it, so a compromised server would gain nothing
-from it. Only the deploy workflow has it, as a GitHub secret. Never set
-`AUTH_RATE_LIMIT=off` or `AUTH_EMAIL_PROVIDER=test` outside the e2e server.
+from it. Only the deploy workflow has it, as a GitHub secret.
 
 ### GitHub (deploy workflow)
 
@@ -54,22 +57,22 @@ required reviewers if each deploy should wait for approval.
 ## First production launch (in order)
 
 1. **Rotate the database passwords** of `postgres` (Supabase dashboard) and
-   `taskmaster_auth_service`/`taskmaster_app` (`ALTER ROLE … PASSWORD`), then
+   `taskmaster_app` (`ALTER ROLE … PASSWORD`), then
    update `.env.local` and the secret stores. Do this for any credential that
    has ever appeared in a terminal, log or chat.
 2. **Migrate.** Run locally with the production owner URL:
    `npm run db:migrate:deploy -- --confirm`. Or let the first workflow run do
-   it. Then run `npm run db:supabase:setup` and `npm run db:auth:setup` once,
-   so both restricted roles get default privileges for future tables. Check
-   with `npm run db:check`.
+   it. Then run `npm run db:supabase:setup` once, so the restricted role gets
+   default privileges for future tables. Check with `npm run db:check`.
+   Configure Supabase Auth ([below](#supabase-auth)).
 3. **Vercel project:** import the repository, set the variables above, add
    the custom domain (Vercel issues TLS automatically), and set the Preview
    variables to the staging project.
 4. **GitHub:** the environment, secrets and variables above. Then *Actions →
    Deploy → Run workflow*, or push to `main`.
 5. **Monitoring** (below). Verify an alert by triggering one.
-6. **Demo account:** with production `DATABASE_URL_APP`/`DATABASE_URL_AUTH`
-   and `BETTER_AUTH_SECRET` in your shell,
+6. **Demo account:** with production `DATABASE_URL_APP`,
+   `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SECRET_KEY` in your shell,
    `DEMO_PASSWORD=… npm run db:seed:demo -- --confirm`.
 
 ## Deploying
@@ -125,10 +128,12 @@ the date and duration here. Not yet done; it needs the live project.
 
 | Secret | How | Effect |
 |---|---|---|
-| `taskmaster_app` / `taskmaster_auth_service` password | `ALTER ROLE <role> PASSWORD '<new>'` as owner → update Vercel var → redeploy | Brief errors between the two steps. Do it in a quiet period, or create a new role first, switch, then drop the old one |
+| `taskmaster_app` password | `ALTER ROLE <role> PASSWORD '<new>'` as owner → update Vercel var → redeploy | Brief errors between the two steps. Do it in a quiet period, or create a new role first, switch, then drop the old one |
 | `postgres` (owner) password | Supabase dashboard → update GitHub secret `PRODUCTION_DATABASE_URL` | None for users |
-| `BETTER_AUTH_SECRET` | New value in Vercel → redeploy | Everyone is signed out once |
-| `ANTHROPIC_API_KEY`, `RESEND_API_KEY` | Create the new key, update Vercel, redeploy, revoke the old key | None |
+| `SUPABASE_SECRET_KEY` | Dashboard → API Keys → create a new secret key → Vercel → redeploy → delete the old key | None |
+| Supabase JWT signing key | Dashboard → JWT Keys → rotate | Sessions refresh onto the new key; none for users |
+| `ANTHROPIC_API_KEY` | Create the new key, update Vercel, redeploy, revoke the old key | None |
+| Resend SMTP key | New key in Resend → Supabase dashboard → Auth → SMTP → revoke the old one | None |
 | `VERCEL_TOKEN` | New token → GitHub secret → revoke the old one | None |
 
 ## Monitoring
@@ -156,4 +161,63 @@ the date and duration here. Not yet done; it needs the live project.
 |---|---|
 | `AI_EXTRACTION=off` | Stops every Claude call immediately (cost spike, provider incident, data concern). Capture keeps working on built-in rules, and `/privacy` reports AI as off |
 | `AI_HOURLY_LIMIT` | Per-account cap on Claude calls; over it, built-in rules organise and the user is told why |
-| Better Auth rate limiting | On in every environment, counted in the database so it holds across serverless instances |
+| Supabase Auth rate limits | Dashboard → Authentication → Rate Limits (sign-ins, emails, token refreshes per IP). Hosted, so they hold across serverless instances |
+
+## Supabase Auth
+
+Sign-in is Supabase Auth (ADR-013). Configure **each** project (staging and
+production) in the dashboard. Local development gets the same settings from
+`supabase/config.toml`.
+
+1. **Authentication → URL Configuration.**
+   - Site URL: `https://<your domain>`.
+   - Redirect URLs: `https://<your domain>/**`. For staging, also the preview domain pattern (e.g. `https://*-<team>.vercel.app/**`).
+   - The app only ever redirects to `/auth/confirm` and `/auth/callback` on its own origin.
+2. **Authentication → Sign In / Providers → Email:**
+   - **Confirm email: on**. This is required: it is what makes Google account linking safe.
+   - Minimum password length 10.
+   - Leaked-password protection: on.
+   - Secure password change: on.
+3. **Emails → SMTP:** custom SMTP through Resend (`smtp.resend.com`, port 465, user `resend`, the API key as password, a verified sender). The built-in SMTP sends only a few emails an hour.
+4. **Emails → Templates:**
+   - Paste `supabase/templates/confirmation.html`, `magic_link.html` and `recovery.html` into *Confirm signup*, *Magic link* and *Reset password*.
+   - Use the subjects from `supabase/config.toml`.
+   - The links go to the app's `/auth/confirm` with a token hash, so they work when opened in another browser or the mail app.
+5. **Sign In / Providers → Google:** enable it with the client ID and secret from Google Cloud.
+   - In Google Cloud (OAuth client, *Web application*), the authorised redirect URI is **Supabase's** callback: `https://<ref>.supabase.co/auth/v1/callback`.
+   - The consent screen asks for scopes `openid`, `email`, `profile` only.
+   - The app shows "Continue with Google" automatically once Google is enabled here.
+6. **Sign In / Providers → Allow manual linking: on**, for Settings → Connect Google.
+7. **Data API:** migration `0009` revokes the `anon`/`authenticated` roles from every app table. Verify once per project:
+
+   ```sql
+   select has_table_privilege('anon', 'public.tasks', 'select');  -- false
+   ```
+
+**How it behaves**
+
+- **Linking Google:** Supabase links a Google sign-in to an existing account only through a confirmed email.
+- **Google-only accounts** have no password. Deleting one requires a Google sign-in from the last 10 minutes (Settings → Confirm with Google).
+- **Every request** asks the Auth server whether the session is still valid, so sign-out, password reset and deletion take effect at once.
+
+### Moving existing accounts from Better Auth (one-off)
+
+Rehearse on staging first. On production, in this order:
+
+```sh
+cd apps/web
+npm run auth:migrate -- --confirm            # 1. dry run: lists who moves
+npm run auth:migrate -- --confirm --apply    # 2. create the logins (old app still live; harmless)
+# 3. deploy the Supabase Auth version (migration 0009 runs in the deploy workflow)
+npm run auth:migrate -- --confirm --apply --send-reset --site=https://<your domain>   # 4. email password users
+```
+
+Step 4 must come after the deploy: the reset links point to `/auth/confirm`,
+which only the new version serves.
+
+- Each login is recreated in Supabase Auth **with the same ID**, email confirmed, so all data stays attached.
+- Password users get one "set a new password" email; Better Auth's password hashes can't be imported.
+- Google users just sign in with Google.
+- Re-running is safe: existing logins are skipped.
+
+Once production is confirmed working, a later migration drops the `taskmaster_auth` schema (take a backup first).

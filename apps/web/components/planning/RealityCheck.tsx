@@ -16,7 +16,10 @@ export function RealityCheck({
   tasks: RealityCheckTask[];
 }) {
   return (
-    <section className="reality-check" aria-labelledby="reality-check-heading">
+    <section
+      className="dash-card dash-card-attention reality-check"
+      aria-labelledby="reality-check-heading"
+    >
       <p className="eyebrow">Reality Check</p>
       <h2 id="reality-check-heading">Something needs to move</h2>
       <p>

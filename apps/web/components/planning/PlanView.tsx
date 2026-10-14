@@ -15,13 +15,13 @@ export function PlanView({
 }) {
   const [mode, setMode] = useState(defaultMode);
   return (
-    <section aria-labelledby="plan-heading">
+    <section className="dash-card" aria-labelledby="plan-heading">
       <div className="plan-header">
         <h2 id="plan-heading">What matters today</h2>
-        <div className="button-row" aria-label="Plan view">
+        <div className="segmented" role="group" aria-label="Plan view">
           <button
             type="button"
-            className="btn btn-secondary"
+            className="segmented-option"
             aria-pressed={mode === "flexible"}
             onClick={() => setMode("flexible")}
           >
@@ -29,7 +29,7 @@ export function PlanView({
           </button>
           <button
             type="button"
-            className="btn btn-secondary"
+            className="segmented-option"
             aria-pressed={mode === "scheduled"}
             onClick={() => setMode("scheduled")}
           >

@@ -75,8 +75,9 @@ and [ADR-004](adr/ADR-004-row-level-security.md). Summary:
 
 - A session-local Postgres setting, `app.current_user_id`, set once per
   transaction via `set_config(..., true)` — **not** Supabase's
-  `auth.uid()`, since this project is self-hosted Postgres + Better Auth
-  (deferred to Phase 8), not Supabase.
+  `auth.uid()`. Still true with Supabase Auth (ADR-013): the server verifies
+  the Supabase session and sets this setting itself, and the app never uses
+  Supabase's Data API, so policies don't depend on Supabase's JWT roles.
 - Every user-scoped table: `ENABLE ROW LEVEL SECURITY`, `FORCE ROW LEVEL
   SECURITY`, and one `FOR ALL` policy keyed on that setting.
 - The application and every test that exercises these policies connect as

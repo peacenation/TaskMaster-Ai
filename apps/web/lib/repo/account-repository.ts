@@ -14,6 +14,14 @@ import {
 } from "@/lib/db/schema";
 export function createAccountRepository(db: AppDb, userId: string) {
   return {
+    /**
+     * Deletes the profile row; every other table cascades from it
+     * (ON DELETE CASCADE on each user_id). Removing the login itself is the
+     * Auth service's job (app/api/account/delete).
+     */
+    async deleteAll() {
+      await db.delete(users).where(eq(users.id, userId));
+    },
     async export() {
       const [user] = await db.select().from(users).where(eq(users.id, userId));
       return {

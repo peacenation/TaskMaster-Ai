@@ -43,3 +43,10 @@ yarn-error.log*
 test-results/
 playwright-report/
 blob-report/
+.env*
+
+# Built Android APKs (android/build-apk.sh)
+/dist/
+
+# Supabase CLI: local Google placeholders example is committed; real values are not.
+!supabase/.env.example

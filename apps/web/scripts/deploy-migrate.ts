@@ -16,7 +16,6 @@ import { poolConfig } from "../lib/db/pool-config";
 config({ path: ".env.local", quiet: true });
 
 const APP_ROLE = "taskmaster_app";
-const AUTH_ROLE = "taskmaster_auth_service";
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -34,7 +33,7 @@ async function main() {
 
     const roles = await pool.query<{ rolname: string }>(
       "SELECT rolname FROM pg_roles WHERE rolname = ANY($1)",
-      [[APP_ROLE, AUTH_ROLE]]
+      [[APP_ROLE]]
     );
     const present = new Set(roles.rows.map((row) => row.rolname));
     // Fixed role names; no user input reaches these statements.
@@ -43,15 +42,9 @@ async function main() {
         `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${APP_ROLE}`
       );
     }
-    if (present.has(AUTH_ROLE)) {
-      await pool.query(
-        `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA taskmaster_auth TO ${AUTH_ROLE}`
-      );
-    }
-    const missing = [APP_ROLE, AUTH_ROLE].filter((role) => !present.has(role));
-    if (missing.length) {
+    if (!present.has(APP_ROLE)) {
       console.warn(
-        `Roles not provisioned yet: ${missing.join(", ")}. Run db:supabase:setup and db:auth:setup once (docs/SUPABASE.md).`
+        `Role not provisioned yet: ${APP_ROLE}. Run db:supabase:setup once (docs/SUPABASE.md).`
       );
     }
     console.log("Migrations applied; role grants refreshed.");

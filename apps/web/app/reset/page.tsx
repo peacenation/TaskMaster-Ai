@@ -1,24 +1,25 @@
 import { AuthForm } from "@/components/auth/AuthForm";
-import { emailConfigured } from "@/lib/auth/email";
+import { AuthShell } from "@/components/auth/AuthShell";
 export const dynamic = "force-dynamic";
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string; error?: string }>;
+  searchParams: Promise<{ step?: string; error?: string }>;
 }) {
-  const { token, error } = await searchParams;
+  // ?step=update: arrived from the recovery email (/auth/confirm signed in).
+  const { step, error } = await searchParams;
+  const update = step === "update";
   return (
-    <div className="wrap auth-wrap">
-      <header className="hero">
-        <p className="eyebrow">Account</p>
-        <h1>Reset your password</h1>
-      </header>
+    <AuthShell
+      title="Reset your password"
+      subtitle={update ? "Choose a new password." : "We'll email you a link to set a new one."}
+    >
       {error && (
         <p className="notice notice-danger">
           This link is invalid or expired. Request a new one.
         </p>
       )}
-      <AuthForm mode="reset" token={token} emailReady={emailConfigured()} />
-    </div>
+      <AuthForm mode="reset" update={update} />
+    </AuthShell>
   );
 }

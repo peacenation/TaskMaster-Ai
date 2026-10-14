@@ -50,16 +50,16 @@ issues, so this pass is still owed before calling accessibility complete.
 | RLS on every user table | ✅ | `lib/db/isolation.test.ts` enumerates every table with an ownership column (11), requires forced RLS and a policy, and checks cross-user select/insert/update/delete per table |
 | App connects as a role that can't bypass RLS | ✅ | `taskmaster_app`: no superuser, no `BYPASSRLS`; `db:check` verifies this in the hosted database |
 | Auth on every route and API | ✅ | `proxy.ts` gate plus a session check in every page, action and handler; e2e: unauthenticated API calls get 401, and a revoked session can't read data |
-| Immediate session revocation | ✅ | Cookie cache disabled; e2e regression test |
+| Immediate session revocation | ✅ | Every request verifies the token with Supabase Auth (`getUser`); e2e regression tests for a replayed cookie and a signed-out bearer token |
 | No secrets in the client bundle | ✅ | `check:client-bundle` builds with sentinel values for every server secret and scans static JS and prerendered pages |
 | Input validation at boundaries | ✅ | Zod schemas on every server action and route body; UUID path parameters validated before queries |
-| Rate limiting: auth | ✅ | Better Auth limiter, stored in the database so it holds across serverless instances |
+| Rate limiting: auth | ✅ | Supabase Auth's hosted limits (sign-ins, emails, token refreshes per IP), configured in the dashboard |
 | Rate limiting: AI | ✅ | Per-account hourly quota (`ai_requests`, advisory-locked; DB test proves concurrent requests can't exceed it). Kill switch `AI_EXTRACTION=off` |
 | No task content in logs or error reports | ✅ | `instrumentation.ts` reports route, error class, SQLSTATE and digest only (unit-tested to exclude message, stack and query string); fallback logs carry ids and counts only |
 | Email content | ✅ | Reset and magic-link emails contain only a link |
 | Export injection | ✅ N/A | Export is JSON only (`application/json`, `attachment`, `nosniff`, `no-store`), with no CSV, so spreadsheet formula injection can't arise |
 | Security headers | ✅ | CSP, `frame-ancestors 'none'`, HSTS, nosniff, referrer and permissions policies; e2e checks they are sent and no page logs a CSP violation |
-| CSRF | ✅ | Server actions check Origin (Next.js); auth endpoints check Origin (Better Auth); session cookie is `SameSite=Lax` |
+| CSRF | ✅ | Server actions check Origin (Next.js); account deletion checks Origin; sign-in calls go to Supabase Auth with the publishable key, not cookies; session cookies are `SameSite=Lax` |
 | Secrets in git history | ✅ | All commits scanned; only documentation placeholders |
 | AI processing disclosed | ✅ | Public `/privacy`, linked from sign-up, Brain Dump and Settings; states live whether AI is on (e2e) |
 | Dependency audit | Accepted | `npm audit`: 4 moderate, all one advisory (esbuild's dev server reading cross-origin requests), reached only through the `drizzle-kit` CLI. Its server is never run, and nothing esbuild-related ships to production |
@@ -68,7 +68,7 @@ issues, so this pass is still owed before calling accessibility complete.
 
 | Severity | Finding | Status |
 |---|---|---|
-| **High** | Supabase `postgres` and `taskmaster_auth_service` passwords were printed in a development terminal session | **Open: rotate both** (`docs/OPERATIONS.md` → Rotating secrets). The only open High |
+| **High** | Supabase `postgres` and `taskmaster_auth_service` (retired with ADR-013) passwords were printed in a development terminal session | **Open: rotate both** (`docs/OPERATIONS.md` → Rotating secrets). The only open High |
 | Low | CSP allows `'unsafe-inline'` scripts (Next.js bootstrap scripts without per-request nonces) | Accepted: all script sources are same-origin, there's no user-supplied HTML, and React escapes output. Revisit with nonce-based CSP |
 | Low | Visual regression runs only locally (OS-specific baselines) | Accepted; Linux baselines could be committed from CI later |
 

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the web app's light theme-color (app/layout.tsx). -->
+    <color name="statusBar">#FBF6EE</color>
+    <color name="navigationBar">#FBF6EE</color>
+    <!-- Dark theme-color, used when the phone is in dark mode. -->
+    <color name="statusBarDark">#1C140D</color>
+    <color name="navigationBarDark">#1C140D</color>
+</resources>

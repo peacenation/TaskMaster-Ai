@@ -1,0 +1,41 @@
+{
+  "name": "taskmasterai",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @taskmaster/web",
+    "build": "npm run build -w @taskmaster/web",
+    "start": "npm run start -w @taskmaster/web",
+    "lint": "npm run lint -w @taskmaster/web",
+    "typecheck": "npm run typecheck -w @taskmaster/web",
+    "test": "npm run test -w @taskmaster/web",
+    "e2e": "npm run e2e -w @taskmaster/web",
+    "test:coverage": "npm run test:coverage -w @taskmaster/web",
+    "check:client-bundle": "npm run check:client-bundle -w @taskmaster/web",
+    "db:bootstrap": "npm run db:bootstrap -w @taskmaster/web",
+    "db:generate": "npm run db:generate -w @taskmaster/web",
+    "db:migrate": "npm run db:migrate -w @taskmaster/web",
+    "db:seed": "npm run db:seed -w @taskmaster/web",
+    "db:test": "npm run db:test -w @taskmaster/web",
+    "db:check": "npm run db:check -w @taskmaster/web",
+    "db:migrate:deploy": "npm run db:migrate:deploy -w @taskmaster/web",
+    "db:seed:demo": "npm run db:seed:demo -w @taskmaster/web",
+    "ai:smoke": "npm run ai:smoke -w @taskmaster/web",
+    "format": "npm run format -w @taskmaster/web",
+    "format:check": "npm run format:check -w @taskmaster/web",
+    "api:lint": "npm run lint -w @taskmaster/api-contract",
+    "mobile:get": "cd apps/mobile && flutter pub get",
+    "mobile:analyze": "cd apps/mobile && flutter analyze",
+    "mobile:test": "cd apps/mobile && flutter test",
+    "mobile:run": "cd apps/mobile && flutter run --dart-define=API_BASE_URL=${API_BASE_URL:-http://10.0.2.2:3000} --dart-define=SUPABASE_URL=${SUPABASE_URL:-http://10.0.2.2:54321} --dart-define=SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY:?set SUPABASE_PUBLISHABLE_KEY (npm run supabase:status)}",
+    "supabase:start": "npm run supabase:start -w @taskmaster/web",
+    "supabase:stop": "npm run supabase:stop -w @taskmaster/web",
+    "supabase:status": "npm run supabase:status -w @taskmaster/web"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

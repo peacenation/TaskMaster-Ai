@@ -24,9 +24,20 @@ separable so a theme change never touches component code:
 ## Colour
 
 Warm cream/brown palette (see PRD_v2.md §2.8.1 for why: a "more modern,
-cream and brown" refinement requested during the design-preview review).
-AI-suggested state uses a distinct terracotta hue rather than a shade of
-brown, so it can never be confused with the primary action colour.
+cream and brown" refinement requested during the design-preview review),
+now aligned to the TaskMasterAi brand set: Espresso `#35251F` (text, app
+sidebar), Walnut `#70503E` (primary action), Caramel `#C28B58` (accent
+fills, progress), Ivory `#F7F3EC` (page), Sage `#84957A` (calm/success
+fills). Caramel and Sage fail text contrast on Ivory, so they are used as
+fills only; text and borders use darker steps (`--color-caramel-600/800`,
+`--color-sage-700`). AI-suggested state is caramel-tinted (the Today hero,
+"Next Best Action" pill) and turns sage once the user confirms their own
+choice — never the walnut of the primary action.
+
+The app shell is an espresso sidebar on wide screens (≥ 960px) and a brand
+bar plus bottom tab bar on phones; the tab bar's overflow lives at `/more`.
+The sidebar has its own component tokens (`--sidebar-*`) because it stays
+dark in both themes.
 
 | Semantic token | Role |
 |---|---|

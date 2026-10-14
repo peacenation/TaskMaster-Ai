@@ -27,7 +27,7 @@ account-free variant in scope.
 |---|---|---|
 | **Framework** | **Next.js 16, App Router** | + React 19, TypeScript `strict`, Tailwind CSS v4. One page at `/`; `/api/extract` and `/api/breakdown` as AI proxies so no provider key reaches the browser |
 | **Database** | **PostgreSQL 17, local** | Installed via Homebrew, **not** Docker. Drizzle ORM, drizzle-kit migrations committed as SQL. `user_id` nullable on every user-scoped table, defaulted to a seeded local user |
-| **Authentication** | **None in this milestone** | A single local page has one user. `user_id` columns are created now so authentication needs no data migration later. Production choice: **Better Auth** (Drizzle adapter, self-hosted) |
+| **Authentication** | **None in this milestone** | A single local page has one user. `user_id` columns are created now so authentication needs no data migration later. Production choice was **Better Auth**; now **Supabase Auth** (ADR-013) |
 | **File storage** | **None** | The v2 §1.10 data model has no attachment or media entity, and no phase requires uploads. Not built rather than scaffolded empty |
 
 Full reasoning, alternatives and revisit triggers:

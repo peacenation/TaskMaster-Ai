@@ -1,5 +1,5 @@
 {
-  "name": "taskmaster",
+  "name": "@taskmaster/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -22,16 +22,18 @@
     "ai:smoke": "node --import tsx scripts/claude-smoke.ts",
     "db:supabase:setup": "node scripts/supabase-setup.mjs",
     "db:check": "node scripts/db-check.mjs",
-    "db:auth:setup": "node scripts/auth-db-setup.mjs",
     "e2e": "playwright test",
     "db:migrate:deploy": "node --import tsx scripts/deploy-migrate.ts",
-    "db:seed:demo": "node --import tsx scripts/seed-demo.ts"
+    "db:seed:demo": "node --import tsx scripts/seed-demo.ts",
+    "supabase:start": "supabase start --workdir ../.. -x realtime,storage-api,imgproxy,edge-runtime,logflare,vector,supavisor",
+    "supabase:stop": "supabase stop --workdir ../..",
+    "supabase:status": "supabase status --workdir ../..",
+    "auth:migrate": "node --import tsx scripts/migrate-auth-users.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
-    "@aws-sdk/client-sesv2": "^3.1146.0",
-    "@better-auth/drizzle-adapter": "^1.7.7",
-    "better-auth": "^1.7.7",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.3",
     "drizzle-orm": "^0.45.3",
     "next": "16.3.6",
     "pg": "^8.23.1",
