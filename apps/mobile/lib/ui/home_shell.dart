@@ -30,14 +30,30 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
+  final _pages = PageController();
   int _index = 0;
-  final _visited = <int>{0};
   int _todayGeneration = 0;
 
-  void _select(int i) => setState(() {
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  /// Tapping a tab slides to it, like swiping does.
+  void _select(int i) {
+    if (i == _index) return;
+    _pages.animateToPage(
+      i,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _settled(int i) => setState(() {
+    // Today reloads when you come back to it: other tabs change what it shows.
     if (i == 0 && _index != 0) _todayGeneration++;
     _index = i;
-    _visited.add(i);
   });
 
   @override
@@ -53,12 +69,12 @@ class _HomeShellState extends State<HomeShell> {
       child: Scaffold(
         body: SafeArea(
           bottom: false,
-          child: IndexedStack(
-            index: _index,
-            children: [
-              for (var i = 0; i < tabs.length; i++)
-                _visited.contains(i) ? tabs[i] : const SizedBox.shrink(),
-            ],
+          // Swipe left/right between tabs; each page stays alive, so its
+          // scroll position and loaded data survive the swipe.
+          child: PageView(
+            controller: _pages,
+            onPageChanged: _settled,
+            children: [for (final tab in tabs) _KeepAlive(child: tab)],
           ),
         ),
         bottomNavigationBar: NavigationBar(
@@ -89,5 +105,25 @@ class _HomeShellState extends State<HomeShell> {
         ),
       ),
     );
+  }
+}
+
+class _KeepAlive extends StatefulWidget {
+  const _KeepAlive({required this.child});
+  final Widget child;
+
+  @override
+  State<_KeepAlive> createState() => _KeepAliveState();
+}
+
+class _KeepAliveState extends State<_KeepAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

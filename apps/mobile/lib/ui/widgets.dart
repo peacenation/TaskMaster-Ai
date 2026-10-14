@@ -356,18 +356,26 @@ class LoaderState<T> extends State<Loader<T>> {
 
   @override
   Widget build(BuildContext context) {
+    final tm = context.tm;
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
     return FutureBuilder<T>(
       future: _future,
       builder: (context, snapshot) {
+        // A refresh keeps the "data" key, so content only glides in when it
+        // first arrives, not on every pull-to-refresh.
+        final Widget child;
         if (snapshot.hasData) {
-          return RefreshIndicator(
+          child = RefreshIndicator(
+            key: const ValueKey('data'),
+            color: tm.action,
+            backgroundColor: tm.card,
             onRefresh: reload,
             child: widget.builder(context, snapshot.data as T, reload),
           );
-        }
-        if (snapshot.hasError) {
+        } else if (snapshot.hasError) {
           final error = snapshot.error;
-          return Center(
+          child = Center(
+            key: const ValueKey('error'),
             child: Padding(
               padding: const EdgeInsets.all(Tm.s6),
               child: Column(
@@ -385,8 +393,30 @@ class LoaderState<T> extends State<Loader<T>> {
               ),
             ),
           );
+        } else {
+          child = const Center(
+            key: ValueKey('loading'),
+            child: CircularProgressIndicator(),
+          );
         }
-        return const Center(child: CircularProgressIndicator());
+        return AnimatedSwitcher(
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 380),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween(
+                begin: const Offset(0, 0.04),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          ),
+          child: child,
+        );
       },
     );
   }

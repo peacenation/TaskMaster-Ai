@@ -3,9 +3,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:taskmaster/api/models.dart';
 import 'package:taskmaster/app.dart';
 import 'package:taskmaster/state/session.dart';
+import 'package:taskmaster/ui/today_screen.dart';
 import 'package:taskmaster/ui/widgets.dart';
 
 import 'fakes.dart';
+
+/// Today's vertical list (the tab pager is a scrollable too).
+final todayList = find
+    .descendant(of: find.byType(TodayScreen), matching: find.byType(Scrollable))
+    .first;
 
 Future<(FakeApi, FakeAuth, Session)> pumpApp(
   WidgetTester tester, {
@@ -99,9 +105,17 @@ void main() {
     expect(find.text('Due today'), findsOneWidget);
     expect(find.text('Today’s priorities'), findsOneWidget);
     expect(find.text('Review website designs'), findsWidgets);
-    await tester.scrollUntilVisible(find.text('Next block'), 300);
+    await tester.scrollUntilVisible(
+      find.text('Next block'),
+      300,
+      scrollable: todayList,
+    );
     expect(find.text('Next block'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('What to do next'), -300);
+    await tester.scrollUntilVisible(
+      find.text('What to do next'),
+      -300,
+      scrollable: todayList,
+    );
 
     await tester.tap(find.widgetWithText(FilledButton, 'Complete'));
     await tester.pumpAndSettle();
@@ -211,9 +225,17 @@ void main() {
   testWidgets('Today: daily progress and View all → Tasks', (tester) async {
     await pumpApp(tester, signedIn: true);
     // 2 completed today, 2 still planned.
-    await tester.scrollUntilVisible(find.text('Daily progress'), 200);
+    await tester.scrollUntilVisible(
+      find.text('Daily progress'),
+      200,
+      scrollable: todayList,
+    );
     expect(find.text('50%'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('View all'), 200);
+    await tester.scrollUntilVisible(
+      find.text('View all'),
+      200,
+      scrollable: todayList,
+    );
     await tester.tap(find.text('View all'));
     await tester.pumpAndSettle();
     expect(find.text('My Tasks'), findsOneWidget);
@@ -331,5 +353,24 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.text('Welcome back'), findsOneWidget);
+  });
+
+  testWidgets('swipe left and right between tabs', (tester) async {
+    await pumpApp(tester, signedIn: true);
+    expect(find.text('What to do next'), findsOneWidget);
+
+    await tester.fling(find.byType(PageView), const Offset(-250, 0), 1000);
+    await tester.pumpAndSettle();
+    expect(find.text('My Tasks'), findsOneWidget);
+    final nav = tester.widget<NavigationBar>(find.byType(NavigationBar));
+    expect(nav.selectedIndex, 1);
+
+    await tester.fling(find.byType(PageView), const Offset(250, 0), 1000);
+    await tester.pumpAndSettle();
+    expect(find.text('What to do next'), findsOneWidget);
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      0,
+    );
   });
 }
