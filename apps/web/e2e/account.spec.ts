@@ -17,6 +17,9 @@ test("§2.10 #22 — deleting the account removes it and its data", async ({ pag
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("alert")).toBeVisible();
+  // Scoped to the form: Next.js's route announcer is also role="alert".
+  await expect(page.locator(".auth-card").getByRole("alert")).toContainText(
+    "don't match an account"
+  );
   await expect(page).toHaveURL(/\/signin$/);
 });
