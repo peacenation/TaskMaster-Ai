@@ -11,6 +11,9 @@ import {
   taskDependencies,
   plans,
   planItems,
+  calendarFeeds,
+  calendarEvents,
+  productEvents,
 } from "@/lib/db/schema";
 export function createAccountRepository(db: AppDb, userId: string) {
   return {
@@ -43,6 +46,26 @@ export function createAccountRepository(db: AppDb, userId: string) {
           .where(eq(taskDependencies.userId, userId)),
         plans: await db.select().from(plans).where(eq(plans.userId, userId)),
         planItems: await db.select().from(planItems).where(eq(planItems.userId, userId)),
+        // The private calendar address is a credential and stays out of
+        // exports; the label and sync state identify the feed.
+        calendars: await db
+          .select({
+            id: calendarFeeds.id,
+            label: calendarFeeds.label,
+            lastSyncedAt: calendarFeeds.lastSyncedAt,
+            lastError: calendarFeeds.lastError,
+            createdAt: calendarFeeds.createdAt,
+          })
+          .from(calendarFeeds)
+          .where(eq(calendarFeeds.userId, userId)),
+        calendarEvents: await db
+          .select()
+          .from(calendarEvents)
+          .where(eq(calendarEvents.userId, userId)),
+        productEvents: await db
+          .select()
+          .from(productEvents)
+          .where(eq(productEvents.userId, userId)),
       };
     },
   };

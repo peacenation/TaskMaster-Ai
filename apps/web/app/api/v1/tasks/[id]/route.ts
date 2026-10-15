@@ -119,6 +119,8 @@ export const PATCH = apiRoute(async ({ userId }, request, context: Params) => {
       ...(goal !== undefined ? { goalId: goalRecord?.id ?? null } : {}),
       ...waiting,
     });
+    if (waitingOn && !before.waitingOn)
+      await repos.events.track("waiting_marked", { task_id: id });
     const projects = await repos.projects.list();
     return { task: updated, names: new Map(projects.map((p) => [p.id, p.name])) };
   });

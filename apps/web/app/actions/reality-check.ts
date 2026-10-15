@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { trackStatus } from "@/lib/execution/operations";
 import { withRepositories } from "@/lib/repo";
 import { getCurrentUserId } from "@/lib/server/session";
 
@@ -24,6 +25,7 @@ export async function confirmRealityDecision(formData: FormData): Promise<void> 
       status,
       completedAt: null,
     });
+    await trackStatus(repos, taskId, status);
     await repos.taskEvents.record({
       taskId,
       eventType: decision === "postpone" ? "postponed" : "status_changed",

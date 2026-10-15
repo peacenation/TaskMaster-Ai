@@ -20,6 +20,7 @@ export const PUT = apiRoute(async ({ userId }, request) => {
         throw new ApiError(409, "Only active tasks can be chosen as next.");
     }
     await repos.users.chooseNext(taskId);
+    if (taskId) await repos.events.track("recommendation_overridden", { task_id: taskId });
   });
   revalidatePath("/");
   return json({ ok: true });

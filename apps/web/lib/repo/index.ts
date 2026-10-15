@@ -2,6 +2,7 @@ import { withUserContext } from "@/lib/db/client";
 import { createPostgresTaskRepository } from "./postgres-task-repository";
 import { createAccountRepository } from "./account-repository";
 import { createCalendarRepository } from "./calendar-repository";
+import { createEventsRepository } from "./events-repository";
 import { createExecutionRepository } from "./execution-repository";
 import {
   createAiUsageRepository,
@@ -29,6 +30,7 @@ export function createRepositories(
     recurrenceRules: createRecurrenceRuleRepository(db, userId),
     aiUsage: createAiUsageRepository(db, userId),
     calendar: createCalendarRepository(db, userId),
+    events: createEventsRepository(db, userId),
   };
 }
 

@@ -54,9 +54,14 @@ export async function organiseSavedDump(input: {
     signal,
   });
 
-  await withRepositories(userId, (repos) =>
-    repos.brainDumps.saveProposal(dump.id, outcome.proposal)
-  );
+  await withRepositories(userId, async (repos) => {
+    await repos.brainDumps.saveProposal(dump.id, outcome.proposal);
+    await repos.events.track("brain_dump_organised", {
+      engine: outcome.fallbackReason ? "rules" : "ai",
+      fallback: outcome.fallbackReason,
+      items: outcome.proposal.items.length,
+    });
+  });
 
   if (outcome.fallbackReason) {
     // ADR-010: identifiers and outcomes only — never the dump's text.

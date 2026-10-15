@@ -28,7 +28,8 @@
     "supabase:start": "supabase start --workdir ../.. -x realtime,storage-api,imgproxy,edge-runtime,logflare,vector,supavisor",
     "supabase:stop": "supabase stop --workdir ../..",
     "supabase:status": "supabase status --workdir ../..",
-    "auth:migrate": "node --import tsx scripts/migrate-auth-users.ts"
+    "auth:migrate": "node --import tsx scripts/migrate-auth-users.ts",
+    "metrics": "node --import tsx scripts/metrics.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

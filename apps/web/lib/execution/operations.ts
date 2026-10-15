@@ -35,6 +35,7 @@ export async function changeStatus(
     status,
     completedAt: status === "completed" ? now : null,
   });
+  await trackStatus(repos, taskId, status);
   await repos.taskEvents.record({
     taskId,
     eventType:
@@ -47,6 +48,19 @@ export async function changeStatus(
     toStatus: status,
   });
 }
+const STATUS_EVENTS = {
+  in_progress: "task_started",
+  completed: "task_completed",
+  postponed: "task_postponed",
+  dropped: "task_dropped",
+} as const;
+
+/** Product event for a status change (ids only, never the title). */
+export async function trackStatus(repos: Repositories, taskId: string, status: string) {
+  const name = STATUS_EVENTS[status as keyof typeof STATUS_EVENTS];
+  if (name) await repos.events.track(name, { task_id: taskId });
+}
+
 export const breakdownInputSchema = z.object({
   taskId: z.string().uuid(),
   steps: z
@@ -111,4 +125,11 @@ export async function recover(
       );
     await repos.execution.reviewRecovery(item.id, now);
   }
+  const count = (choice: string) => input.filter((d) => d.choice === choice).length;
+  await repos.events.track("recovery_resolved", {
+    items: input.length,
+    kept: count("keep"),
+    postponed: count("postpone"),
+    dropped: count("drop"),
+  });
 }

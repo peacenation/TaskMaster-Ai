@@ -14,6 +14,7 @@ export async function chooseNext(id: string | null) {
       if (!task || !["todo", "in_progress"].includes(task.status)) return;
     }
     await repos.users.chooseNext(taskId);
+    if (taskId) await repos.events.track("recommendation_overridden", { task_id: taskId });
   });
   revalidatePath("/");
 }

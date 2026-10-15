@@ -97,6 +97,17 @@ export async function loadToday(
       saved = await repos.execution.plan(date);
     }
     const recovery = await repos.execution.recovery(now);
+    // Repeat planning and Next Best Action usefulness (PRD §2.9): once a day.
+    await repos.events.track(
+      "today_viewed",
+      {
+        recommended_task_id: today.recommendation?.task.id ?? null,
+        overridden: today.overridden,
+        planned: today.plan.items.length,
+        overloaded: today.plan.capacity.overloaded,
+      },
+      `today:${date}`
+    );
     return {
       profile,
       records,
@@ -242,5 +253,11 @@ export async function rebuildToday(
       energy: settings.energy ?? null,
     });
     await repos.execution.savePlan(localDate(now, timeZone), today.plan, true);
+    await repos.events.track("plan_rebuilt", {
+      day_minutes: settings.dayMinutes,
+      right_now: settings.availableMinutes !== undefined,
+      energy: settings.energy ?? null,
+      meeting_minutes: today.meetingMinutes,
+    });
   });
 }

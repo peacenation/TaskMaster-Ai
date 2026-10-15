@@ -78,6 +78,7 @@ export const POST = apiRoute(async ({ userId, timeZone, profile }, request) => {
       },
     };
     await repos.execution.savePlan(date, plan, true);
+    await repos.events.track("planner_applied", { blocks: items.length });
     return items.length;
   });
   revalidatePath("/", "layout");

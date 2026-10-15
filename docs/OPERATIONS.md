@@ -38,6 +38,10 @@ Set **Production** and **Preview** separately. Preview points at staging.
 | `SUPABASE_SECRET_KEY` | Same page → secret key. **Server-only**; used for account deletion. Never prefix with `NEXT_PUBLIC_` |
 | `ANTHROPIC_API_KEY` | Optional. Without it the built-in rules organise |
 | `AI_HOURLY_LIMIT` | Optional, default `30` Claude calls per account per hour |
+| `CALENDAR_ENCRYPTION_KEY` | Recommended: any long random string (`openssl rand -base64 32`). Encrypts saved calendar addresses. Without it they're encrypted with a key derived from `SUPABASE_SECRET_KEY`, so rotating that secret means users reconnect calendars |
+
+The same variables apply on **Netlify** (Site configuration → Environment
+variables), where the app is currently hosted.
 
 **Never set `DATABASE_URL` (the owner/`postgres` connection) in Vercel.**
 The running app doesn't use it, so a compromised server would gain nothing
@@ -88,6 +92,22 @@ Merge to `main`. CI runs. When it passes, Deploy:
 
 Runs are serialised (`concurrency: production-deploy`). To redeploy without
 a code change, run the workflow by hand.
+
+### Deploying on Netlify
+
+Netlify builds and deploys on every push to `main`, but **does not run
+migrations**. Apply them first, from `apps/web`, with the production owner
+URL in your shell:
+
+```bash
+DATABASE_URL='<production owner URL, session pooler :5432>' \
+DATABASE_CA_CERT="$(cat prod-ca-2021.crt)" \
+  npm run db:migrate:deploy -- --confirm
+```
+
+Migrations are expand-only (below), so running them before the new code
+ships is always safe. Code that needs a migration (e.g. calendar tables,
+0010) fails until it has run.
 
 ### Writing migrations
 
@@ -154,6 +174,22 @@ the date and duration here. Not yet done; it needs the live project.
   `DATABASE_URL_APP` to a wrong password → `/api/health` returns 503 → the
   monitor must alert. Restore it afterwards. An alert nobody receives is not
   monitoring.
+
+## Product metrics
+
+The PRD's MVP success metrics (§2.9) come from `product_events`: names,
+counts and ids only, never task or Brain Dump text (see `/privacy`).
+
+```bash
+npm run metrics                     # last 30 days, local database
+npm run metrics -- --days 7
+DATABASE_URL='<production owner URL>' npm run metrics   # production
+```
+
+It reports onboarding completion, time to first value, Brain Dump
+conversion, the AI correction rate, plan activation, Next Best Action
+acceptance and overrides, and repeat planning. Set targets only once a few
+weeks of real data exist (PRD §2.9).
 
 ## Kill switches and limits
 

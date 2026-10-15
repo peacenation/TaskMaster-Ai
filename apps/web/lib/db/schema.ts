@@ -368,3 +368,25 @@ export const calendarEvents = pgTable(
     index("calendar_events_feed_id_idx").on(table.feedId),
   ]
 );
+
+// Product events (PRD §2.9 MVP Success Metrics): what happened, never what
+// was written — names, counts and ids only, no task or Brain Dump text.
+// `dedupeKey` makes once-a-day events (today_viewed) idempotent.
+export const productEvents = pgTable(
+  "product_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    properties: jsonb("properties").notNull().default({}),
+    dedupeKey: text("dedupe_key"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("product_events_name_time_idx").on(table.name, table.occurredAt),
+    index("product_events_user_id_idx").on(table.userId),
+    unique("product_events_user_dedupe_unique").on(table.userId, table.dedupeKey),
+  ]
+);

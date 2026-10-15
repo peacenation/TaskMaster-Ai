@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { zonedTimeToUtc } from "@/lib/domain/dates";
 import { waitingPatch } from "@/lib/domain/waiting";
+import { trackStatus } from "@/lib/execution/operations";
 import { withRepositories } from "@/lib/repo";
 import type { TaskEventType } from "@/lib/repo/postgres-repositories";
 import { getCurrentUserId, getTimeZone } from "@/lib/server/session";
@@ -88,6 +89,8 @@ export async function saveTask(
           waitingOn && before.waitingOn === waitingOn
             ? { followUpAt: followUpAt ?? before.followUpAt }
             : waitingPatch(waitingOn, followUpAt, new Date());
+        if (waitingOn && !before.waitingOn)
+          await repos.events.track("waiting_marked", { task_id: id });
         await repos.tasks.update(id, {
           ...values,
           ...waiting,
@@ -154,6 +157,7 @@ export async function setTaskStatus(id: string, status: "completed" | "postponed
       status: next,
       completedAt: next === "completed" ? new Date() : null,
     });
+    await trackStatus(repos, taskId, next);
     await repos.taskEvents.record({
       taskId,
       eventType: STATUS_EVENTS[next],

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { localDateString } from "@/lib/domain/dates";
 import { itemKindSchema } from "@/lib/domain/proposal";
+import { correctionStats } from "@/lib/analytics/corrections";
 import type { Repositories } from "@/lib/repo";
 
 // Commit a reviewed Brain Dump (Phase 5 work item 5). Nothing reaches the
@@ -125,10 +126,30 @@ export async function commitAndOnboard(
   input: CommitInput,
   now: Date
 ): Promise<CommitSummary> {
+  // Read before committing: commit marks the dump done.
+  const proposal = input.dumpId
+    ? ((await repos.brainDumps.get(input.dumpId))?.proposal ?? null)
+    : null;
   const summary = await commitReviewedItems(repos, input, now);
   const profile = await repos.users.profile();
   await repos.users.savePreferences(profile?.timezone ?? "UTC", {
     onboardingCompleted: true,
   });
+  await repos.events.track("brain_dump_committed", {
+    ...correctionStats(proposal, input.items),
+    tasks: summary.tasks,
+    projects: summary.projects,
+    goals: summary.goals,
+    habits: summary.habits,
+    notes: summary.notes,
+  });
+  if (profile && !profile.preferences.onboardingCompleted)
+    await repos.events.track(
+      "onboarding_completed",
+      {
+        seconds_since_signup: Math.round((now.getTime() - profile.createdAt.getTime()) / 1000),
+      },
+      "onboarding"
+    );
   return summary;
 }

@@ -52,6 +52,17 @@ export default function PrivacyPage() {
             from.
           </li>
           <li>
+            If you connect a calendar: its private address (encrypted, never shown again or
+            included in exports) and the next few weeks of event titles and times, so Today can
+            plan around your meetings. TaskMasterAi only reads your calendar.
+          </li>
+          <li>
+            Product usage events — for example “a Brain Dump was saved, 2 of 3 suggestions
+            kept” or “Today was opened” — with counts and ids only, never the text of your
+            tasks or Brain Dumps. They show whether TaskMasterAi is actually helping, and are
+            deleted with your account.
+          </li>
+          <li>
             For each signed-in session: when it expires, and the browser and IP address it
             started from, so a session can be recognised and ended.
           </li>

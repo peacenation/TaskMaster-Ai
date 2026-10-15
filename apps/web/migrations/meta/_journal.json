@@ -85,6 +85,13 @@
       "when": 1792106020304,
       "tag": "0011_waiting_on",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792106729402,
+      "tag": "0012_product_events",
+      "breakpoints": true
     }
   ]
 }

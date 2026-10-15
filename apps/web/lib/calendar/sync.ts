@@ -47,6 +47,7 @@ export async function connectFeed(userId: string, input: string, label?: string)
       urlEncrypted: encryptSecret(url.toString()),
     });
     await repos.calendar.replaceEvents(id, events, now);
+    await repos.events.track("calendar_connected", { events: events.length });
     return { id, events: events.length };
   });
 }
