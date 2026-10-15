@@ -4,7 +4,11 @@ import 'package:taskmaster/auth/auth_gateway.dart';
 
 /// A /api/v1/today body exactly as the server sends it (keep in step with
 /// packages/api-contract/openapi.yaml and apps/web/app/api/v1/today).
-Map<String, dynamic> todayJson({bool overridden = false}) => {
+Map<String, dynamic> todayJson({
+  bool overridden = false,
+  bool decisions = false,
+  bool recovered = false,
+}) => {
   'onboarded': true,
   'date': '2026-10-12',
   'greeting': 'Good morning',
@@ -45,7 +49,33 @@ Map<String, dynamic> todayJson({bool overridden = false}) => {
   'projects': [
     {'id': 'p1', 'name': 'Website redesign', 'done': 8, 'total': 12},
   ],
-  'attention': {'recovery': 0, 'realityCheck': false},
+  'settings': {'dayMinutes': 240, 'availableMinutes': null, 'energy': null},
+  'recovery': [
+    if (decisions && !recovered)
+      {
+        'id': 'r1',
+        'taskId': 't9',
+        'title': 'Reply to the landlord',
+        'scheduledEnd': '2026-10-12T08:00:00.000Z',
+      },
+  ],
+  'realityCheck': decisions
+      ? {
+          'workMinutes': 300,
+          'usableMinutes': 192,
+          'excessMinutes': 108,
+          'tasks': [
+            {'id': 't1', 'title': 'Finalise project proposal', 'minutes': 60},
+          ],
+        }
+      : null,
+  'procrastination': [
+    if (decisions) {'taskId': 't3', 'title': 'Update launch checklist'},
+  ],
+  'attention': {
+    'recovery': decisions && !recovered ? 1 : 0,
+    'realityCheck': decisions,
+  },
 };
 
 Map<String, dynamic> task(String id, String title, {int? priority}) => {
@@ -59,10 +89,21 @@ Map<String, dynamic> task(String id, String title, {int? priority}) => {
 };
 
 class FakeApi implements TaskMasterApi {
-  FakeApi({this.onboarded = true});
+  FakeApi({this.onboarded = true, this.decisions = false});
 
   /// Flips to true when a Brain Dump is committed, like the server.
   bool onboarded;
+
+  /// Today asks for recovery, a Reality Check and a procrastination nudge.
+  bool decisions;
+  final calls = <String>[];
+  final recovered = <Map<String, RecoveryChoice>>[];
+  final updates = <Map<String, Object?>>[];
+  final brokenDown = <List<String>>[];
+  final organised = <(List<String>, String?)>[];
+  final goalsCreated = <String>[];
+  String? deletedWith;
+  bool hasPassword = true;
   final statusCalls = <(String, TaskStatus)>[];
   final added = <(String, String?)>[];
   final committed = <List<String>>[];
@@ -77,6 +118,7 @@ class FakeApi implements TaskMasterApi {
     email: 'jerry@example.com',
     timeZone: 'Europe/London',
     onboarded: onboarded,
+    hasPassword: hasPassword,
   );
 
   @override
@@ -89,19 +131,30 @@ class FakeApi implements TaskMasterApi {
         'firstName': 'Jerry',
       });
     }
-    return Today.fromJson(todayJson());
+    return Today.fromJson(
+      todayJson(decisions: decisions, recovered: recovered.isNotEmpty),
+    );
   }
 
   @override
   Future<List<Task>> tasks(TaskView view) async => [
-    Task.fromJson(task('t1', 'Finalise project proposal', priority: 5)),
-    if (view != TaskView.today)
-      Task.fromJson(task('t3', 'Update launch checklist', priority: 1)),
+    if (view == TaskView.inbox) ...[
+      Task.fromJson(task('i1', 'Buy stamps')),
+      Task.fromJson(task('i2', 'Water plants')),
+    ] else ...[
+      Task.fromJson(task('t1', 'Finalise project proposal', priority: 5)),
+      if (view != TaskView.today)
+        Task.fromJson(task('t3', 'Update launch checklist', priority: 1)),
+    ],
   ];
 
   @override
-  Future<Task> quickAdd(String title, {String? projectId}) async {
-    added.add((title, projectId));
+  Future<Task> quickAdd(
+    String title, {
+    String? projectId,
+    String? goalId,
+  }) async {
+    added.add((title, projectId ?? goalId));
     return Task.fromJson(task('new', title));
   }
 
@@ -180,6 +233,188 @@ class FakeApi implements TaskMasterApi {
   @override
   Future<void> applyPlan(List<PlannerBlock> blocks) async =>
       applied.add([for (final b in blocks) b.taskId!]);
+
+  @override
+  Future<Me> updatePreferences(Map<String, Object?> changes) async {
+    updates.add(changes);
+    return Me.fromJson({
+      'id': 'u1',
+      'name': 'Jerry Mbawa',
+      'email': 'jerry@example.com',
+      'timeZone': 'Europe/London',
+      'onboarded': true,
+      'hasPassword': hasPassword,
+      'preferences': {
+        'timeZone': null,
+        'dayMinutes': 240,
+        'planMode': 'flexible',
+        'notifications': 'important',
+        ...changes,
+      },
+    });
+  }
+
+  @override
+  Future<void> deleteAccount({String? password}) async {
+    if (hasPassword && password != 'correct horse') {
+      throw ApiException(
+        400,
+        'Could not delete the account. Check your password and try again.',
+      );
+    }
+    deletedWith = password ?? 'google';
+  }
+
+  @override
+  Future<void> rebuildToday(TodaySettings settings) async =>
+      calls.add('rebuild ${settings.availableMinutes} ${settings.energy}');
+
+  @override
+  Future<void> chooseNext(String? taskId) async => calls.add('next $taskId');
+
+  @override
+  Future<void> recover(Map<String, RecoveryChoice> decisions) async {
+    recovered.add(decisions);
+  }
+
+  @override
+  Future<TaskDetail> taskDetail(String id) async => TaskDetail.fromJson({
+    'task': {
+      ...task(id, 'Finalise project proposal', priority: 5),
+      'description': 'Send to Sam for sign-off',
+      'importance': 4,
+      'urgency': null,
+      'energy': 'high',
+      'goal': {'id': 'g1', 'title': 'Get promoted'},
+      'parentTaskId': null,
+    },
+    'steps': [
+      if (brokenDown.isNotEmpty)
+        for (final (i, title) in brokenDown.last.indexed)
+          {'id': 's$i', 'title': title, 'status': 'todo'},
+    ],
+    'suggestedSteps': brokenDown.isEmpty
+        ? ['Gather what you need for the proposal', 'Draft the proposal']
+        : <String>[],
+    'canBreakDown': brokenDown.isEmpty,
+    'history': [
+      {'type': 'created', 'toStatus': 'todo', 'at': '2026-10-10T09:00:00Z'},
+    ],
+    'projects': [
+      {'id': 'p1', 'name': 'Website redesign'},
+    ],
+    'goals': [
+      {'id': 'g1', 'title': 'Get promoted'},
+    ],
+  });
+
+  @override
+  Future<void> updateTask(String id, Map<String, Object?> changes) async =>
+      updates.add({'id': id, ...changes});
+
+  @override
+  Future<void> deleteTask(String id) async => calls.add('delete $id');
+
+  @override
+  Future<void> breakDown(String id, List<String> steps) async =>
+      brokenDown.add(steps);
+
+  @override
+  Future<int> organiseInbox(List<String> ids, {String? project}) async {
+    organised.add((ids, project));
+    return ids.length;
+  }
+
+  @override
+  Future<List<Goal>> goals() async => [
+    Goal.fromJson({
+      'id': 'g1',
+      'title': 'Get promoted',
+      'targetDate': '2027-03-31',
+      'linked': 2,
+      'active': 1,
+      'completed': 1,
+      'nudge': null,
+      'tasks': [task('t1', 'Finalise project proposal')],
+    }),
+    for (final title in ['Learn Spanish', ...goalsCreated])
+      Goal.fromJson({
+        'id': 'g-$title',
+        'title': title,
+        'targetDate': null,
+        'linked': 0,
+        'active': 0,
+        'completed': 0,
+        'nudge': 'unlinked',
+        'tasks': <Object>[],
+      }),
+  ];
+
+  @override
+  Future<void> createGoal(String title, {DateTime? targetDate}) async =>
+      goalsCreated.add(title);
+
+  @override
+  Future<List<Responsibility>> responsibilities() async => [
+    Responsibility.fromJson({
+      'id': 'rr1',
+      'title': 'Go to the gym',
+      'frequency': 'weekly',
+      'intervalCount': 1,
+      'timesPerPeriod': 3,
+      'endDate': null,
+      'stopped': calls.contains('stop rr1'),
+      'upcoming': [
+        {
+          'id': 'o1',
+          'title': 'Go to the gym',
+          'status': 'todo',
+          'date': '2026-10-13',
+        },
+      ],
+    }),
+  ];
+
+  @override
+  Future<void> stopResponsibility(String id) async => calls.add('stop $id');
+
+  @override
+  Future<DailyReview> dailyReview() async => DailyReview.fromJson({
+    'date': '2026-10-12',
+    'completed': [
+      {'id': 't2', 'title': 'Review website designs'},
+    ],
+    'missed': <Object>[],
+    'carried': [
+      {'id': 't3', 'title': 'Update launch checklist', 'status': 'todo'},
+    ],
+    'changed': <Object>[],
+  });
+
+  @override
+  Future<WeeklyReview> weeklyReview() async => WeeklyReview.fromJson({
+    'startDate': '2026-10-12',
+    'endDate': '2026-10-18',
+    'goals': [
+      {'id': 'g1', 'title': 'Get promoted', 'completed': 1},
+    ],
+    'deadlines': [
+      {
+        'id': 't1',
+        'title': 'Finalise project proposal',
+        'dueAt': '2026-10-14T16:00:00Z',
+      },
+    ],
+    'postponed': [
+      {'id': 't3', 'title': 'Update launch checklist', 'times': 3},
+    ],
+    'insights': [
+      {
+        'kind': 'repeated_postponement',
+        'message': 'Update launch checklist moved 3 times.',
+      },
+    ],
+  });
 }
 
 /// Supabase Auth stand-in: signs in unless told the password is wrong.

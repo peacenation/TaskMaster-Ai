@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../api/models.dart';
 import '../state/session.dart';
 import '../theme/tokens.dart';
+import 'task_screen.dart';
 import 'widgets.dart';
 
 /// "03. Project — track progress together": one project's progress and its
@@ -66,17 +67,19 @@ class _ProjectScreenState extends State<ProjectScreen> {
                         ? 'Add the first task for ${detail.project.name}.'
                         : 'Every task in ${detail.project.name} is complete.',
                   ),
-                _Group(
-                  title: 'In progress',
-                  tasks: detail.inProgress,
-                  onDone: complete,
-                ),
-                _Group(title: 'To do', tasks: detail.todo, onDone: complete),
-                _Group(
-                  title: 'Postponed',
-                  tasks: detail.postponed,
-                  onDone: complete,
-                ),
+                for (final (title, tasks) in [
+                  ('In progress', detail.inProgress),
+                  ('To do', detail.todo),
+                  ('Postponed', detail.postponed),
+                ])
+                  _Group(
+                    title: title,
+                    tasks: tasks,
+                    onDone: complete,
+                    onOpen: (task) async {
+                      if (await openTask(context, task.id)) await reload();
+                    },
+                  ),
                 const SizedBox(height: Tm.s3),
                 FilledButton.icon(
                   onPressed: _add,
@@ -143,10 +146,12 @@ class _Group extends StatelessWidget {
     required this.title,
     required this.tasks,
     required this.onDone,
+    required this.onOpen,
   });
   final String title;
   final List<Task> tasks;
   final Future<void> Function(Task task) onDone;
+  final Future<void> Function(Task task) onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -188,35 +193,39 @@ class _Group extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: Tm.s2),
               child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    Tm.s1,
-                    Tm.s2,
-                    Tm.s4,
-                    Tm.s2,
-                  ),
-                  child: Row(
-                    children: [
-                      CompleteCircle(
-                        title: task.title,
-                        onDone: () => onDone(task),
-                      ),
-                      Expanded(
-                        child: Text(
-                          task.title,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => onOpen(task),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      Tm.s1,
+                      Tm.s2,
+                      Tm.s4,
+                      Tm.s2,
+                    ),
+                    child: Row(
+                      children: [
+                        CompleteCircle(
+                          title: task.title,
+                          onDone: () => onDone(task),
                         ),
-                      ),
-                      if (task.priority != null) ...[
-                        PriorityBadge(task.priority!),
-                        const SizedBox(width: Tm.s2),
+                        Expanded(
+                          child: Text(
+                            task.title,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                        if (task.priority != null) ...[
+                          PriorityBadge(task.priority!),
+                          const SizedBox(width: Tm.s2),
+                        ],
+                        if (task.dueAt != null)
+                          Text(
+                            DateFormat('d MMM').format(task.dueAt!),
+                            style: TextStyle(color: tm.textMuted, fontSize: 13),
+                          ),
                       ],
-                      if (task.dueAt != null)
-                        Text(
-                          DateFormat('d MMM').format(task.dueAt!),
-                          style: TextStyle(color: tm.textMuted, fontSize: 13),
-                        ),
-                    ],
+                    ),
                   ),
                 ),
               ),

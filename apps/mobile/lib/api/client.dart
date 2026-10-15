@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
 import 'models.dart';
 
@@ -24,8 +25,8 @@ abstract interface class TaskMasterApi {
   Future<Today> today();
   Future<List<Task>> tasks(TaskView view);
 
-  /// Into the Inbox, or straight into a project as a to-do.
-  Future<Task> quickAdd(String title, {String? projectId});
+  /// Into the Inbox, or straight into a project (or for a goal) as a to-do.
+  Future<Task> quickAdd(String title, {String? projectId, String? goalId});
   Future<void> setStatus(String taskId, TaskStatus status);
   Future<List<ProjectProgress>> projects();
   Future<ProjectDetail> project(String id);
@@ -44,6 +45,41 @@ abstract interface class TaskMasterApi {
 
   /// Save a proposal's task blocks as today's plan.
   Future<void> applyPlan(List<PlannerBlock> blocks);
+
+  /// Save preferences (any subset); returns the updated profile.
+  Future<Me> updatePreferences(Map<String, Object?> changes);
+
+  /// Permanently delete the account. [password] when the account has one.
+  Future<void> deleteAccount({String? password});
+
+  /// Rebuild today's plan around available time and energy.
+  Future<void> rebuildToday(TodaySettings settings);
+
+  /// Choose your own next action; null hands it back to the recommendation.
+  Future<void> chooseNext(String? taskId);
+
+  /// Keep, postpone or drop missed plan blocks (by recovery item id).
+  Future<void> recover(Map<String, RecoveryChoice> decisions);
+
+  Future<TaskDetail> taskDetail(String id);
+
+  /// Edit a task: any of title, description, dueAt, estimatedMinutes,
+  /// priority, importance, urgency, energy, project, goal.
+  Future<void> updateTask(String id, Map<String, Object?> changes);
+  Future<void> deleteTask(String id);
+
+  /// Save the reviewed steps of a large task.
+  Future<void> breakDown(String id, List<String> steps);
+
+  /// Move Inbox items onto the list, optionally into a project (by name).
+  Future<int> organiseInbox(List<String> ids, {String? project});
+
+  Future<List<Goal>> goals();
+  Future<void> createGoal(String title, {DateTime? targetDate});
+  Future<List<Responsibility>> responsibilities();
+  Future<void> stopResponsibility(String id);
+  Future<DailyReview> dailyReview();
+  Future<WeeklyReview> weeklyReview();
 }
 
 class HttpTaskMasterApi implements TaskMasterApi {
@@ -133,11 +169,15 @@ class HttpTaskMasterApi implements TaskMasterApi {
   }
 
   @override
-  Future<Task> quickAdd(String title, {String? projectId}) async {
+  Future<Task> quickAdd(
+    String title, {
+    String? projectId,
+    String? goalId,
+  }) async {
     final json = await _json(
       'POST',
       '/api/v1/tasks',
-      body: {'title': title, 'projectId': ?projectId},
+      body: {'title': title, 'projectId': ?projectId, 'goalId': ?goalId},
     );
     return Task.fromJson(json['task'] as Map<String, dynamic>);
   }
@@ -207,4 +247,123 @@ class HttpTaskMasterApi implements TaskMasterApi {
       },
     );
   }
+
+  @override
+  Future<Me> updatePreferences(Map<String, Object?> changes) async =>
+      Me.fromJson(await _json('PATCH', '/api/v1/me', body: changes));
+
+  @override
+  Future<void> deleteAccount({String? password}) async {
+    await _send(
+      'DELETE',
+      '/api/v1/me',
+      body: {'confirmation': 'DELETE', 'password': ?password},
+    );
+  }
+
+  @override
+  Future<void> rebuildToday(TodaySettings settings) async {
+    await _send('PUT', '/api/v1/today/settings', body: settings.toJson());
+  }
+
+  @override
+  Future<void> chooseNext(String? taskId) async {
+    await _send('PUT', '/api/v1/today/next', body: {'taskId': taskId});
+  }
+
+  @override
+  Future<void> recover(Map<String, RecoveryChoice> decisions) async {
+    await _send(
+      'POST',
+      '/api/v1/today/recovery',
+      body: {
+        'decisions': [
+          for (final MapEntry(:key, :value) in decisions.entries)
+            {'id': key, 'choice': value.name},
+        ],
+      },
+    );
+  }
+
+  @override
+  Future<TaskDetail> taskDetail(String id) async =>
+      TaskDetail.fromJson(await _json('GET', '/api/v1/tasks/$id'));
+
+  @override
+  Future<void> updateTask(String id, Map<String, Object?> changes) async {
+    await _send('PATCH', '/api/v1/tasks/$id', body: changes);
+  }
+
+  @override
+  Future<void> deleteTask(String id) async {
+    await _send('DELETE', '/api/v1/tasks/$id');
+  }
+
+  @override
+  Future<void> breakDown(String id, List<String> steps) async {
+    await _send(
+      'POST',
+      '/api/v1/tasks/$id/breakdown',
+      body: {
+        'steps': [
+          for (final title in steps) {'title': title, 'estimatedMinutes': null},
+        ],
+      },
+    );
+  }
+
+  @override
+  Future<int> organiseInbox(List<String> ids, {String? project}) async {
+    final json = await _json(
+      'POST',
+      '/api/v1/tasks/organise',
+      body: {'ids': ids, 'project': project},
+    );
+    return json['moved'] as int;
+  }
+
+  @override
+  Future<List<Goal>> goals() async {
+    final json = await _json('GET', '/api/v1/goals');
+    return [
+      for (final g in json['goals'] as List)
+        Goal.fromJson(g as Map<String, dynamic>),
+    ];
+  }
+
+  @override
+  Future<void> createGoal(String title, {DateTime? targetDate}) async {
+    await _send(
+      'POST',
+      '/api/v1/goals',
+      body: {
+        'title': title,
+        'targetDate': targetDate == null
+            ? null
+            : DateFormat('yyyy-MM-dd').format(targetDate),
+      },
+    );
+  }
+
+  @override
+  Future<List<Responsibility>> responsibilities() async {
+    final json = await _json('GET', '/api/v1/responsibilities');
+    return [
+      for (final r in json['responsibilities'] as List)
+        Responsibility.fromJson(r as Map<String, dynamic>),
+    ];
+  }
+
+  @override
+  Future<void> stopResponsibility(String id) async {
+    await _send('POST', '/api/v1/responsibilities/$id/stop');
+  }
+
+  @override
+  Future<DailyReview> dailyReview() async =>
+      DailyReview.fromJson(await _json('GET', '/api/v1/reviews/daily'));
+
+  @override
+  Future<WeeklyReview> weeklyReview() async =>
+      WeeklyReview.fromJson(await _json('GET', '/api/v1/reviews/weekly'));
 }

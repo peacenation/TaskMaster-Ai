@@ -4,6 +4,7 @@ import '../api/models.dart';
 import '../state/session.dart';
 import '../theme/tokens.dart';
 import 'brain_dump_screen.dart';
+import 'goals_screen.dart';
 import 'project_screen.dart';
 import 'widgets.dart';
 
@@ -18,6 +19,32 @@ class ProjectsScreen extends StatefulWidget {
 
 class _ProjectsScreenState extends State<ProjectsScreen> {
   int _generation = 0;
+  bool _goals = false;
+
+  /// Title plus the Projects / Goals switch, shared by both views.
+  Widget _header() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Semantics(
+        header: true,
+        child: Text(
+          _goals ? 'Goals' : 'Projects',
+          style: Theme.of(context).textTheme.headlineLarge,
+        ),
+      ),
+      const SizedBox(height: Tm.s3),
+      SegmentedButton<bool>(
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment(value: false, label: Text('Projects')),
+          ButtonSegment(value: true, label: Text('Goals')),
+        ],
+        selected: {_goals},
+        onSelectionChanged: (s) => setState(() => _goals = s.first),
+      ),
+      const SizedBox(height: Tm.s3),
+    ],
+  );
 
   void _reload() => setState(() => _generation++);
 
@@ -33,19 +60,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   @override
   Widget build(BuildContext context) {
     final api = SessionScope.of(context).api;
+    if (_goals) return GoalsView(header: _header());
     return Loader<List<ProjectProgress>>(
       key: ValueKey(_generation),
       load: api.projects,
       builder: (context, projects, _) => ListView(
         padding: const EdgeInsets.fromLTRB(Tm.s4, Tm.s2, Tm.s4, Tm.s8),
         children: [
-          Semantics(
-            header: true,
-            child: Text(
-              'Projects',
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
-          ),
+          _header(),
           Text(
             'Turn ideas into real progress.',
             style: TextStyle(color: context.tm.textMuted, fontSize: 16),

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../api/models.dart';
 import '../state/session.dart';
 import '../theme/tokens.dart';
+import 'task_screen.dart';
 import 'widgets.dart';
 
 /// "02. Tasks — stay on top of work": filtered lists from GET /api/v1/tasks,
@@ -135,15 +136,33 @@ class _TasksScreenState extends State<TasksScreen> {
                   ],
                 );
               }
+              final organise = _view == TaskView.inbox;
               return ListView.separated(
                 padding: const EdgeInsets.fromLTRB(Tm.s4, 0, Tm.s4, Tm.s4),
-                itemCount: tasks.length,
+                itemCount: tasks.length + (organise ? 1 : 0),
                 separatorBuilder: (_, _) => const SizedBox(height: Tm.s2),
-                itemBuilder: (context, i) => _TaskCard(
-                  task: tasks[i],
-                  onDone: () => act(tasks[i], TaskStatus.completed),
-                  onAction: (status) => act(tasks[i], status),
-                ),
+                itemBuilder: (context, i) {
+                  if (organise && i == 0) {
+                    return FilledButton.tonalIcon(
+                      onPressed: () async {
+                        if (await showOrganiseInbox(context, all)) {
+                          await reload();
+                        }
+                      },
+                      icon: const Icon(Icons.drive_file_move_outline),
+                      label: const Text('Organise Inbox'),
+                    );
+                  }
+                  final task = tasks[i - (organise ? 1 : 0)];
+                  return _TaskCard(
+                    task: task,
+                    onOpen: () async {
+                      if (await openTask(context, task.id)) await reload();
+                    },
+                    onDone: () => act(task, TaskStatus.completed),
+                    onAction: (status) => act(task, status),
+                  );
+                },
               );
             },
           ),
@@ -178,10 +197,12 @@ class _TasksScreenState extends State<TasksScreen> {
 class _TaskCard extends StatelessWidget {
   const _TaskCard({
     required this.task,
+    required this.onOpen,
     required this.onDone,
     required this.onAction,
   });
   final Task task;
+  final VoidCallback onOpen;
   final VoidCallback onDone;
   final void Function(TaskStatus status) onAction;
 
@@ -190,68 +211,72 @@ class _TaskCard extends StatelessWidget {
     final tm = context.tm;
     final due = task.dueAt;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(Tm.s1, Tm.s3, Tm.s4, Tm.s3),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CompleteCircle(title: task.title, onDone: onDone),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: Tm.s2),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            task.title,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        _TaskMenu(task: task, onAction: onAction),
-                      ],
-                    ),
-                    if (task.project != null)
-                      Text(
-                        task.project!.name,
-                        style: TextStyle(color: tm.textMuted),
-                      ),
-                    const SizedBox(height: Tm.s2),
-                    Row(
-                      children: [
-                        if (task.priority != null)
-                          PriorityBadge(task.priority!),
-                        const SizedBox(width: Tm.s2),
-                        // Long labels ("Mon 12 Oct, 11:00") shrink rather
-                        // than overflow next to the badge on narrow phones.
-                        if (due != null)
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Tm.s1, Tm.s3, Tm.s4, Tm.s3),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CompleteCircle(title: task.title, onDone: onDone),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: Tm.s2),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Expanded(
                             child: Text(
-                              _dueLabel(due),
-                              textAlign: TextAlign.end,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: tm.textMuted,
-                                fontSize: 13,
+                              task.title,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                          )
-                        else
-                          const Spacer(),
-                      ],
-                    ),
-                  ],
+                          ),
+                          _TaskMenu(task: task, onAction: onAction),
+                        ],
+                      ),
+                      if (task.project != null)
+                        Text(
+                          task.project!.name,
+                          style: TextStyle(color: tm.textMuted),
+                        ),
+                      const SizedBox(height: Tm.s2),
+                      Row(
+                        children: [
+                          if (task.priority != null)
+                            PriorityBadge(task.priority!),
+                          const SizedBox(width: Tm.s2),
+                          // Long labels ("Mon 12 Oct, 11:00") shrink rather
+                          // than overflow next to the badge on narrow phones.
+                          if (due != null)
+                            Expanded(
+                              child: Text(
+                                _dueLabel(due),
+                                textAlign: TextAlign.end,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: tm.textMuted,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            )
+                          else
+                            const Spacer(),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -295,6 +320,133 @@ class _TaskMenu extends StatelessWidget {
           ),
           const PopupMenuItem(value: TaskStatus.dropped, child: Text('Drop')),
         ],
+      ),
+    );
+  }
+}
+
+/// Inbox triage: choose captured items and move them onto your list,
+/// optionally into a project. True when something moved.
+Future<bool> showOrganiseInbox(BuildContext context, List<Task> inbox) async {
+  final moved = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => _OrganiseSheet(inbox: inbox),
+  );
+  return moved == true;
+}
+
+class _OrganiseSheet extends StatefulWidget {
+  const _OrganiseSheet({required this.inbox});
+  final List<Task> inbox;
+
+  @override
+  State<_OrganiseSheet> createState() => _OrganiseSheetState();
+}
+
+class _OrganiseSheetState extends State<_OrganiseSheet> {
+  late final Set<String> _selected = {for (final t in widget.inbox) t.id};
+  final _project = TextEditingController();
+  late final Future<List<ProjectProgress>> _projects = SessionScope.read(
+    context,
+  ).api.projects();
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _project.dispose();
+    super.dispose();
+  }
+
+  Future<void> _move() async {
+    final project = _project.text.trim();
+    setState(() => _busy = true);
+    final api = SessionScope.read(context).api;
+    final messenger = ScaffoldMessenger.of(context);
+    var moved = 0;
+    final ok = await runAction(context, () async {
+      moved = await api.organiseInbox(
+        _selected.toList(),
+        project: project.isEmpty ? null : project,
+      );
+    });
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (!ok) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          '$moved item${moved == 1 ? '' : 's'} moved'
+          '${project.isEmpty ? ' to your list' : ' to $project'}',
+        ),
+      ),
+    );
+    Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final count = _selected.length;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(Tm.s4, 0, Tm.s4, Tm.s4),
+          children: [
+            Text(
+              'Organise Inbox',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: Tm.s2),
+            for (final task in widget.inbox)
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: _selected.contains(task.id),
+                title: Text(task.title),
+                onChanged: (on) => setState(
+                  () => on == true
+                      ? _selected.add(task.id)
+                      : _selected.remove(task.id),
+                ),
+              ),
+            const SizedBox(height: Tm.s2),
+            TextField(
+              controller: _project,
+              decoration: const InputDecoration(
+                labelText: 'Project (optional)',
+                helperText: 'Pick one below or type a new name',
+              ),
+            ),
+            FutureBuilder<List<ProjectProgress>>(
+              future: _projects,
+              builder: (context, snapshot) => Wrap(
+                spacing: Tm.s2,
+                children: [
+                  for (final p in (snapshot.data ?? const []).take(8))
+                    ActionChip(
+                      label: Text(p.name),
+                      onPressed: () => _project.text = p.name,
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: Tm.s4),
+            FilledButton(
+              onPressed: _busy || count == 0 ? null : _move,
+              child: Text(
+                _busy
+                    ? 'Moving…'
+                    : 'Move $count item${count == 1 ? '' : 's'} to my list',
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

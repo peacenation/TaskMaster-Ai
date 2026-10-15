@@ -4,6 +4,10 @@ import '../api/client.dart';
 import '../state/appearance.dart';
 import '../state/session.dart';
 import '../theme/tokens.dart';
+import 'goals_screen.dart';
+import 'responsibilities_screen.dart';
+import 'reviews_screen.dart';
+import 'settings_screen.dart';
 
 /// Brand mark: a "T" whose stem finishes in a check — same shape as the
 /// web's LogoMark (apps/web/components/shell/icons.tsx).
@@ -97,44 +101,7 @@ class AccountAvatar extends StatelessWidget {
       label: 'Account',
       child: InkWell(
         customBorder: const CircleBorder(),
-        onTap: () => showModalBottomSheet<void>(
-          context: context,
-          showDragHandle: true,
-          builder: (sheet) => SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(Tm.s6, 0, Tm.s6, Tm.s6),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    me?.name ?? '',
-                    style: Theme.of(sheet).textTheme.titleMedium,
-                  ),
-                  Text(
-                    me?.email ?? '',
-                    style: Theme.of(sheet).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: Tm.s6),
-                  Text(
-                    'Appearance',
-                    style: Theme.of(sheet).textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: Tm.s2),
-                  const _AppearancePicker(),
-                  const SizedBox(height: Tm.s6),
-                  OutlinedButton(
-                    onPressed: () {
-                      Navigator.of(sheet).pop();
-                      session.signOut();
-                    },
-                    child: const Text('Sign out'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+        onTap: () => showAccountMenu(context),
         child: CircleAvatar(
           radius: 22,
           backgroundColor: TmColors.sage,
@@ -147,6 +114,100 @@ class AccountAvatar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The account menu: the screens that don't need a tab of their own
+/// (Goals, Responsibilities, Reviews, Settings) and Sign out.
+Future<void> showAccountMenu(BuildContext context) {
+  final session = SessionScope.read(context);
+  final me = session.me;
+  void open(Widget Function() screen) {
+    Navigator.of(context).pop();
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen()));
+  }
+
+  return showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (sheet) => SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(Tm.s4, 0, Tm.s4, Tm.s4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Tm.s2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    me?.name ?? '',
+                    style: Theme.of(sheet).textTheme.titleMedium,
+                  ),
+                  Text(
+                    me?.email ?? '',
+                    style: Theme.of(sheet).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: Tm.s3),
+            for (final (icon, label, screen)
+                in <(IconData, String, Widget Function())>[
+                  (Icons.flag_outlined, 'Goals', GoalsScreen.new),
+                  (
+                    Icons.repeat,
+                    'Responsibilities',
+                    ResponsibilitiesScreen.new,
+                  ),
+                  (
+                    Icons.fact_check_outlined,
+                    'Daily review',
+                    ReviewsScreen.new,
+                  ),
+                  (
+                    Icons.date_range_outlined,
+                    'Weekly review',
+                    () => const ReviewsScreen(weekly: true),
+                  ),
+                  (Icons.settings_outlined, 'Settings', SettingsScreen.new),
+                ])
+              ListTile(
+                leading: Icon(icon),
+                title: Text(label),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => open(screen),
+              ),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Tm.s2, Tm.s2, Tm.s2, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Appearance',
+                    style: Theme.of(sheet).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: Tm.s2),
+                  const _AppearancePicker(),
+                  const SizedBox(height: Tm.s4),
+                  OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(sheet).pop();
+                      session.signOut();
+                    },
+                    child: const Text('Sign out'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _AppearancePicker extends StatelessWidget {
@@ -546,29 +607,33 @@ class _HillsPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// Quick Add: into the Inbox, or straight into [projectId]. True when added.
+/// Quick Add: into the Inbox, or straight into [projectId] (or towards
+/// [goalId]) as a to-do. True when added.
 Future<bool> showQuickAdd(
   BuildContext context, {
   String? projectId,
   String? projectName,
+  String? goalId,
+  String? goalTitle,
 }) async {
+  final destination = projectName ?? goalTitle;
   final title = await showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => _QuickAddSheet(projectName: projectName),
+    builder: (_) => _QuickAddSheet(destination: destination),
   );
   if (title == null || !context.mounted) return false;
   final api = SessionScope.read(context).api;
   final ok = await runAction(
     context,
-    () => api.quickAdd(title, projectId: projectId),
+    () => api.quickAdd(title, projectId: projectId, goalId: goalId),
   );
   if (ok && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          projectName == null ? 'Added to your Inbox' : 'Added to $projectName',
+          destination == null ? 'Added to your Inbox' : 'Added to $destination',
         ),
       ),
     );
@@ -577,8 +642,8 @@ Future<bool> showQuickAdd(
 }
 
 class _QuickAddSheet extends StatefulWidget {
-  const _QuickAddSheet({this.projectName});
-  final String? projectName;
+  const _QuickAddSheet({this.destination});
+  final String? destination;
 
   @override
   State<_QuickAddSheet> createState() => _QuickAddSheetState();
@@ -625,9 +690,9 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
           ),
           const SizedBox(height: Tm.s2),
           Text(
-            widget.projectName == null
+            widget.destination == null
                 ? 'Lands in your Inbox to organise later.'
-                : 'Goes straight into ${widget.projectName}.',
+                : 'Goes straight into ${widget.destination}.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: Tm.s4),

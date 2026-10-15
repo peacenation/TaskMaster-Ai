@@ -5,7 +5,10 @@ import '../api/models.dart';
 import '../state/session.dart';
 import '../theme/tokens.dart';
 import 'brain_dump_screen.dart';
+import 'focus_screen.dart';
 import 'home_shell.dart';
+import 'task_screen.dart';
+import 'today_decisions.dart';
 import 'widgets.dart';
 
 /// "01. Today — your day at a glance": the same plan as the web's Today
@@ -41,13 +44,26 @@ class TodayScreen extends StatelessWidget {
           if (!today.onboarded)
             _PlanYourDay(onSaved: reload)
           else ...[
-            if (today.attentionCount > 0) ...[
-              _AttentionBanner(count: today.attentionCount),
+            if (today.recovery.isNotEmpty) ...[
+              RecoveryCard(items: today.recovery, saved: reload),
+              const SizedBox(height: Tm.s3),
+            ],
+            if (today.realityCheck case final check?) ...[
+              RealityCheckCard(check: check, decided: reload),
               const SizedBox(height: Tm.s3),
             ],
             _NextBestAction(today: today, reload: reload),
             const SizedBox(height: Tm.s3),
+            if (today.procrastination.isNotEmpty) ...[
+              ProcrastinationCard(
+                tasks: today.procrastination,
+                changed: reload,
+              ),
+              const SizedBox(height: Tm.s3),
+            ],
             _Stats(today: today),
+            const SizedBox(height: Tm.s3),
+            CapacityCard(today: today, rebuilt: reload),
             const SizedBox(height: Tm.s3),
             _Priorities(today: today, reload: reload),
             if (_nextBlock(today, (now ?? DateTime.now)())
@@ -151,29 +167,6 @@ class _PlanYourDay extends StatelessWidget {
   }
 }
 
-class _AttentionBanner extends StatelessWidget {
-  const _AttentionBanner({required this.count});
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final tm = context.tm;
-    return Container(
-      padding: const EdgeInsets.all(Tm.s3),
-      decoration: BoxDecoration(
-        color: tm.dangerSubtle,
-        borderRadius: BorderRadius.circular(Tm.radiusMd),
-        border: Border(left: BorderSide(color: tm.danger, width: 4)),
-      ),
-      child: Text(
-        count == 1
-            ? 'Your day changed — 1 decision is waiting on the website.'
-            : 'Your day changed — $count decisions are waiting on the website.',
-      ),
-    );
-  }
-}
-
 /// The AI suggestion stays visually distinct from a confirmed choice
 /// (PRD §2.8): caramel gradient while suggested, sage once it's yours.
 class _NextBestAction extends StatelessWidget {
@@ -244,21 +237,40 @@ class _NextBestAction extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: Tm.s3),
-                Text(
-                  rec?.task.title ?? 'Nothing active yet',
-                  style: Theme.of(context).textTheme.headlineSmall,
+                InkWell(
+                  onTap: rec == null
+                      ? null
+                      : () async {
+                          if (await openTask(context, rec.task.id)) {
+                            await reload();
+                          }
+                        },
+                  child: Text(
+                    rec?.task.title ?? 'Nothing active yet',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
                 ),
                 const SizedBox(height: Tm.s1),
                 Text(
                   rec?.message ??
                       'Capture new work or organise your Inbox to get started.',
                 ),
+                if (rec != null && rec.reasons.isNotEmpty)
+                  _WhyThis(reasons: rec.reasons),
                 if (rec != null) ...[
-                  const SizedBox(height: Tm.s4),
+                  const SizedBox(height: Tm.s3),
+                  FilledButton.icon(
+                    onPressed: () async {
+                      if (await openFocus(context, rec.task)) await reload();
+                    },
+                    icon: const Icon(Icons.timer_outlined),
+                    label: const Text('Start focus'),
+                  ),
+                  const SizedBox(height: Tm.s2),
                   Row(
                     children: [
                       Expanded(
-                        child: FilledButton(
+                        child: OutlinedButton(
                           onPressed: () => act(TaskStatus.completed),
                           child: const Text('Complete'),
                         ),
@@ -271,6 +283,24 @@ class _NextBestAction extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                  Center(
+                    child: TextButton(
+                      onPressed: () async {
+                        final changed = confirmed
+                            ? await runAction(
+                                context,
+                                () => api.chooseNext(null),
+                              )
+                            : await chooseNextTask(context, today);
+                        if (changed) await reload();
+                      },
+                      child: Text(
+                        confirmed
+                            ? 'Use the recommendation instead'
+                            : 'Choose a different task',
+                      ),
+                    ),
                   ),
                 ],
               ],
@@ -417,6 +447,9 @@ class _Priorities extends StatelessWidget {
                 for (final item in today.plan)
                   _TaskLine(
                     task: item.task,
+                    onOpen: () async {
+                      if (await openTask(context, item.task.id)) await reload();
+                    },
                     trailing: item.scheduledStart == null
                         ? formatMinutes(item.minutes)
                         : time.format(item.scheduledStart!),
@@ -439,16 +472,19 @@ class _TaskLine extends StatelessWidget {
     required this.task,
     required this.trailing,
     required this.onDone,
+    required this.onOpen,
   });
   final Task task;
   final String trailing;
   final VoidCallback onDone;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
     final tm = context.tm;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+    return InkWell(
+      onTap: onOpen,
+      borderRadius: BorderRadius.circular(Tm.radiusSm),
       child: Row(
         children: [
           CompleteCircle(title: task.title, onDone: onDone),
@@ -474,6 +510,32 @@ class _TaskLine extends StatelessWidget {
           ],
           Text(trailing, style: TextStyle(color: tm.textMuted, fontSize: 13)),
         ],
+      ),
+    );
+  }
+}
+
+/// "Why this?": the reasons behind the recommendation, folded by default.
+class _WhyThis extends StatelessWidget {
+  const _WhyThis({required this.reasons});
+  final List<String> reasons;
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(bottom: Tm.s2),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        title: Text(
+          'Why this?',
+          style: TextStyle(
+            color: context.tm.aiText,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        children: [for (final reason in reasons) Text('• $reason')],
       ),
     );
   }

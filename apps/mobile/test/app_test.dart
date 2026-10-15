@@ -102,8 +102,14 @@ void main() {
     final (api, _, _) = await pumpApp(tester, signedIn: true);
     expect(find.text('What to do next'), findsOneWidget);
     expect(find.text('NEXT BEST ACTION'), findsOneWidget);
+    expect(find.text('Start focus'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Today’s priorities'),
+      300,
+      scrollable: todayList,
+    );
     expect(find.text('Due today'), findsOneWidget);
-    expect(find.text('Today’s priorities'), findsOneWidget);
+    expect(find.text('What’s realistic'), findsOneWidget);
     expect(find.text('Review website designs'), findsWidgets);
     await tester.scrollUntilVisible(
       find.text('Next block'),
@@ -117,7 +123,7 @@ void main() {
       scrollable: todayList,
     );
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Complete'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Complete'));
     await tester.pumpAndSettle();
     expect(api.statusCalls, [('t1', TaskStatus.completed)]);
   });

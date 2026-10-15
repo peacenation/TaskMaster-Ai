@@ -50,6 +50,25 @@ class Session extends ChangeNotifier {
     _signedOut();
   }
 
+  /// Save preferences and keep [me] current.
+  Future<void> savePreferences(Map<String, Object?> changes) async {
+    me = await api.updatePreferences(changes);
+    notifyListeners();
+  }
+
+  /// Permanently delete the account, then return to sign-in. Google-only
+  /// accounts confirm with Google first (the server wants a fresh sign-in).
+  Future<void> deleteAccount({String? password}) async {
+    if (me?.hasPassword == false) await auth.signInWithGoogle();
+    await api.deleteAccount(password: password);
+    try {
+      await auth.signOut();
+    } on Object {
+      // The login is already gone; there's nothing left to sign out of.
+    }
+    _signedOut();
+  }
+
   /// Call from screens when a request fails; signs out on 401.
   Future<void> handle(Object error) async {
     if (error is ApiException && error.unauthorized) {
