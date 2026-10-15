@@ -71,6 +71,10 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
           status: task.status,
           project: projects.find((p) => p.id === task.projectId)?.name ?? "",
           goal: goals.find((goal) => goal.id === task.goalId)?.title ?? "",
+          waitingOn: task.waitingOn ?? "",
+          followUpDate: task.followUpAt
+            ? toLocalInput(task.followUpAt, timeZone).slice(0, 10)
+            : "",
         }}
       />
       <section>

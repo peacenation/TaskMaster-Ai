@@ -42,6 +42,8 @@ test("core signed-in flows", async ({ page }, info) => {
     "/projects",
     "/goals",
     "/responsibilities",
+    "/waiting",
+    "/more",
     "/focus",
     "/settings",
     "/reviews/daily",

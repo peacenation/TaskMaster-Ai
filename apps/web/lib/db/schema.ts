@@ -173,6 +173,11 @@ export const tasks = pgTable(
     occurrenceDate: date("occurrence_date"),
     occurrenceSlot: integer("occurrence_slot"),
     source: taskSourceEnum("source").notNull().default("manual"),
+    // Waiting On (PRD §4.1): someone else owns the next step. A waiting
+    // task leaves today's plan until its follow-up is due.
+    waitingOn: text("waiting_on"),
+    waitingSince: timestamp("waiting_since", { withTimezone: true }),
+    followUpAt: timestamp("follow_up_at", { withTimezone: true }),
     // clock_timestamp(), not now(): now() is the *transaction's* start time,
     // so every task in a Brain Dump commit would tie, and "oldest first"
     // would fall back to random UUID order instead of the reviewed order.

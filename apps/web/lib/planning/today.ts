@@ -3,6 +3,7 @@ import { nextBestAction, type Recommendation } from "@/lib/domain/nextBestAction
 import { buildPlan, PLAN_DEFAULTS } from "@/lib/domain/plan";
 import { prioritize } from "@/lib/domain/prioritize";
 import type { PlannableTask, PlanningContext } from "@/lib/domain/task";
+import { isParked } from "@/lib/domain/waiting";
 
 const minutes = z.coerce.number().int().min(1).max(1440);
 export const todaySettingsSchema = z.object({
@@ -49,8 +50,10 @@ export function buildToday(
       .filter((task) => task.status !== "completed" && task.status !== "dropped")
       .map((task) => task.id)
   );
+  // Waiting on someone else: out of the plan until it's time to follow up.
   const candidates = tasks.filter(
-    (task) => task.status === "todo" || task.status === "in_progress"
+    (task) =>
+      (task.status === "todo" || task.status === "in_progress") && !isParked(task, context.now)
   );
   const blockedIds = new Set(
     candidates

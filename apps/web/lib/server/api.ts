@@ -86,6 +86,8 @@ export interface TaskDto {
   dueAt: string | null;
   estimatedMinutes: number | null;
   project: { id: string; name: string } | null;
+  waitingOn: string | null;
+  followUpAt: string | null;
 }
 
 export function toTaskDto(task: TaskRecord, projectNames: Map<string, string>): TaskDto {
@@ -98,5 +100,7 @@ export function toTaskDto(task: TaskRecord, projectNames: Map<string, string>): 
     dueAt: task.dueAt?.toISOString() ?? null,
     estimatedMinutes: task.estimatedMinutes,
     project: task.projectId && projectName ? { id: task.projectId, name: projectName } : null,
+    waitingOn: task.waitingOn,
+    followUpAt: task.followUpAt?.toISOString() ?? null,
   };
 }

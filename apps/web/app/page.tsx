@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { RecoveryCheckIn } from "@/components/execution/RecoveryCheckIn";
 import { ProcrastinationAssist } from "@/components/execution/ProcrastinationAssist";
+import { FollowUps } from "@/components/execution/FollowUps";
 import { PlanSettings } from "@/components/planning/PlanSettings";
 import { QuickAdd } from "@/components/capture/QuickAdd";
 import { CapacityMeter } from "@/components/planning/CapacityMeter";
@@ -167,6 +168,13 @@ export default async function TodayPage({
                 }))}
             />
           )}
+          <FollowUps
+            items={view.followUps.map((task) => ({
+              id: task.id,
+              title: task.title,
+              waitingOn: task.waitingOn ?? "",
+            }))}
+          />
           <ProcrastinationAssist candidates={procrastinationCandidates} />
           {today.overridden &&
             recommendation &&

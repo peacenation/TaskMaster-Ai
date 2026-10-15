@@ -78,6 +78,13 @@
       "when": 1792105383552,
       "tag": "0010_calendar_feeds",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792106020304,
+      "tag": "0011_waiting_on",
+      "breakpoints": true
     }
   ]
 }

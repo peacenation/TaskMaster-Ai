@@ -130,3 +130,60 @@ describe("calendar-aware planning", () => {
     expect(blocks[0][0]).toBe("10:45");
   });
 });
+
+describe("waiting on someone", () => {
+  const now = new Date("2026-10-16T09:00:00Z");
+  const base = {
+    status: "todo" as const,
+    priority: null,
+    urgency: null,
+    importance: null,
+    dueAt: null,
+    estimatedMinutes: 30,
+    energy: null,
+    projectId: null,
+    goalId: null,
+    dependsOn: [],
+    lastProgressAt: null,
+    createdAt: new Date("2026-10-01T00:00:00Z"),
+  };
+
+  it("keeps a parked task out of the plan and the recommendation", () => {
+    const today = buildToday(
+      [
+        {
+          ...base,
+          id: "parked",
+          title: "Get sign-off",
+          priority: 5,
+          waitingOn: "Sam",
+          followUpAt: new Date("2026-10-20T09:00:00Z"),
+        },
+        { ...base, id: "mine", title: "Write the brief" },
+      ],
+      { now, timeZone: "UTC" },
+      240,
+      null
+    );
+    expect(today.recommendation?.task.id).toBe("mine");
+    expect(today.plan.items.map((i) => i.task.id)).toEqual(["mine"]);
+  });
+
+  it("brings it back once the follow-up is due", () => {
+    const today = buildToday(
+      [
+        {
+          ...base,
+          id: "chase",
+          title: "Chase sign-off",
+          waitingOn: "Sam",
+          followUpAt: new Date("2026-10-15T09:00:00Z"),
+        },
+      ],
+      { now, timeZone: "UTC" },
+      240,
+      null
+    );
+    expect(today.plan.items.map((i) => i.task.id)).toEqual(["chase"]);
+  });
+});

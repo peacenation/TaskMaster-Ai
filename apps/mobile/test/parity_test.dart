@@ -191,6 +191,8 @@ void main() {
   testWidgets('Inbox: organise captured items into a project', (tester) async {
     final (api, _, _) = await pumpApp(tester, signedIn: true);
     await goToTab(tester, 'Tasks');
+    // Every view fits on a phone without scrolling sideways.
+    expect(tester.getRect(find.text('Waiting')).right, lessThanOrEqualTo(390));
     await tester.tap(find.text('Inbox'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Organise Inbox'));
@@ -389,4 +391,61 @@ void main() {
     await tester.pumpAndSettle();
     expect(api.connectedCalendars, isEmpty);
   });
+
+  testWidgets(
+    'waiting on: mark a task, see it in Waiting, follow up on Today',
+    (tester) async {
+      final (api, _, _) = await pumpApp(
+        tester,
+        signedIn: true,
+        api: FakeApi(decisions: true),
+      );
+      // Today: a follow-up is due.
+      await tester.scrollUntilVisible(
+        find.text('Contract from the landlord'),
+        200,
+        scrollable: todayList,
+      );
+      expect(find.text('Waiting on Letting agent'), findsOneWidget);
+      await tester.ensureVisible(find.text('It’s arrived'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('It’s arrived'));
+      await tester.pumpAndSettle();
+      expect(api.updates.last, {'id': 'w2', 'waitingOn': null});
+
+      // Mark a task as waiting from its screen.
+      await goToTab(tester, 'Tasks');
+      await tester.tap(find.text('Finalise project proposal'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Waiting on someone…'),
+        200,
+        scrollable: taskList,
+      );
+      await tester.tap(find.text('Waiting on someone…'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Who or what'),
+        'Sam',
+      );
+      await tester.tap(find.text('A week'));
+      await tester.tap(find.text('Mark as waiting'));
+      await tester.pumpAndSettle();
+      final saved = api.updates.last;
+      expect(saved['waitingOn'], 'Sam');
+      final followUp = DateTime.parse(saved['followUpAt']! as String);
+      expect(
+        followUp.difference(DateTime.now()).inDays,
+        inInclusiveRange(6, 7),
+      );
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      // The Waiting view lists what others owe you.
+      await tester.tap(find.text('Waiting'));
+      await tester.pumpAndSettle();
+      expect(find.text('Get sign-off on the budget'), findsOneWidget);
+      expect(find.text('Waiting on Sam'), findsOneWidget);
+    },
+  );
 }

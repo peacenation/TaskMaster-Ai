@@ -157,6 +157,10 @@ class _Body extends StatelessWidget {
           const SizedBox(height: Tm.s3),
           Text(detail.description!),
         ],
+        if (task.waitingOn != null) ...[
+          const SizedBox(height: Tm.s3),
+          _WaitingBanner(task: task, changed: changed),
+        ],
         const SizedBox(height: Tm.s5),
         if (_open) ...[
           FilledButton.icon(
@@ -192,6 +196,14 @@ class _Body extends StatelessWidget {
               ),
             ],
           ),
+          if (task.waitingOn == null)
+            TextButton.icon(
+              onPressed: () async {
+                if (await showWaitingSheet(context, task)) changed();
+              },
+              icon: const Icon(Icons.hourglass_empty),
+              label: const Text('Waiting on someone…'),
+            ),
         ] else
           OutlinedButton(
             onPressed: () => act(TaskStatus.todo),
@@ -690,6 +702,181 @@ class _NameField extends StatelessWidget {
             ],
           ),
       ],
+    );
+  }
+}
+
+/// Waiting On: who owns the next step, and when to chase.
+class _WaitingBanner extends StatelessWidget {
+  const _WaitingBanner({required this.task, required this.changed});
+  final Task task;
+  final VoidCallback changed;
+
+  @override
+  Widget build(BuildContext context) {
+    final tm = context.tm;
+    final api = SessionScope.read(context).api;
+    final followUp = task.followUpAt;
+    final due = followUp != null && !followUp.isAfter(DateTime.now());
+    return Container(
+      padding: const EdgeInsets.all(Tm.s3),
+      decoration: BoxDecoration(
+        color: tm.aiBg,
+        borderRadius: BorderRadius.circular(Tm.radiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.hourglass_empty, size: 18, color: tm.aiText),
+              const SizedBox(width: Tm.s2),
+              Expanded(
+                child: Text(
+                  'Waiting on ${task.waitingOn}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          if (followUp != null)
+            Text(
+              due
+                  ? 'Time to follow up.'
+                  : 'Out of your plan until ${DateFormat('EEE d MMM').format(followUp)}.',
+              style: TextStyle(color: tm.textMuted),
+            ),
+          Wrap(
+            spacing: Tm.s1,
+            children: [
+              TextButton(
+                onPressed: () async {
+                  final ok = await runAction(
+                    context,
+                    () => api.updateTask(task.id, {'waitingOn': null}),
+                  );
+                  if (ok) changed();
+                },
+                child: const Text('It’s arrived'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  if (await showWaitingSheet(context, task)) changed();
+                },
+                child: const Text('Change'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Mark a task as waiting on someone; true when saved.
+Future<bool> showWaitingSheet(BuildContext context, Task task) async {
+  final saved = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => _WaitingSheet(task: task),
+  );
+  return saved == true;
+}
+
+class _WaitingSheet extends StatefulWidget {
+  const _WaitingSheet({required this.task});
+  final Task task;
+
+  @override
+  State<_WaitingSheet> createState() => _WaitingSheetState();
+}
+
+class _WaitingSheetState extends State<_WaitingSheet> {
+  late final _who = TextEditingController(text: widget.task.waitingOn ?? '');
+  int _days = 3;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _who.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final who = _who.text.trim();
+    if (who.isEmpty) return;
+    setState(() => _busy = true);
+    final api = SessionScope.read(context).api;
+    final followUp = DateTime.now().add(Duration(days: _days));
+    final ok = await runAction(
+      context,
+      () => api.updateTask(widget.task.id, {
+        'waitingOn': who,
+        'followUpAt': DateTime(
+          followUp.year,
+          followUp.month,
+          followUp.day,
+          9,
+        ).toUtc().toIso8601String(),
+      }),
+    );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (ok) Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        Tm.s4,
+        0,
+        Tm.s4,
+        MediaQuery.viewInsetsOf(context).bottom + Tm.s4,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Waiting on someone',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: Tm.s1),
+          Text(
+            'It leaves your plan until it’s time to follow up.',
+            style: TextStyle(color: context.tm.textMuted),
+          ),
+          const SizedBox(height: Tm.s3),
+          TextField(
+            controller: _who,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Who or what',
+              hintText: 'Sam’s sign-off',
+            ),
+          ),
+          const SizedBox(height: Tm.s3),
+          const Text('Follow up in'),
+          const SizedBox(height: Tm.s1),
+          SegmentedButton<int>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: 1, label: Text('1 day')),
+              ButtonSegment(value: 3, label: Text('3 days')),
+              ButtonSegment(value: 7, label: Text('A week')),
+            ],
+            selected: {_days},
+            onSelectionChanged: (s) => setState(() => _days = s.first),
+          ),
+          const SizedBox(height: Tm.s4),
+          FilledButton(
+            onPressed: _busy ? null : _save,
+            child: Text(_busy ? 'Saving…' : 'Mark as waiting'),
+          ),
+        ],
+      ),
     );
   }
 }

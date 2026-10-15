@@ -92,16 +92,9 @@ class _TasksScreenState extends State<TasksScreen> {
         ),
         Padding(
           padding: const EdgeInsets.all(Tm.s4),
-          child: SegmentedButton<TaskView>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(value: TaskView.today, label: Text('Today')),
-              ButtonSegment(value: TaskView.upcoming, label: Text('Upcoming')),
-              ButtonSegment(value: TaskView.all, label: Text('All')),
-              ButtonSegment(value: TaskView.inbox, label: Text('Inbox')),
-            ],
-            selected: {_view},
-            onSelectionChanged: (s) => setState(() => _view = s.first),
+          child: _ViewTabs(
+            selected: _view,
+            onSelected: (view) => setState(() => _view = view),
           ),
         ),
         Expanded(
@@ -184,6 +177,7 @@ class _TasksScreenState extends State<TasksScreen> {
     TaskView.upcoming => 'No upcoming deadlines',
     TaskView.all => 'No open tasks yet',
     TaskView.inbox => 'Inbox zero',
+    TaskView.waiting => 'Nothing waiting on anyone',
   };
 
   static String _emptyText(TaskView view) => switch (view) {
@@ -191,6 +185,9 @@ class _TasksScreenState extends State<TasksScreen> {
     TaskView.upcoming => 'Nothing has a deadline coming up.',
     TaskView.all => 'Add one below, or start a Brain Dump from Today.',
     TaskView.inbox => 'Everything you captured has been organised.',
+    TaskView.waiting =>
+      'When someone else owns the next step, open the task and choose '
+          '“Waiting on someone”.',
   };
 }
 
@@ -245,6 +242,11 @@ class _TaskCard extends StatelessWidget {
                         Text(
                           task.project!.name,
                           style: TextStyle(color: tm.textMuted),
+                        ),
+                      if (task.waitingOn != null)
+                        Text(
+                          'Waiting on ${task.waitingOn}',
+                          style: TextStyle(color: tm.aiText),
                         ),
                       const SizedBox(height: Tm.s2),
                       Row(
@@ -447,6 +449,74 @@ class _OrganiseSheetState extends State<_OrganiseSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The five task views as equal-width pills: a segmented control can't fit
+/// five labels on a phone, and chips would scroll sideways out of sight.
+class _ViewTabs extends StatelessWidget {
+  const _ViewTabs({required this.selected, required this.onSelected});
+  final TaskView selected;
+  final ValueChanged<TaskView> onSelected;
+
+  static const _labels = {
+    TaskView.today: 'Today',
+    TaskView.upcoming: 'Upcoming',
+    TaskView.all: 'All',
+    TaskView.inbox: 'Inbox',
+    TaskView.waiting: 'Waiting',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final tm = context.tm;
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: tm.sunken,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        children: [
+          for (final MapEntry(key: view, value: label) in _labels.entries)
+            Expanded(
+              child: Semantics(
+                button: true,
+                selected: view == selected,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(999),
+                  onTap: () => onSelected(view),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    constraints: const BoxConstraints(minHeight: 40),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: view == selected ? tm.action : null,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: view == selected
+                                ? tm.onAction
+                                : tm.textMuted,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

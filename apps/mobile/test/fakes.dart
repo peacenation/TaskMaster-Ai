@@ -73,6 +73,14 @@ Map<String, dynamic> todayJson({
     if (decisions) {'taskId': 't3', 'title': 'Update launch checklist'},
   ],
   'meetingMinutes': 60,
+  'followUps': [
+    if (decisions)
+      {
+        ...task('w2', 'Contract from the landlord'),
+        'waitingOn': 'Letting agent',
+        'followUpAt': '2026-10-11T09:00:00.000Z',
+      },
+  ],
   'events': [
     {
       'title': 'Company holiday',
@@ -154,7 +162,13 @@ class FakeApi implements TaskMasterApi {
 
   @override
   Future<List<Task>> tasks(TaskView view) async => [
-    if (view == TaskView.inbox) ...[
+    if (view == TaskView.waiting)
+      Task.fromJson({
+        ...task('w1', 'Get sign-off on the budget'),
+        'waitingOn': 'Sam',
+        'followUpAt': '2099-01-01T09:00:00.000Z',
+      })
+    else if (view == TaskView.inbox) ...[
       Task.fromJson(task('i1', 'Buy stamps')),
       Task.fromJson(task('i2', 'Water plants')),
     ] else ...[

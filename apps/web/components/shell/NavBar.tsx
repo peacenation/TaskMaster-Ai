@@ -7,6 +7,7 @@ import {
   ArrowRightIcon,
   FolderIcon,
   HomeIcon,
+  HourglassIcon,
   InboxIcon,
   LogoMark,
   MoreIcon,
@@ -25,17 +26,19 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/projects", label: "Projects", icon: FolderIcon },
   { href: "/goals", label: "Goals", icon: TargetIcon },
   { href: "/responsibilities", label: "Responsibilities", icon: RepeatIcon },
+  { href: "/waiting", label: "Waiting on", icon: HourglassIcon },
   { href: "/focus", label: "Focus", icon: TimerIcon },
   { href: "/dump", label: "Brain Dump", icon: SparkleIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 // Phones get a bottom tab bar with the four daily areas; the rest live on /more.
+const tab = (href: string) => NAV_ITEMS.find((item) => item.href === href)!;
 const TAB_ITEMS: NavItem[] = [
-  NAV_ITEMS[0],
-  NAV_ITEMS[1],
-  NAV_ITEMS[2],
-  NAV_ITEMS[5],
+  tab("/"),
+  tab("/inbox"),
+  tab("/projects"),
+  tab("/focus"),
   { href: "/more", label: "More", icon: MoreIcon },
 ];
 const MORE_AREAS = ["/more", "/goals", "/responsibilities", "/dump", "/settings", "/reviews"];

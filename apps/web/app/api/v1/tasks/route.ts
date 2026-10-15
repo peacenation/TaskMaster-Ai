@@ -7,15 +7,17 @@ import { isOpenTask } from "@/lib/server/today-view";
 
 export const dynamic = "force-dynamic";
 
-const viewSchema = z.enum(["today", "upcoming", "all", "inbox"]).default("today");
+const viewSchema = z.enum(["today", "upcoming", "all", "inbox", "waiting"]).default("today");
 
 // My Tasks. today: open work due today or overdue; upcoming: due later;
-// all: every open task; inbox: captured, not yet organised.
+// all: every open task; inbox: captured, not yet organised; waiting: open
+// work whose next step is someone else's.
 export const GET = apiRoute(async ({ userId, timeZone }, request) => {
   const parsed = viewSchema.safeParse(
     new URL(request.url).searchParams.get("view") ?? undefined
   );
-  if (!parsed.success) throw new ApiError(400, "view must be today, upcoming, all or inbox.");
+  if (!parsed.success)
+    throw new ApiError(400, "view must be today, upcoming, all, inbox or waiting.");
   const view = parsed.data;
   const { records, projects } = await withRepositories(userId, async (repos) => ({
     records: await repos.tasks.list(),
@@ -29,6 +31,7 @@ export const GET = apiRoute(async ({ userId, timeZone }, request) => {
     .filter((task) => {
       if (view === "inbox") return task.status === "inbox";
       if (!isOpenTask(task)) return false;
+      if (view === "waiting") return task.waitingOn !== null;
       const day = due(task);
       if (view === "today") return day !== null && day <= date;
       if (view === "upcoming") return day !== null && day > date;

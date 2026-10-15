@@ -30,6 +30,11 @@ export interface TaskRecord {
   occurrenceDate: string | null;
   occurrenceSlot: number | null;
   source: TaskSource;
+  /** Who the next step is waiting on; null when it's the user's to do. */
+  waitingOn: string | null;
+  waitingSince: Date | null;
+  /** When to chase it; the task comes back to Today then. */
+  followUpAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   completedAt: Date | null;
@@ -72,5 +77,8 @@ export const TASK_DEFAULTS: Omit<Editable, "title"> = {
   occurrenceDate: null,
   occurrenceSlot: null,
   source: "manual",
+  waitingOn: null,
+  waitingSince: null,
+  followUpAt: null,
   completedAt: null,
 };

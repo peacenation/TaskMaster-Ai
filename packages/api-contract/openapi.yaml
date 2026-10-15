@@ -140,7 +140,7 @@ paths:
             all — every open task; inbox — captured, not yet organised.
           schema:
             type: string
-            enum: [today, upcoming, all, inbox]
+            enum: [today, upcoming, all, inbox, waiting]
             default: today
       responses:
         "200":
@@ -1090,7 +1090,7 @@ components:
       enum: [inbox, todo, in_progress, completed, postponed, dropped]
     Task:
       type: object
-      required: [id, title, status, priority, dueAt, estimatedMinutes, project]
+      required: [id, title, status, priority, dueAt, estimatedMinutes, project, waitingOn, followUpAt]
       properties:
         id:
           type: string
@@ -1120,6 +1120,13 @@ components:
                   format: uuid
                 name:
                   type: string
+        waitingOn:
+          description: Who the next step is waiting on (Waiting On); null when it's the user's.
+          type: [string, "null"]
+        followUpAt:
+          description: When to chase; the task is out of the plan until then.
+          type: [string, "null"]
+          format: date-time
     PlanItem:
       type: object
       required: [task, position, minutes, estimateIsDefault, protected, scheduledStart, scheduledEnd]
@@ -1364,6 +1371,11 @@ components:
         meetingMinutes:
           description: Meeting time still ahead today, already taken out of capacity.
           type: integer
+        followUps:
+          description: Waiting On tasks whose follow-up date has come.
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
         procrastination:
           description: Tasks postponed three times in a row.
           type: array
@@ -1522,6 +1534,13 @@ components:
         goal:
           description: Goal title; a new title creates it, null removes it.
           type: [string, "null"]
+        waitingOn:
+          description: Mark as waiting on someone; null makes it yours again.
+          type: [string, "null"]
+        followUpAt:
+          description: When to follow up (defaults to three days).
+          type: [string, "null"]
+          format: date-time
     Goal:
       type: object
       required: [id, title, targetDate, linked, active, completed, nudge, tasks]

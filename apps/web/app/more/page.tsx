@@ -3,6 +3,7 @@ import { SignOut } from "@/components/auth/SignOut";
 import {
   ArrowRightIcon,
   CalendarIcon,
+  HourglassIcon,
   RepeatIcon,
   SettingsIcon,
   SparkleIcon,
@@ -26,6 +27,12 @@ const AREAS = [
     label: "Responsibilities",
     hint: "Recurring work",
     icon: RepeatIcon,
+  },
+  {
+    href: "/waiting",
+    label: "Waiting on",
+    hint: "Things someone else owes you",
+    icon: HourglassIcon,
   },
   {
     href: "/reviews/daily",

@@ -153,6 +153,27 @@ test("mobile: everything the web does", async ({}, info) => {
   expect((await put("/api/v1/today/next", token, { taskId: null })).status).toBe(200);
   expect((await post("/api/v1/today/recovery", token, { decisions: [] })).status).toBe(400);
 
+  // Waiting On: parked out of the plan until the follow-up, then back.
+  const waiting = await patch(`/api/v1/tasks/${lesson.body.task.id}`, token, {
+    waitingOn: "Maria (tutor)",
+  });
+  expect(waiting.body.task.waitingOn).toBe("Maria (tutor)");
+  expect(new Date(waiting.body.task.followUpAt).getTime()).toBeGreaterThan(Date.now());
+  const waitingList = (await call("/api/v1/tasks?view=waiting", token)).body.tasks;
+  expect(waitingList.map((t: { id: string }) => t.id)).toEqual([lesson.body.task.id]);
+  let plan = (await call("/api/v1/today", token)).body;
+  expect(plan.plan.map((p: { task: { id: string } }) => p.task.id)).not.toContain(
+    lesson.body.task.id
+  );
+  expect(plan.followUps).toEqual([]);
+  await patch(`/api/v1/tasks/${lesson.body.task.id}`, token, {
+    followUpAt: new Date(Date.now() - 60_000).toISOString(),
+  });
+  plan = (await call("/api/v1/today", token)).body;
+  expect(plan.followUps.map((t: { id: string }) => t.id)).toEqual([lesson.body.task.id]);
+  await patch(`/api/v1/tasks/${lesson.body.task.id}`, token, { waitingOn: null });
+  expect((await call("/api/v1/tasks?view=waiting", token)).body.tasks).toEqual([]);
+
   // Reviews and responsibilities.
   const daily = await call("/api/v1/reviews/daily", token);
   expect(daily.status).toBe(200);

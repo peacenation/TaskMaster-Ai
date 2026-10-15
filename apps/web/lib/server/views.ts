@@ -30,6 +30,8 @@ export function toPlannable(
       // Not tracked yet; the neglect rule falls back to createdAt (docs/SCORING.md).
       lastProgressAt: null,
       createdAt: r.createdAt,
+      waitingOn: r.waitingOn,
+      followUpAt: r.followUpAt,
     }));
 }
 

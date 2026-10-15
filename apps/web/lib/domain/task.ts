@@ -25,6 +25,9 @@ export interface PlannableTask {
   /** Last time the user made progress on it; falls back to createdAt. */
   lastProgressAt: Date | null;
   createdAt: Date;
+  /** Waiting On: someone else owns the next step (lib/domain/waiting.ts). */
+  waitingOn?: string | null;
+  followUpAt?: Date | null;
 }
 
 export interface PlanningContext {

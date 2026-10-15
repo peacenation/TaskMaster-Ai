@@ -222,6 +222,55 @@ class RealityCheckCard extends StatelessWidget {
   }
 }
 
+/// Waiting On: the follow-up date has come for work someone else owes you.
+class FollowUpCard extends StatelessWidget {
+  const FollowUpCard({super.key, required this.tasks, required this.changed});
+  final List<Task> tasks;
+  final Future<void> Function() changed;
+
+  @override
+  Widget build(BuildContext context) {
+    final api = SessionScope.read(context).api;
+    Future<void> update(String id, Map<String, Object?> changes) async {
+      if (await runAction(context, () => api.updateTask(id, changes))) {
+        await changed();
+      }
+    }
+
+    return _AttentionCard(
+      calm: true,
+      kicker: 'Time to follow up',
+      title: tasks.length == 1
+          ? 'Something you’re waiting on'
+          : 'Things you’re waiting on',
+      children: [
+        for (final task in tasks) ...[
+          Text(task.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text('Waiting on ${task.waitingOn}'),
+          Wrap(
+            spacing: Tm.s1,
+            children: [
+              TextButton(
+                onPressed: () => update(task.id, {'waitingOn': null}),
+                child: const Text('It’s arrived'),
+              ),
+              TextButton(
+                onPressed: () => update(task.id, {
+                  'followUpAt': DateTime.now()
+                      .add(const Duration(days: 2))
+                      .toUtc()
+                      .toIso8601String(),
+                }),
+                child: const Text('Chased · check in 2 days'),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 /// A task postponed three times in a row: a gentle nudge to rethink it.
 class ProcrastinationCard extends StatelessWidget {
   const ProcrastinationCard({

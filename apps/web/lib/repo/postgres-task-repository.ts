@@ -25,6 +25,9 @@ function toRecord(row: TaskRow): TaskRecord {
     occurrenceDate: row.occurrenceDate,
     occurrenceSlot: row.occurrenceSlot,
     source: row.source,
+    waitingOn: row.waitingOn,
+    waitingSince: row.waitingSince,
+    followUpAt: row.followUpAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     completedAt: row.completedAt,
@@ -77,6 +80,9 @@ export function createPostgresTaskRepository(db: AppDb, userId: string): TaskRep
           occurrenceDate: merged.occurrenceDate,
           occurrenceSlot: merged.occurrenceSlot,
           source: merged.source,
+          waitingOn: merged.waitingOn,
+          waitingSince: merged.waitingSince,
+          followUpAt: merged.followUpAt,
           completedAt: merged.completedAt,
         })
         .returning();

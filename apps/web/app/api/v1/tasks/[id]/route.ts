@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { breakdownTask } from "@/lib/domain/breakdown";
+import { waitingPatch } from "@/lib/domain/waiting";
 import { withRepositories } from "@/lib/repo";
 import { ApiError, apiRoute, json, readJson, toTaskDto } from "@/lib/server/api";
 
@@ -80,6 +81,10 @@ const patchSchema = z
     // By name, like the web form: a new name creates the project or goal.
     project: z.string().trim().max(200).nullable(),
     goal: z.string().trim().max(200).nullable(),
+    // Waiting On: who the next step belongs to (null: it's yours again),
+    // and when to chase (defaults to three days).
+    waitingOn: z.string().trim().max(200).nullable(),
+    followUpAt: z.iso.datetime({ offset: true }).nullable(),
   })
   .partial();
 
@@ -89,9 +94,21 @@ export const PATCH = apiRoute(async ({ userId }, request, context: Params) => {
   const id = await taskId(context);
   const parsed = patchSchema.safeParse(await readJson(request));
   if (!parsed.success) throw new ApiError(400, "Check the task details and try again.");
-  const { project, goal, dueAt, description, ...fields } = parsed.data;
+  const { project, goal, dueAt, description, waitingOn, followUpAt, ...fields } = parsed.data;
   const { task, names } = await withRepositories(userId, async (repos) => {
-    if (!(await repos.tasks.get(id))) throw new ApiError(404, "Task not found.");
+    const before = await repos.tasks.get(id);
+    if (!before) throw new ApiError(404, "Task not found.");
+    const followUp =
+      followUpAt === undefined ? undefined : followUpAt === null ? null : new Date(followUpAt);
+    const waiting =
+      waitingOn !== undefined
+        ? before.waitingOn && waitingOn
+          ? // Still waiting (maybe on someone else): keep when it started.
+            { waitingOn, followUpAt: followUp ?? before.followUpAt }
+          : waitingPatch(waitingOn, followUp, new Date())
+        : followUp !== undefined && before.waitingOn
+          ? { followUpAt: followUp }
+          : {};
     const projectRecord = project ? await repos.projects.findOrCreate(project) : null;
     const goalRecord = goal ? await repos.goals.findOrCreate({ title: goal }) : null;
     const updated = await repos.tasks.update(id, {
@@ -100,6 +117,7 @@ export const PATCH = apiRoute(async ({ userId }, request, context: Params) => {
       ...(dueAt !== undefined ? { dueAt: dueAt ? new Date(dueAt) : null } : {}),
       ...(project !== undefined ? { projectId: projectRecord?.id ?? null } : {}),
       ...(goal !== undefined ? { goalId: goalRecord?.id ?? null } : {}),
+      ...waiting,
     });
     const projects = await repos.projects.list();
     return { task: updated, names: new Map(projects.map((p) => [p.id, p.name])) };

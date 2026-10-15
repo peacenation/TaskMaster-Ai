@@ -3,6 +3,7 @@ import { zonedTimeToUtc } from "@/lib/domain/dates";
 import { localDate } from "@/lib/execution/date";
 import { buildToday, todaySettingsSchema } from "@/lib/planning/today";
 import { realityCheckSummary } from "@/lib/domain/reality-check";
+import { isFollowUpDue } from "@/lib/domain/waiting";
 import { withRepositories, type Repositories } from "@/lib/repo";
 import type { TaskRecord } from "@/lib/repo/task-repository";
 import { toPlannable } from "@/lib/server/views";
@@ -194,6 +195,8 @@ export async function loadToday(
     procrastinationCandidates,
     events,
     meetingMinutes: today.meetingMinutes,
+    // Waiting on someone, and it's time to chase.
+    followUps: records.filter((task) => isOpenTask(task) && isFollowUpDue(task, now)),
     projectNames,
     projectProgress,
     firstName: profile.name.trim().split(/\s+/)[0] ?? "",

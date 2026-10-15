@@ -106,6 +106,8 @@ class Task {
     this.dueAt,
     this.estimatedMinutes,
     this.project,
+    this.waitingOn,
+    this.followUpAt,
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -120,6 +122,8 @@ class Task {
       project: project == null
           ? null
           : ProjectRef(project['id'] as String, project['name'] as String),
+      waitingOn: json['waitingOn'] as String?,
+      followUpAt: _date(json['followUpAt']),
     );
   }
 
@@ -132,6 +136,12 @@ class Task {
   final DateTime? dueAt;
   final int? estimatedMinutes;
   final ProjectRef? project;
+
+  /// Waiting On: who owns the next step; null when it's the user's.
+  final String? waitingOn;
+
+  /// When to chase; out of the plan until then.
+  final DateTime? followUpAt;
 }
 
 class PlanItem {
@@ -234,6 +244,7 @@ class Today {
     this.procrastination = const [],
     this.events = const [],
     this.meetingMinutes = 0,
+    this.followUps = const [],
   });
 
   factory Today.fromJson(Map<String, dynamic> json) {
@@ -290,6 +301,10 @@ class Today {
           CalendarEvent.fromJson(e as Map<String, dynamic>),
       ],
       meetingMinutes: json['meetingMinutes'] as int? ?? 0,
+      followUps: [
+        for (final t in json['followUps'] as List? ?? const [])
+          Task.fromJson(t as Map<String, dynamic>),
+      ],
     );
   }
 
@@ -320,6 +335,9 @@ class Today {
   /// Meeting time still ahead today, already taken out of capacity.
   final int meetingMinutes;
 
+  /// Waiting On tasks whose follow-up date has come.
+  final List<Task> followUps;
+
   /// Share of today's work done: completed ÷ (completed + still planned).
   double get dailyProgress {
     final done = stats?.completedToday ?? 0;
@@ -328,7 +346,7 @@ class Today {
   }
 }
 
-enum TaskView { today, upcoming, all, inbox }
+enum TaskView { today, upcoming, all, inbox, waiting }
 
 /// One item Claude or the built-in rules proposed from a Brain Dump.
 class ProposedItem {

@@ -92,6 +92,7 @@ export const GET = apiRoute(async ({ userId, timeZone, profile }) => {
     },
     procrastination: view.procrastinationCandidates,
     meetingMinutes: view.meetingMinutes,
+    followUps: view.followUps.map((task) => toTaskDto(task, projectNames)),
     events: view.events.map((event) => ({
       title: event.title,
       startsAt: event.startsAt.toISOString(),

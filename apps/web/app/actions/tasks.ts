@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { zonedTimeToUtc } from "@/lib/domain/dates";
+import { waitingPatch } from "@/lib/domain/waiting";
 import { withRepositories } from "@/lib/repo";
 import type { TaskEventType } from "@/lib/repo/postgres-repositories";
 import { getCurrentUserId, getTimeZone } from "@/lib/server/session";
@@ -37,6 +38,8 @@ const taskFormSchema = z.object({
     .default("todo"),
   project: optional(z.string().trim().max(200)),
   goal: optional(z.string().trim().max(200)),
+  waitingOn: optional(z.string().trim().max(200)),
+  followUpDate: optional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid date")),
 });
 
 export interface TaskFormState {
@@ -61,7 +64,7 @@ export async function saveTask(
     for (const issue of parsed.error.issues) errors[String(issue.path[0])] ??= issue.message;
     return { errors };
   }
-  const { id, dueLocal, project, goal, ...fields } = parsed.data;
+  const { id, dueLocal, project, goal, waitingOn, followUpDate, ...fields } = parsed.data;
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
 
@@ -69,6 +72,7 @@ export async function saveTask(
     await withRepositories(userId, async (repos) => {
       const projectRecord = project ? await repos.projects.findOrCreate(project) : null;
       const goalRecord = goal ? await repos.goals.findOrCreate({ title: goal }) : null;
+      const followUpAt = followUpDate ? toUtc(`${followUpDate}T09:00`, timeZone) : undefined;
       const values = {
         ...fields,
         dueAt: dueLocal ? toUtc(dueLocal, timeZone) : null,
@@ -79,8 +83,14 @@ export async function saveTask(
       if (id) {
         const before = await repos.tasks.get(id);
         if (!before) throw new Error("not_found");
+        // Still waiting on the same person: keep when it started.
+        const waiting =
+          waitingOn && before.waitingOn === waitingOn
+            ? { followUpAt: followUpAt ?? before.followUpAt }
+            : waitingPatch(waitingOn, followUpAt, new Date());
         await repos.tasks.update(id, {
           ...values,
+          ...waiting,
           // Keep the original completion time if it was already done.
           completedAt:
             fields.status === "completed" ? (before.completedAt ?? new Date()) : null,
@@ -94,7 +104,11 @@ export async function saveTask(
           });
         }
       } else {
-        const task = await repos.tasks.create({ ...values, source: "manual" });
+        const task = await repos.tasks.create({
+          ...values,
+          ...waitingPatch(waitingOn, followUpAt, new Date()),
+          source: "manual",
+        });
         const profile = await repos.users.profile();
         await repos.users.savePreferences(profile?.timezone ?? "UTC", {
           onboardingCompleted: true,

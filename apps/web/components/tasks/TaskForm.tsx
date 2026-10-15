@@ -21,6 +21,10 @@ export interface TaskFormValues {
   status: string;
   project: string;
   goal: string;
+  /** Who the next step is waiting on, or "". */
+  waitingOn: string;
+  /** Follow-up date (YYYY-MM-DD) in the user's timezone, or "". */
+  followUpDate: string;
 }
 
 export const EMPTY_TASK: TaskFormValues = {
@@ -35,6 +39,8 @@ export const EMPTY_TASK: TaskFormValues = {
   status: "todo",
   project: "",
   goal: "",
+  waitingOn: "",
+  followUpDate: "",
 };
 
 const SCALE = [
@@ -169,6 +175,27 @@ export function TaskForm({
                 <option key={name} value={name} />
               ))}
             </datalist>
+          </Field>
+          <Field
+            label="Waiting on"
+            htmlFor="waitingOn"
+            hint="Someone else owns the next step? It leaves your plan until the follow-up."
+          >
+            <Input
+              id="waitingOn"
+              name="waitingOn"
+              defaultValue={task.waitingOn}
+              maxLength={200}
+              placeholder="e.g. Sam’s sign-off"
+            />
+          </Field>
+          <Field label="Follow up on" htmlFor="followUpDate" hint="Defaults to three days.">
+            <Input
+              id="followUpDate"
+              name="followUpDate"
+              type="date"
+              defaultValue={task.followUpDate}
+            />
           </Field>
           <Field label="Status" htmlFor="status">
             <Select id="status" name="status" defaultValue={task.status}>

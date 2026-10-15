@@ -54,6 +54,10 @@ class TodayScreen extends StatelessWidget {
             ],
             _NextBestAction(today: today, reload: reload),
             const SizedBox(height: Tm.s3),
+            if (today.followUps.isNotEmpty) ...[
+              FollowUpCard(tasks: today.followUps, changed: reload),
+              const SizedBox(height: Tm.s3),
+            ],
             if (today.procrastination.isNotEmpty) ...[
               ProcrastinationCard(
                 tasks: today.procrastination,
