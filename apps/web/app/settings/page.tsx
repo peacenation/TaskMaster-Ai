@@ -1,4 +1,5 @@
 import { SettingsForm } from "@/components/auth/SettingsForm";
+import { CalendarSettings } from "@/components/settings/CalendarSettings";
 import { googleConfigured } from "@/lib/auth/providers";
 import { isRecentSignIn, signInMethods } from "@/lib/auth/reauth";
 import { getCurrentUserId, getSession } from "@/lib/server/session";
@@ -11,7 +12,10 @@ export default async function Page({
 }) {
   const { error } = await searchParams;
   const id = await getCurrentUserId();
-  const profile = await withRepositories(id, (repos) => repos.users.profile());
+  const { profile, calendars } = await withRepositories(id, async (repos) => ({
+    profile: await repos.users.profile(),
+    calendars: await repos.calendar.feeds(),
+  }));
   if (!profile) return null;
   const session = (await getSession())!;
   const methods = signInMethods(session);
@@ -30,6 +34,9 @@ export default async function Page({
         googleLinked={methods.googleLinked}
         recentSignIn={isRecentSignIn(session.signedInAt)}
         linkError={error}
+      />
+      <CalendarSettings
+        calendars={calendars.map((c) => ({ id: c.id, label: c.label, error: c.lastError }))}
       />
     </div>
   );

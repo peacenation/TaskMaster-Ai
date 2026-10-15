@@ -54,18 +54,36 @@ export const POST = apiRoute(async ({ userId, timeZone, profile }, request) => {
     inTodaysPlan: inPlan.has(task.id),
   }));
 
-  // Rules plan: what Today already shows, as a timeline.
+  // Today's meetings still ahead, from the connected calendars.
+  const meetings = view.events.filter((e) => !e.allDay && e.endsAt > now);
+
+  // Rules plan: what Today already shows, as a timeline, with meetings.
   const rulesBlocks = (): PlannerBlock[] =>
-    view.plan.items
-      .filter((item) => item.scheduledStart)
-      .map((item) => ({
-        kind: "task" as const,
-        taskId: item.task.id,
-        title: item.task.title,
-        project: view.projectNames.get(item.task.projectId ?? "") ?? null,
-        start: hhmm(item.scheduledStart!),
-        minutes: item.minutes,
-      }));
+    [
+      ...view.plan.items
+        .filter((item) => item.scheduledStart)
+        .map((item) => ({
+          kind: "task" as const,
+          taskId: item.task.id,
+          title: item.task.title,
+          project: view.projectNames.get(item.task.projectId ?? "") ?? null,
+          start: hhmm(item.scheduledStart!),
+          minutes: item.minutes,
+        })),
+      ...meetings.map((e) => ({
+        kind: "event" as const,
+        taskId: null,
+        title: e.title,
+        project: null,
+        start: hhmm(e.startsAt > now ? e.startsAt : now),
+        minutes: Math.max(
+          1,
+          Math.round(
+            (e.endsAt.getTime() - Math.max(e.startsAt.getTime(), now.getTime())) / 60_000
+          )
+        ),
+      })),
+    ].sort((a, b) => a.start.localeCompare(b.start));
 
   const aiConfigured = aiOrganisingEnabled();
   if (!aiConfigured || !(await claimAiCall(userId))) {
@@ -85,6 +103,11 @@ export const POST = apiRoute(async ({ userId, timeZone, profile }, request) => {
         timeZone,
         usableMinutes: view.plan.capacity.usableMinutes,
         tasks,
+        calendar: meetings.map((e) => ({
+          title: e.title,
+          start: hhmm(e.startsAt),
+          end: hhmm(e.endsAt),
+        })),
       }),
       signal: request.signal,
     });

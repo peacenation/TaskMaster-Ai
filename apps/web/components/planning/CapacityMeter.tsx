@@ -4,10 +4,13 @@ export function CapacityMeter({
   capacity,
   bufferMinutes,
   gapMinutes,
+  meetingMinutes = 0,
 }: {
   capacity: Capacity;
   bufferMinutes: number;
   gapMinutes: number;
+  /** Calendar time still ahead today, already taken out of `available`. */
+  meetingMinutes?: number;
 }) {
   const available = capacity.availableMinutes ?? 0;
   const usable = capacity.usableMinutes ?? 0;
@@ -28,6 +31,11 @@ export function CapacityMeter({
         max={Math.max(1, available)}
         value={capacity.plannedMinutes}
       />
+      {meetingMinutes > 0 && (
+        <p className="field-hint">
+          {meetingMinutes} minutes of meetings from your calendar are already taken out.
+        </p>
+      )}
       <p className="field-hint">
         {bufferMinutes} minutes held back as buffer, with {gapMinutes}-minute gaps between
         blocks. Unestimated tasks use a suggested 30 minutes.

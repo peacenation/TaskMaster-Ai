@@ -26,6 +26,8 @@ export interface PlanOptions {
   gapMinutes?: number;
   /** Scheduled mode: first block's start. Defaults to now, rounded up to 15 minutes. */
   startAt?: Date;
+  /** Scheduled mode: busy time (calendar events) blocks are placed around. */
+  busy?: ReadonlyArray<{ start: Date; end: Date }>;
 }
 
 export interface PlanItem {
@@ -85,6 +87,27 @@ function isLongTerm(task: PlannableTask): boolean {
 function roundUpTo15(date: Date): Date {
   const step = 15 * MINUTE;
   return new Date(Math.ceil(date.getTime() / step) * step);
+}
+
+/** The first start at or after `from` where `minutes` fit without touching busy time. */
+export function nextFreeStart(
+  from: Date,
+  minutes: number,
+  busy: ReadonlyArray<{ start: Date; end: Date }>,
+  gap: number
+): Date {
+  let start = from;
+  for (let moved = true; moved;) {
+    moved = false;
+    const end = start.getTime() + minutes * MINUTE;
+    for (const block of busy) {
+      if (block.start.getTime() < end && block.end.getTime() > start.getTime()) {
+        start = roundUpTo15(new Date(block.end.getTime() + gap * MINUTE));
+        moved = true;
+      }
+    }
+  }
+  return start;
 }
 
 function mustDoHorizon(now: Date): number {
@@ -169,6 +192,7 @@ export function buildPlan(
     let scheduledStart: Date | null = null;
     let scheduledEnd: Date | null = null;
     if (cursor) {
+      cursor = nextFreeStart(cursor, minutes, options.busy ?? [], gap);
       scheduledStart = cursor;
       scheduledEnd = new Date(cursor.getTime() + minutes * MINUTE);
       cursor = new Date(scheduledEnd.getTime() + gap * MINUTE);

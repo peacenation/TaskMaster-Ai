@@ -16,6 +16,7 @@
 
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   date,
   index,
   integer,
@@ -318,4 +319,47 @@ export const aiRequests = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("ai_requests_user_created_idx").on(table.userId, table.createdAt)]
+);
+
+// Calendar feeds (PRD §4.1 Calendar Integration): a private iCal address
+// the user pastes from Google, Outlook or Apple Calendar. The address is
+// a credential (anyone with it can read the calendar), so it's stored
+// encrypted (lib/calendar/secret.ts) and never sent back to a client.
+export const calendarFeeds = pgTable(
+  "calendar_feeds",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    urlEncrypted: text("url_encrypted").notNull(),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("calendar_feeds_user_id_idx").on(table.userId)]
+);
+
+// The next few weeks of events from each feed, refreshed on sync, so
+// Today never waits on a calendar server.
+export const calendarEvents = pgTable(
+  "calendar_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    feedId: uuid("feed_id")
+      .notNull()
+      .references(() => calendarFeeds.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    allDay: boolean("all_day").notNull().default(false),
+  },
+  (table) => [
+    index("calendar_events_user_starts_idx").on(table.userId, table.startsAt),
+    index("calendar_events_feed_id_idx").on(table.feedId),
+  ]
 );

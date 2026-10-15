@@ -37,6 +37,7 @@ let taskIdA: string;
 let taskIdB: string;
 let planIdA: string;
 let planIdB: string;
+let feedIdA: string;
 let fixtures: TableFixture[];
 
 async function runAsUser<T>(userId: string, fn: (tx: typeof appDb) => Promise<T>): Promise<T> {
@@ -48,7 +49,7 @@ async function runAsUser<T>(userId: string, fn: (tx: typeof appDb) => Promise<T>
 
 async function truncateAll() {
   await adminDb.execute(
-    sql`TRUNCATE TABLE users, goals, projects, brain_dumps, tasks, task_dependencies, task_events, recurrence_rules, plans, plan_items, ai_requests RESTART IDENTITY CASCADE`
+    sql`TRUNCATE TABLE users, goals, projects, brain_dumps, tasks, task_dependencies, task_events, recurrence_rules, plans, plan_items, ai_requests, calendar_feeds, calendar_events RESTART IDENTITY CASCADE`
   );
 }
 
@@ -97,6 +98,14 @@ beforeAll(async () => {
     sql`INSERT INTO plan_items (user_id, plan_id, task_id, position) VALUES (${userA}, ${planIdA}, ${taskIdA}, 0), (${userB}, ${planIdB}, ${taskIdB}, 0)`
   );
   await adminDb.execute(sql`INSERT INTO ai_requests (user_id) VALUES (${userA}), (${userB})`);
+  const feedRows = await adminDb.execute<{ id: string }>(
+    sql`INSERT INTO calendar_feeds (user_id, label, url_encrypted) VALUES (${userA}, 'A', 'x'), (${userB}, 'B', 'x') RETURNING id`
+  );
+  feedIdA = feedRows.rows[0].id;
+  const feedIdB = feedRows.rows[1].id;
+  await adminDb.execute(
+    sql`INSERT INTO calendar_events (user_id, feed_id, title, starts_at, ends_at) VALUES (${userA}, ${feedIdA}, 'A', now(), now()), (${userB}, ${feedIdB}, 'B', now(), now())`
+  );
 
   fixtures = [
     { table: "users", ownerColumn: "id", insertAs: () => sql`` },
@@ -155,6 +164,18 @@ beforeAll(async () => {
       ownerColumn: "user_id",
       insertAs: (uid) => sql`INSERT INTO ai_requests (user_id) VALUES (${uid})`,
     },
+    {
+      table: "calendar_feeds",
+      ownerColumn: "user_id",
+      insertAs: (uid) =>
+        sql`INSERT INTO calendar_feeds (user_id, label, url_encrypted) VALUES (${uid}, 'x', 'x')`,
+    },
+    {
+      table: "calendar_events",
+      ownerColumn: "user_id",
+      insertAs: (uid) =>
+        sql`INSERT INTO calendar_events (user_id, feed_id, title, starts_at, ends_at) VALUES (${uid}, ${feedIdA}, 'x', now(), now())`,
+    },
   ];
 });
 
@@ -188,7 +209,7 @@ describe("every user-scoped table has RLS enabled, forced, and a policy", () => 
       ORDER BY c.relname
     `);
 
-    expect(result.rows.length).toBe(11);
+    expect(result.rows.length).toBe(13);
     for (const row of result.rows) {
       expect(row.rowsecurity, `${row.tablename}.relrowsecurity`).toBe(true);
       expect(row.forcerowsecurity, `${row.tablename}.relforcerowsecurity`).toBe(true);
@@ -203,6 +224,8 @@ describe("cross-user access is blocked, per table, per operation", () => {
       [
         "ai_requests",
         "brain_dumps",
+        "calendar_events",
+        "calendar_feeds",
         "goals",
         "plan_items",
         "plans",
@@ -249,6 +272,8 @@ describe("cross-user access is blocked, per table, per operation", () => {
       plans: "mode = mode",
       plan_items: "position = position",
       ai_requests: "created_at = created_at",
+      calendar_feeds: "label = label",
+      calendar_events: "title = title",
     };
     for (const f of fixtures) {
       const result = await runAsUser(userA, (tx) =>

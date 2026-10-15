@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { syncStaleFeeds } from "@/lib/calendar/sync";
 import { apiRoute, json, toTaskDto } from "@/lib/server/api";
 import { greeting, loadToday } from "@/lib/server/today-view";
 
@@ -10,6 +12,8 @@ const DAY_MS = 86_400_000;
 // Reality Check when the day is overloaded, and repeatedly postponed work.
 export const GET = apiRoute(async ({ userId, timeZone, profile }) => {
   const view = await loadToday(userId, timeZone, {}, profile);
+  // Calendars refresh after the response, so Today never waits on them.
+  after(() => syncStaleFeeds(userId).catch(() => undefined));
   // Not onboarded yet: still greet them, so the app can offer a Brain Dump.
   if (!view.onboarded)
     return json({
@@ -87,6 +91,13 @@ export const GET = apiRoute(async ({ userId, timeZone, profile }) => {
         })),
     },
     procrastination: view.procrastinationCandidates,
+    meetingMinutes: view.meetingMinutes,
+    events: view.events.map((event) => ({
+      title: event.title,
+      startsAt: event.startsAt.toISOString(),
+      endsAt: event.endsAt.toISOString(),
+      allDay: event.allDay,
+    })),
     attention: {
       recovery: view.recovery.length,
       realityCheck: view.realityCheck !== null,

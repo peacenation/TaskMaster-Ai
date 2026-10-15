@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 
 import '../api/client.dart';
+import '../api/models.dart';
 import '../auth/auth_gateway.dart';
 import '../state/session.dart';
 import '../theme/tokens.dart';
@@ -93,6 +94,8 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: Tm.s4),
+            const _CalendarSection(),
             const SizedBox(height: Tm.s4),
             SectionCard(
               title: 'Delete your account',
@@ -271,6 +274,188 @@ class _DeleteSheetState extends State<_DeleteSheet> {
                   ? 'Permanently delete account'
                   : 'Confirm with Google and delete',
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Calendar: connect a calendar by its private iCal address, so Today plans
+/// around meetings. The address is never shown again once saved.
+class _CalendarSection extends StatefulWidget {
+  const _CalendarSection();
+
+  @override
+  State<_CalendarSection> createState() => _CalendarSectionState();
+}
+
+class _CalendarSectionState extends State<_CalendarSection> {
+  int _generation = 0;
+
+  Future<void> _connect() async {
+    final connected = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const _ConnectCalendarSheet(),
+    );
+    if (connected == true && mounted) setState(() => _generation++);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final api = SessionScope.of(context).api;
+    final tm = context.tm;
+    return SectionCard(
+      title: 'Calendar',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Today plans around your meetings: their time comes out of your '
+            'day and work is scheduled between them. Read-only.',
+            style: TextStyle(color: tm.textMuted),
+          ),
+          FutureBuilder<List<ConnectedCalendar>>(
+            key: ValueKey(_generation),
+            future: api.calendars(),
+            builder: (context, snapshot) => Column(
+              children: [
+                for (final calendar
+                    in snapshot.data ?? const <ConnectedCalendar>[])
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.event_available_outlined),
+                    title: Text(calendar.label),
+                    subtitle: calendar.error == null
+                        ? null
+                        : Text(
+                            calendar.error!,
+                            style: TextStyle(color: tm.danger),
+                          ),
+                    trailing: TextButton(
+                      onPressed: () async {
+                        final ok = await runAction(
+                          context,
+                          () => api.disconnectCalendar(calendar.id),
+                        );
+                        if (ok && mounted) setState(() => _generation++);
+                      },
+                      child: const Text('Disconnect'),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Tm.s2),
+          OutlinedButton.icon(
+            onPressed: _connect,
+            icon: const Icon(Icons.add),
+            label: const Text('Connect a calendar'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConnectCalendarSheet extends StatefulWidget {
+  const _ConnectCalendarSheet();
+
+  @override
+  State<_ConnectCalendarSheet> createState() => _ConnectCalendarSheetState();
+}
+
+class _ConnectCalendarSheetState extends State<_ConnectCalendarSheet> {
+  final _url = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _url.dispose();
+    super.dispose();
+  }
+
+  Future<void> _connect() async {
+    final url = _url.text.trim();
+    if (url.isEmpty) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final session = SessionScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final events = await session.api.connectCalendar(url);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Calendar connected — $events upcoming event${events == 1 ? '' : 's'}.',
+          ),
+        ),
+      );
+      if (mounted) Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      await session.handle(e);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = e.message;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tm = context.tm;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        Tm.s4,
+        0,
+        Tm.s4,
+        MediaQuery.viewInsetsOf(context).bottom + Tm.s4,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Connect a calendar',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: Tm.s2),
+          Text(
+            'Paste your calendar’s private iCal address.\n'
+            '• Google: Settings › your calendar › Integrate calendar › '
+            'Secret address in iCal format\n'
+            '• Outlook: Settings › Calendar › Shared calendars › Publish › ICS\n'
+            '• Apple: Calendar › Share › Public calendar',
+            style: TextStyle(color: tm.textMuted),
+          ),
+          const SizedBox(height: Tm.s3),
+          TextField(
+            controller: _url,
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            decoration: const InputDecoration(
+              labelText: 'iCal address',
+              hintText: 'https://calendar.google.com/…/basic.ics',
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: Tm.s2),
+            Semantics(
+              liveRegion: true,
+              child: Text(_error!, style: TextStyle(color: tm.danger)),
+            ),
+          ],
+          const SizedBox(height: Tm.s4),
+          FilledButton(
+            onPressed: _busy ? null : _connect,
+            child: Text(_busy ? 'Connecting…' : 'Connect calendar'),
           ),
         ],
       ),

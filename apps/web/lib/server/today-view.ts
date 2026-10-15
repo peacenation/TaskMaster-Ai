@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { zonedTimeToUtc } from "@/lib/domain/dates";
 import { localDate } from "@/lib/execution/date";
 import { buildToday, todaySettingsSchema } from "@/lib/planning/today";
 import { realityCheckSummary } from "@/lib/domain/reality-check";
@@ -21,6 +22,27 @@ export function greeting(now: Date, timeZone: string) {
 
 export function isOpenTask(task: TaskRecord) {
   return task.source !== "recurrence" && ["todo", "in_progress"].includes(task.status);
+}
+
+/** The user's local day as a UTC range, for calendar events. */
+export function dayRange(date: string, timeZone: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  const start = zonedTimeToUtc({ year, month, day }, 0, 0, timeZone);
+  const next = new Date(Date.UTC(year, month - 1, day + 1));
+  const end = zonedTimeToUtc(
+    { year: next.getUTCFullYear(), month: next.getUTCMonth() + 1, day: next.getUTCDate() },
+    0,
+    0,
+    timeZone
+  );
+  return { start, end };
+}
+
+/** Timed events block time; all-day ones (holidays, offsites) are shown but don't. */
+export function busyFrom(
+  events: ReadonlyArray<{ startsAt: Date; endsAt: Date; allDay: boolean }>
+) {
+  return events.filter((e) => !e.allDay).map((e) => ({ start: e.startsAt, end: e.endsAt }));
 }
 
 type Profile = NonNullable<Awaited<ReturnType<Repositories["users"]["profile"]>>>;
@@ -46,6 +68,8 @@ export async function loadToday(
     const dependencies = await repos.tasks.dependencies();
     const projects = await repos.projects.list();
     const procrastinationCandidates = await repos.taskEvents.procrastinationCandidates();
+    const { start: dayStart, end: dayEnd } = dayRange(date, timeZone);
+    const events = await repos.calendar.eventsBetween(dayStart, dayEnd);
     const next = profile.preferences.nextTaskId;
     const chosenId = typeof next === "string" ? next : null;
     const settings = todaySettingsSchema.parse({
@@ -63,7 +87,8 @@ export async function loadToday(
         energy: settings.energy,
       },
       settings.dayMinutes,
-      chosenId
+      chosenId,
+      busyFrom(events)
     );
     let saved = await repos.execution.plan(date);
     if (!saved) {
@@ -81,6 +106,7 @@ export async function loadToday(
       today,
       saved,
       recovery,
+      events,
     };
   });
   if (!loaded) return { onboarded: false as const };
@@ -94,6 +120,7 @@ export async function loadToday(
     today,
     saved,
     recovery,
+    events,
   } = loaded;
   const { plan, recommendation } = today;
   const realityCheck = realityCheckSummary(
@@ -124,7 +151,7 @@ export async function loadToday(
     );
     plan.capacity.availableMinutes = saved.availableMinutes;
     plan.capacity.usableMinutes = Math.floor(
-      (saved.availableMinutes ?? settings.dayMinutes) * 0.8
+      (saved.availableMinutes ?? Math.max(0, settings.dayMinutes - today.meetingMinutes)) * 0.8
     );
     plan.capacity.plannedMinutes = plan.items.reduce((total, item) => total + item.minutes, 0);
     plan.capacity.overloaded = plan.capacity.mustDoMinutes > plan.capacity.usableMinutes;
@@ -165,6 +192,8 @@ export async function loadToday(
     recovery,
     realityCheck,
     procrastinationCandidates,
+    events,
+    meetingMinutes: today.meetingMinutes,
     projectNames,
     projectProgress,
     firstName: profile.name.trim().split(/\s+/)[0] ?? "",
@@ -196,11 +225,13 @@ export async function rebuildToday(
   const now = new Date();
   await withRepositories(userId, async (repos) => {
     if ((await repos.execution.recovery(now)).length) throw new RecoveryPendingError();
+    const { start, end } = dayRange(localDate(now, timeZone), timeZone);
     const today = buildToday(
       toPlannable(await repos.tasks.list(), await repos.tasks.dependencies()),
       { now, timeZone, availableMinutes: settings.availableMinutes, energy: settings.energy },
       settings.dayMinutes,
-      await repos.users.nextTaskId()
+      await repos.users.nextTaskId(),
+      busyFrom(await repos.calendar.eventsBetween(start, end))
     );
     await repos.users.savePreferences(timeZone, {
       dayMinutes: settings.dayMinutes,

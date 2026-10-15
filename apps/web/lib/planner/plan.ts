@@ -98,6 +98,8 @@ export function buildPlannerPrompt(input: {
   timeZone: string;
   usableMinutes: number | null;
   tasks: PlannerTask[];
+  /** Today's meetings from the person's calendar (local HH:MM). */
+  calendar?: Array<{ title: string; start: string; end: string }>;
 }): string {
   return JSON.stringify(
     {
@@ -106,6 +108,7 @@ export function buildPlannerPrompt(input: {
       timeZone: input.timeZone,
       usableMinutesToday: input.usableMinutes,
       tasks: input.tasks,
+      calendar: input.calendar ?? [],
       conversation: input.history.slice(-6),
       request: input.request,
     },
@@ -121,6 +124,7 @@ Return a realistic timeline for the rest of today plus a short, warm reply (one 
 Rules:
 - Schedule only tasks from the provided list, referencing them by their exact "id" with kind "task". Never invent, rename, merge or split tasks.
 - Use kind "event" for fixed commitments the person mentions (meetings, appointments), with a short label and no taskId.
+- "calendar" lists meetings already in the person's calendar today: include each one still ahead as an "event" at its time, and never schedule work over them.
 - Use kind "break" for short breaks or meals where they help; label them ("Lunch", "Break").
 - Start times are local 24-hour HH:MM, today only, not before "now", without overlaps.
 - Use each task's "minutes" as its duration unless the request clearly says otherwise.

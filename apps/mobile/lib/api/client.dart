@@ -80,6 +80,12 @@ abstract interface class TaskMasterApi {
   Future<void> stopResponsibility(String id);
   Future<DailyReview> dailyReview();
   Future<WeeklyReview> weeklyReview();
+
+  Future<List<ConnectedCalendar>> calendars();
+
+  /// Connect by private iCal address; returns how many events were found.
+  Future<int> connectCalendar(String url);
+  Future<void> disconnectCalendar(String id);
 }
 
 class HttpTaskMasterApi implements TaskMasterApi {
@@ -366,4 +372,24 @@ class HttpTaskMasterApi implements TaskMasterApi {
   @override
   Future<WeeklyReview> weeklyReview() async =>
       WeeklyReview.fromJson(await _json('GET', '/api/v1/reviews/weekly'));
+
+  @override
+  Future<List<ConnectedCalendar>> calendars() async {
+    final json = await _json('GET', '/api/v1/calendars');
+    return [
+      for (final c in json['calendars'] as List)
+        ConnectedCalendar.fromJson(c as Map<String, dynamic>),
+    ];
+  }
+
+  @override
+  Future<int> connectCalendar(String url) async {
+    final json = await _json('POST', '/api/v1/calendars', body: {'url': url});
+    return json['events'] as int;
+  }
+
+  @override
+  Future<void> disconnectCalendar(String id) async {
+    await _send('DELETE', '/api/v1/calendars/$id');
+  }
 }

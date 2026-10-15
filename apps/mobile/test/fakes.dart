@@ -72,6 +72,21 @@ Map<String, dynamic> todayJson({
   'procrastination': [
     if (decisions) {'taskId': 't3', 'title': 'Update launch checklist'},
   ],
+  'meetingMinutes': 60,
+  'events': [
+    {
+      'title': 'Company holiday',
+      'startsAt': '2026-10-12T00:00:00.000Z',
+      'endsAt': '2026-10-13T00:00:00.000Z',
+      'allDay': true,
+    },
+    {
+      'title': 'Design review',
+      'startsAt': '2099-10-12T13:00:00.000Z',
+      'endsAt': '2099-10-12T14:00:00.000Z',
+      'allDay': false,
+    },
+  ],
   'attention': {
     'recovery': decisions && !recovered ? 1 : 0,
     'realityCheck': decisions,
@@ -103,6 +118,7 @@ class FakeApi implements TaskMasterApi {
   final organised = <(List<String>, String?)>[];
   final goalsCreated = <String>[];
   String? deletedWith;
+  final connectedCalendars = <String>[];
   bool hasPassword = true;
   final statusCalls = <(String, TaskStatus)>[];
   final added = <(String, String?)>[];
@@ -266,8 +282,10 @@ class FakeApi implements TaskMasterApi {
   }
 
   @override
-  Future<void> rebuildToday(TodaySettings settings) async =>
-      calls.add('rebuild ${settings.availableMinutes} ${settings.energy}');
+  Future<void> rebuildToday(TodaySettings settings) async => calls.add(
+    'rebuild ${settings.dayMinutes} ${settings.availableMinutes} '
+    '${settings.energy}',
+  );
 
   @override
   Future<void> chooseNext(String? taskId) async => calls.add('next $taskId');
@@ -415,6 +433,28 @@ class FakeApi implements TaskMasterApi {
       },
     ],
   });
+
+  @override
+  Future<List<ConnectedCalendar>> calendars() async => [
+    for (final (i, label) in connectedCalendars.indexed)
+      ConnectedCalendar(id: 'c$i', label: label),
+  ];
+
+  @override
+  Future<int> connectCalendar(String url) async {
+    if (!url.startsWith('https://') && !url.startsWith('webcal://')) {
+      throw ApiException(
+        422,
+        "Use the calendar's https:// or webcal:// address.",
+      );
+    }
+    connectedCalendars.add('Google Calendar');
+    return 12;
+  }
+
+  @override
+  Future<void> disconnectCalendar(String id) async =>
+      connectedCalendars.removeAt(int.parse(id.substring(1)));
 }
 
 /// Supabase Auth stand-in: signs in unless told the password is wrong.

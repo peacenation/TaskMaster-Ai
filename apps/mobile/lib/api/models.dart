@@ -232,6 +232,8 @@ class Today {
     this.recovery = const [],
     this.realityCheck,
     this.procrastination = const [],
+    this.events = const [],
+    this.meetingMinutes = 0,
   });
 
   factory Today.fromJson(Map<String, dynamic> json) {
@@ -283,6 +285,11 @@ class Today {
             e['title'] as String,
           ),
       ],
+      events: [
+        for (final e in json['events'] as List? ?? const [])
+          CalendarEvent.fromJson(e as Map<String, dynamic>),
+      ],
+      meetingMinutes: json['meetingMinutes'] as int? ?? 0,
     );
   }
 
@@ -306,6 +313,12 @@ class Today {
 
   /// Tasks postponed three times in a row.
   final List<TaskRef> procrastination;
+
+  /// Today's events from connected calendars.
+  final List<CalendarEvent> events;
+
+  /// Meeting time still ahead today, already taken out of capacity.
+  final int meetingMinutes;
 
   /// Share of today's work done: completed ÷ (completed + still planned).
   double get dailyProgress {
@@ -813,4 +826,45 @@ class WeeklyReview {
   final List<({TaskRef ref, DateTime? dueAt})> deadlines;
   final List<({TaskRef ref, int times})> postponed;
   final List<String> insights;
+}
+
+class CalendarEvent {
+  CalendarEvent({
+    required this.title,
+    required this.startsAt,
+    required this.endsAt,
+    required this.allDay,
+  });
+
+  factory CalendarEvent.fromJson(Map<String, dynamic> json) => CalendarEvent(
+    title: json['title'] as String,
+    startsAt: DateTime.parse(json['startsAt'] as String).toLocal(),
+    endsAt: DateTime.parse(json['endsAt'] as String).toLocal(),
+    allDay: json['allDay'] as bool,
+  );
+
+  final String title;
+  final DateTime startsAt;
+  final DateTime endsAt;
+  final bool allDay;
+
+  int get minutes => endsAt.difference(startsAt).inMinutes;
+}
+
+/// A connected calendar; its private address never leaves the server.
+class ConnectedCalendar {
+  ConnectedCalendar({required this.id, required this.label, this.error});
+
+  factory ConnectedCalendar.fromJson(Map<String, dynamic> json) =>
+      ConnectedCalendar(
+        id: json['id'] as String,
+        label: json['label'] as String,
+        error: json['error'] as String?,
+      );
+
+  final String id;
+  final String label;
+
+  /// Why the last refresh failed, if it did.
+  final String? error;
 }

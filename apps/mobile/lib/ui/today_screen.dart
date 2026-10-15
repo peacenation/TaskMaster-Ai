@@ -63,6 +63,10 @@ class TodayScreen extends StatelessWidget {
             ],
             _Stats(today: today),
             const SizedBox(height: Tm.s3),
+            if (today.events.isNotEmpty) ...[
+              _Calendar(events: today.events, now: (now ?? DateTime.now)()),
+              const SizedBox(height: Tm.s3),
+            ],
             CapacityCard(today: today, rebuilt: reload),
             const SizedBox(height: Tm.s3),
             _Priorities(today: today, reload: reload),
@@ -536,6 +540,71 @@ class _WhyThis extends StatelessWidget {
           ),
         ),
         children: [for (final reason in reasons) Text('• $reason')],
+      ),
+    );
+  }
+}
+
+/// Today's meetings from connected calendars: all-day ones as chips, timed
+/// ones still ahead as a list.
+class _Calendar extends StatelessWidget {
+  const _Calendar({required this.events, required this.now});
+  final List<CalendarEvent> events;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final tm = context.tm;
+    final allDay = events.where((e) => e.allDay).toList();
+    final ahead = events
+        .where((e) => !e.allDay && e.endsAt.isAfter(now))
+        .toList();
+    final time = DateFormat.Hm();
+    return SectionCard(
+      title: 'Today’s calendar',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (allDay.isNotEmpty)
+            Wrap(
+              spacing: Tm.s2,
+              runSpacing: Tm.s1,
+              children: [
+                for (final e in allDay)
+                  Chip(
+                    label: Text(e.title),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
+          if (ahead.isEmpty)
+            Text(
+              'No more meetings today.',
+              style: TextStyle(color: tm.textMuted),
+            ),
+          for (final e in ahead)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: Tm.s1),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 52,
+                    child: Text(
+                      time.format(e.startsAt),
+                      style: TextStyle(color: tm.textMuted),
+                    ),
+                  ),
+                  Icon(Icons.event_outlined, size: 18, color: tm.textMuted),
+                  const SizedBox(width: Tm.s2),
+                  Expanded(child: Text(e.title)),
+                  Text(
+                    formatMinutes(e.minutes),
+                    style: TextStyle(color: tm.textMuted, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }

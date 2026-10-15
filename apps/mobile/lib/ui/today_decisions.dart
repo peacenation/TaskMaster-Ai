@@ -309,6 +309,8 @@ class CapacityCard extends StatelessWidget {
           const SizedBox(height: Tm.s2),
           Text(
             [
+              if (today.meetingMinutes > 0)
+                '${formatMinutes(today.meetingMinutes)} of meetings taken out',
               if (today.settings.energy != null)
                 '${today.settings.energy![0].toUpperCase()}'
                     '${today.settings.energy!.substring(1)} energy',
@@ -344,10 +346,14 @@ class _AdjustDaySheet extends StatefulWidget {
 }
 
 class _AdjustDaySheetState extends State<_AdjustDaySheet> {
-  late double _available =
-      (widget.current.availableMinutes ?? widget.current.dayMinutes)
-          .clamp(15, 720)
-          .toDouble();
+  /// Time for work today: sizes the plan (the web's "time available today").
+  late double _day = widget.current.dayMinutes.clamp(30, 720).toDouble();
+
+  /// A short stretch right now: picks a next action that fits it.
+  late int? _rightNow =
+      const [15, 30, 60].contains(widget.current.availableMinutes)
+      ? widget.current.availableMinutes
+      : null;
   late String? _energy = widget.current.energy;
   bool _busy = false;
 
@@ -358,8 +364,8 @@ class _AdjustDaySheetState extends State<_AdjustDaySheet> {
       context,
       () => api.rebuildToday(
         TodaySettings(
-          dayMinutes: widget.current.dayMinutes,
-          availableMinutes: _available.round(),
+          dayMinutes: _day.round(),
+          availableMinutes: _rightNow,
           energy: _energy,
         ),
       ),
@@ -386,14 +392,32 @@ class _AdjustDaySheetState extends State<_AdjustDaySheet> {
             style: TextStyle(color: tm.textMuted),
           ),
           const SizedBox(height: Tm.s4),
-          Text('Time available: ${formatMinutes(_available.round())}'),
+          Text('Time for work today: ${formatMinutes(_day.round())}'),
           Slider(
-            value: _available,
-            min: 15,
+            value: _day,
+            min: 30,
             max: 720,
-            divisions: (720 - 15) ~/ 15,
-            label: formatMinutes(_available.round()),
-            onChanged: (v) => setState(() => _available = v),
+            divisions: (720 - 30) ~/ 15,
+            label: formatMinutes(_day.round()),
+            onChanged: (v) => setState(() => _day = v),
+          ),
+          Text(
+            'Meetings in your calendar come out of this automatically.',
+            style: TextStyle(color: tm.textMuted, fontSize: 13),
+          ),
+          const SizedBox(height: Tm.s3),
+          const Text('Right now I have'),
+          const SizedBox(height: Tm.s1),
+          SegmentedButton<int?>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: null, label: Text('Any')),
+              ButtonSegment(value: 15, label: Text('15m')),
+              ButtonSegment(value: 30, label: Text('30m')),
+              ButtonSegment(value: 60, label: Text('1h')),
+            ],
+            selected: {_rightNow},
+            onSelectionChanged: (s) => setState(() => _rightNow = s.first),
           ),
           const SizedBox(height: Tm.s2),
           const Text('Energy right now'),

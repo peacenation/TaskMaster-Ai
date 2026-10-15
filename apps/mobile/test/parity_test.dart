@@ -170,10 +170,11 @@ void main() {
     );
     await tester.tap(find.text('Adjust my day'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('30m'));
     await tester.tap(find.text('Low'));
     await tester.tap(find.text('Rebuild today’s plan'));
     await tester.pumpAndSettle();
-    expect(api.calls, contains('rebuild 240 low'));
+    expect(api.calls, contains('rebuild 240 30 low'));
 
     await tester.scrollUntilVisible(
       find.text('Choose a different task'),
@@ -332,5 +333,60 @@ void main() {
     expect(auth.googleCalls, 1);
     expect(api.deletedWith, 'google');
     expect(find.text('Welcome back'), findsOneWidget);
+  });
+
+  testWidgets('calendar: Today shows meetings; connect one in Settings', (
+    tester,
+  ) async {
+    final (api, _, _) = await pumpApp(tester, signedIn: true);
+    await tester.scrollUntilVisible(
+      find.text('Today’s calendar'),
+      200,
+      scrollable: todayList,
+    );
+    expect(find.text('Company holiday'), findsOneWidget);
+    expect(find.text('Design review'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.textContaining('1 h of meetings taken out'),
+      200,
+      scrollable: todayList,
+    );
+
+    await tester.scrollUntilVisible(
+      find.byType(AccountAvatar),
+      -400,
+      scrollable: todayList,
+    );
+    await openAccountMenu(tester);
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Connect a calendar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Connect a calendar'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'iCal address'),
+      'http://example.com/cal.ics',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Connect calendar'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('https:// or webcal://'), findsOneWidget);
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'iCal address'),
+      'https://calendar.google.com/calendar/ical/me/private-x/basic.ics',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Connect calendar'));
+    await tester.pumpAndSettle();
+    expect(api.connectedCalendars, ['Google Calendar']);
+    expect(
+      find.text('Calendar connected — 12 upcoming events.'),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(find.text('Google Calendar'));
+    expect(find.text('Google Calendar'), findsOneWidget);
+    await tester.tap(find.text('Disconnect'));
+    await tester.pumpAndSettle();
+    expect(api.connectedCalendars, isEmpty);
   });
 }

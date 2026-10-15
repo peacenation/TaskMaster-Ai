@@ -30,6 +30,8 @@ tags:
     description: Goals and recurring responsibilities.
   - name: Reviews
     description: Daily and weekly reviews.
+  - name: Calendar
+    description: Read-only calendar feeds that Today plans around.
 paths:
   /api/v1/me:
     get:
@@ -888,6 +890,101 @@ paths:
                 $ref: "#/components/schemas/WeeklyReview"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /api/v1/calendars:
+    get:
+      tags: [Calendar]
+      operationId: listCalendars
+      summary: Connected calendars (the private address is never returned)
+      responses:
+        "200":
+          description: Calendars
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [calendars]
+                properties:
+                  calendars:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ConnectedCalendar"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Calendar]
+      operationId: connectCalendar
+      summary: Connect a calendar by its private iCal address
+      description: |
+        The feed is read once immediately, so a wrong address fails here
+        (422) with a message to show. https:// and webcal:// only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                label:
+                  type: string
+      responses:
+        "201":
+          description: Connected
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, events]
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  events:
+                    description: Events found in the next five weeks.
+                    type: integer
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: The address couldn't be read as a calendar
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      tags: [Calendar]
+      operationId: refreshCalendars
+      summary: Refresh every connected calendar now
+      responses:
+        "200":
+          description: Refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/calendars/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    delete:
+      tags: [Calendar]
+      operationId: disconnectCalendar
+      summary: Disconnect a calendar and drop its events
+      responses:
+        "200":
+          description: Disconnected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   securitySchemes:
     bearerAuth:
@@ -1259,6 +1356,14 @@ components:
                         type: string
                       minutes:
                         type: integer
+        events:
+          description: Today's calendar events (all-day ones don't take time).
+          type: array
+          items:
+            $ref: "#/components/schemas/CalendarEvent"
+        meetingMinutes:
+          description: Meeting time still ahead today, already taken out of capacity.
+          type: integer
         procrastination:
           description: Tasks postponed three times in a row.
           type: array
@@ -1563,3 +1668,32 @@ components:
                 type: string
               message:
                 type: string
+    ConnectedCalendar:
+      type: object
+      required: [id, label, lastSyncedAt, error]
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        lastSyncedAt:
+          type: [string, "null"]
+          format: date-time
+        error:
+          description: Why the last refresh failed, if it did (old events are kept).
+          type: [string, "null"]
+    CalendarEvent:
+      type: object
+      required: [title, startsAt, endsAt, allDay]
+      properties:
+        title:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        allDay:
+          type: boolean

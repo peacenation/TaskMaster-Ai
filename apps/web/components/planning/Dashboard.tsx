@@ -107,17 +107,36 @@ export interface ScheduleEntry {
   title: string;
   detail: string;
   minutes: number;
+  /** A calendar meeting rather than a suggested task block. */
+  event?: boolean;
 }
 
-export function ScheduleCard({ entries }: { entries: ScheduleEntry[] }) {
+export function ScheduleCard({
+  entries,
+  allDay = [],
+}: {
+  entries: ScheduleEntry[];
+  allDay?: string[];
+}) {
+  let tone = 0;
   return (
     <DashCard title="Today’s schedule" headingId="schedule-heading">
+      {allDay.length > 0 && (
+        <ul className="all-day-events" aria-label="All-day events">
+          {allDay.map((title, index) => (
+            <li key={`${title}-${index}`}>{title}</li>
+          ))}
+        </ul>
+      )}
       {entries.length === 0 ? (
         <p className="field-hint">No blocks fit today’s usable time yet.</p>
       ) : (
         <ol className="timeline">
-          {entries.map((entry, index) => (
-            <li key={entry.id} className={`timeline-item timeline-tone-${index % 3}`}>
+          {entries.map((entry) => (
+            <li
+              key={entry.id}
+              className={`timeline-item ${entry.event ? "timeline-event" : `timeline-tone-${tone++ % 3}`}`}
+            >
               <span className="timeline-time">{entry.time}</span>
               <span className="timeline-block">
                 <span className="timeline-text">
@@ -130,7 +149,10 @@ export function ScheduleCard({ entries }: { entries: ScheduleEntry[] }) {
           ))}
         </ol>
       )}
-      <p className="field-hint">Suggested blocks — tasks move only when you decide.</p>
+      <p className="field-hint">
+        Suggested blocks — tasks move only when you decide.
+        {entries.some((entry) => entry.event) && " Dashed blocks are from your calendar."}
+      </p>
     </DashCard>
   );
 }

@@ -14,11 +14,34 @@ export const todaySettingsSchema = z.object({
   energy: z.enum(["low", "medium", "high"]).optional().catch(undefined),
 });
 
+export interface BusyTime {
+  start: Date;
+  end: Date;
+}
+
+/** Minutes of meetings still ahead today (overlaps counted once). */
+export function busyMinutesAhead(busy: ReadonlyArray<BusyTime>, now: Date): number {
+  const ahead = busy
+    .map((b) => ({ start: Math.max(b.start.getTime(), now.getTime()), end: b.end.getTime() }))
+    .filter((b) => b.end > b.start)
+    .sort((a, b) => a.start - b.start);
+  let total = 0;
+  let reach = -Infinity;
+  for (const block of ahead) {
+    const from = Math.max(block.start, reach);
+    if (block.end > from) total += block.end - from;
+    reach = Math.max(reach, block.end);
+  }
+  return Math.round(total / 60_000);
+}
+
 export function buildToday(
   tasks: PlannableTask[],
   context: PlanningContext,
   dayMinutes: number,
-  chosenId: string | null
+  chosenId: string | null,
+  /** Today's timed calendar events: their time comes out of the day, and blocks go around them. */
+  busy: ReadonlyArray<BusyTime> = []
 ) {
   // Inbox and postponed work can block dependencies, but aren't candidates for today.
   const blockers = new Set(
@@ -51,9 +74,11 @@ export function buildToday(
         }
       : automatic;
   // Schedule once on the server. Flexible mode presents precisely these same items.
+  const meetingMinutes = busyMinutesAhead(busy, context.now);
   const plan = buildPlan(actionable, context, {
     mode: "scheduled",
-    availableMinutes: dayMinutes,
+    availableMinutes: Math.max(0, dayMinutes - meetingMinutes),
+    busy,
   });
   return {
     recommendation,
@@ -62,7 +87,10 @@ export function buildToday(
     plan,
     ranked: prioritize(actionable, context),
     blocked: candidates.filter((task) => blockedIds.has(task.id)),
-    bufferMinutes: dayMinutes - (plan.capacity.usableMinutes ?? dayMinutes),
+    meetingMinutes,
+    bufferMinutes:
+      (plan.capacity.availableMinutes ?? dayMinutes) -
+      (plan.capacity.usableMinutes ?? dayMinutes),
     gapMinutes: PLAN_DEFAULTS.gapMinutes,
   };
 }

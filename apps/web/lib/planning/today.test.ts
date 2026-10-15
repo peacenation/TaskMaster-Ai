@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildToday, todaySettingsSchema } from "./today";
+import { buildToday, busyMinutesAhead, todaySettingsSchema } from "./today";
 import {
   PRD_CLOCK,
   PRD_TASKS,
@@ -73,5 +73,60 @@ describe("Today planning", () => {
     expect(
       todaySettingsSchema.parse({ dayMinutes: "120", availableMinutes: "20", energy: "low" })
     ).toEqual({ dayMinutes: 120, availableMinutes: 20, energy: "low" });
+  });
+});
+
+describe("calendar-aware planning", () => {
+  const now = new Date("2026-10-14T09:00:00Z");
+  const at = (h: number, m = 0) => new Date(Date.UTC(2026, 9, 14, h, m));
+  const task = (id: string, minutes: number) => ({
+    id,
+    title: id,
+    status: "todo" as const,
+    priority: null,
+    urgency: null,
+    importance: null,
+    dueAt: null,
+    estimatedMinutes: minutes,
+    energy: null,
+    projectId: null,
+    goalId: null,
+    dependsOn: [],
+    lastProgressAt: null,
+    createdAt: new Date("2026-10-01T00:00:00Z"),
+  });
+
+  it("counts only meeting time still ahead, overlaps once", () => {
+    expect(
+      busyMinutesAhead(
+        [
+          { start: at(8), end: at(9, 30) }, // 30 min left
+          { start: at(10), end: at(11) },
+          { start: at(10, 30), end: at(11, 30) }, // overlaps: +30
+        ],
+        now
+      )
+    ).toBe(120);
+  });
+
+  it("takes meetings out of the day and schedules blocks around them", () => {
+    const today = buildToday(
+      [task("a", 45), task("b", 60)],
+      { now, timeZone: "UTC" },
+      240,
+      null,
+      [{ start: at(9, 30), end: at(10, 30) }]
+    );
+    expect(today.meetingMinutes).toBe(60);
+    expect(today.plan.capacity.availableMinutes).toBe(180);
+    const blocks = today.plan.items.map((i) => [
+      i.scheduledStart!.toISOString().slice(11, 16),
+      i.scheduledEnd!.toISOString().slice(11, 16),
+    ]);
+    // 09:00 + 45 min would run into the 09:30 meeting, so it moves after it.
+    for (const [start, end] of blocks) {
+      expect(end <= "09:30" || start >= "10:30").toBe(true);
+    }
+    expect(blocks[0][0]).toBe("10:45");
   });
 });

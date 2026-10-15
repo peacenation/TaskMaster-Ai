@@ -14,6 +14,8 @@ await resetLocalDatabase(env);
 Object.assign(env, {
   AI_EXTRACTION: "off",
   NODE_ENV: "production",
+  // e2e/calendar.spec.ts serves its calendar from 127.0.0.1.
+  E2E_CALENDAR_LOOPBACK: "1",
 });
 delete env.ANTHROPIC_API_KEY;
 delete env.ANTHROPIC_AUTH_TOKEN;

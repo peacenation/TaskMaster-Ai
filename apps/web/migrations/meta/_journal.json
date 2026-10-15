@@ -71,6 +71,13 @@
       "when": 1791816232863,
       "tag": "0009_supabase_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792105383552,
+      "tag": "0010_calendar_feeds",
+      "breakpoints": true
     }
   ]
 }

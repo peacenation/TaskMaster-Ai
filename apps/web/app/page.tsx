@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { RecoveryCheckIn } from "@/components/execution/RecoveryCheckIn";
 import { ProcrastinationAssist } from "@/components/execution/ProcrastinationAssist";
 import { PlanSettings } from "@/components/planning/PlanSettings";
@@ -19,6 +20,7 @@ import { PlanView } from "@/components/planning/PlanView";
 import { TaskRow } from "@/components/planning/TaskRow";
 import { getCurrentProfile, getTimeZone } from "@/lib/server/session";
 import { greeting, loadToday } from "@/lib/server/today-view";
+import { syncStaleFeeds } from "@/lib/calendar/sync";
 import { formatDue } from "@/lib/server/views";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +36,8 @@ export default async function TodayPage({
   const { session, profile: currentProfile } = await getCurrentProfile();
   const timeZone = await getTimeZone();
   const view = await loadToday(session.user.id, timeZone, query, currentProfile);
+  // Calendars refresh after the page is sent, so Today never waits on them.
+  after(() => syncStaleFeeds(session.user.id).catch(() => undefined));
   if (!view.onboarded) redirect("/dump");
   const {
     now,
@@ -47,6 +51,7 @@ export default async function TodayPage({
     recovery,
     realityCheck,
     procrastinationCandidates,
+    events,
     projectNames: names,
     projectProgress,
     firstName,
@@ -268,15 +273,32 @@ export default async function TodayPage({
 
         <aside className="dash-col dash-side" aria-label="Today's plan details">
           <ScheduleCard
-            entries={plan.items.map((item) => ({
-              id: item.task.id,
-              time: time(item.scheduledStart!),
-              title: item.task.title,
-              detail: item.protected
-                ? "Protected time"
-                : (names.get(item.task.projectId ?? "") ?? "No project"),
-              minutes: item.minutes,
-            }))}
+            allDay={events.filter((event) => event.allDay).map((event) => event.title)}
+            entries={[
+              ...plan.items.map((item) => ({
+                id: item.task.id,
+                at: item.scheduledStart!.getTime(),
+                time: time(item.scheduledStart!),
+                title: item.task.title,
+                detail: item.protected
+                  ? "Protected time"
+                  : (names.get(item.task.projectId ?? "") ?? "No project"),
+                minutes: item.minutes,
+              })),
+              ...events
+                .filter((event) => !event.allDay && event.endsAt > now)
+                .map((event, index) => ({
+                  id: `event-${index}`,
+                  at: event.startsAt.getTime(),
+                  time: time(event.startsAt),
+                  title: event.title,
+                  detail: "Calendar",
+                  minutes: Math.round(
+                    (event.endsAt.getTime() - event.startsAt.getTime()) / 60000
+                  ),
+                  event: true,
+                })),
+            ].sort((a, b) => a.at - b.at)}
           />
           <CapacityMeter
             capacity={plan.capacity}
@@ -285,6 +307,7 @@ export default async function TodayPage({
               (plan.capacity.usableMinutes ?? settings.dayMinutes)
             }
             gapMinutes={today.gapMinutes}
+            meetingMinutes={view.meetingMinutes}
           />
           {recommendation && (
             <FocusCard
