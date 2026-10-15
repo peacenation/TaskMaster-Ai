@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { saveBrainDump } from "@/app/actions/capture";
 import { Button, Field, Textarea } from "@/components/ui";
+import { Dictation } from "./Dictation";
 import { organiseBrainDump, type OrganiseResult } from "@/lib/capture/organise";
 import { systemClock } from "@/lib/domain/clock";
 import { extract } from "@/lib/domain/extract";
@@ -83,6 +84,13 @@ export function BrainDumpFlow({ existingProjects }: { existingProjects: string[]
         <Button onClick={organise} disabled={organising || rawText.trim().length === 0}>
           {organising ? "Organising…" : "Organise it"}
         </Button>
+        <Dictation
+          onText={(spoken) =>
+            setRawText((current) =>
+              current.trim() ? `${current.trimEnd()} ${spoken}` : spoken
+            )
+          }
+        />
       </div>
     </section>
   );

@@ -8,6 +8,7 @@ import 'app.dart';
 import 'auth/auth_gateway.dart';
 import 'config.dart';
 import 'state/appearance.dart';
+import 'state/dictation.dart';
 import 'state/reminders.dart';
 import 'state/session.dart';
 
@@ -48,6 +49,7 @@ Future<void> main() async {
     api: api,
     auth: auth,
     reminders: LocalReminders(timeZone: timeZone),
+    dictation: DeviceDictation(),
   );
   final appearance = Appearance(SecureAppearanceStore());
   await appearance.load();

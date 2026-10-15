@@ -1,6 +1,7 @@
 import 'package:taskmaster/api/client.dart';
 import 'package:taskmaster/api/models.dart';
 import 'package:taskmaster/auth/auth_gateway.dart';
+import 'package:taskmaster/state/dictation.dart';
 import 'package:taskmaster/state/reminders.dart';
 
 /// A /api/v1/today body exactly as the server sends it (keep in step with
@@ -520,4 +521,31 @@ class RecordingReminders implements Reminders {
 
   @override
   Future<void> clear() async => cleared++;
+}
+
+/// Speaks the given phrases, one per call to [say].
+class FakeDictation implements Dictation {
+  void Function(String words)? _onWords;
+  void Function()? _onDone;
+  bool listening = false;
+
+  void say(String words) => _onWords?.call(words);
+
+  @override
+  Future<bool> start({
+    required void Function(String words) onWords,
+    required void Function() onDone,
+    required void Function(String message) onError,
+  }) async {
+    _onWords = onWords;
+    _onDone = onDone;
+    listening = true;
+    return true;
+  }
+
+  @override
+  Future<void> stop() async {
+    listening = false;
+    _onDone?.call();
+  }
 }

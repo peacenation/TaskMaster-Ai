@@ -472,4 +472,43 @@ void main() {
       expect(find.text('Waiting on Sam'), findsOneWidget);
     },
   );
+
+  testWidgets('Brain Dump: dictate after what was typed, then stop', (
+    tester,
+  ) async {
+    final dictation = FakeDictation();
+    await pumpApp(
+      tester,
+      signedIn: true,
+      api: FakeApi(onboarded: false),
+      dictation: dictation,
+    );
+    await tester.tap(find.text('Plan my day'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Call Mum.');
+    await tester.tap(find.text('Dictate'));
+    await tester.pump();
+    expect(find.textContaining('Listening'), findsOneWidget);
+    dictation.say('Book the dentist');
+    await tester.pump();
+    dictation.say('Book the dentist and renew the car insurance');
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      'Call Mum. Book the dentist and renew the car insurance',
+    );
+    await tester.tap(find.text('Stop dictating'));
+    await tester.pump();
+    expect(dictation.listening, isFalse);
+    expect(find.text('Dictate'), findsOneWidget);
+  });
+
+  testWidgets('Brain Dump: no Dictate button where speech isn’t available', (
+    tester,
+  ) async {
+    await pumpApp(tester, signedIn: true, api: FakeApi(onboarded: false));
+    await tester.tap(find.text('Plan my day'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dictate'), findsNothing);
+  });
 }

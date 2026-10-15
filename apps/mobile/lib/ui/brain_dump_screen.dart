@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../api/client.dart';
 import '../api/models.dart';
+import '../state/dictation.dart';
 import '../state/session.dart';
 import '../theme/tokens.dart';
 import 'widgets.dart';
@@ -29,11 +30,52 @@ class _BrainDumpScreenState extends State<BrainDumpScreen> {
   DumpProposal? _proposal;
   bool _busy = false;
   String? _error;
+  bool _listening = false;
+
+  /// Kept from when dictation started, so dispose can stop it safely.
+  Dictation? _dictation;
+
+  /// What was typed before dictation started; speech is added after it.
+  String _typed = '';
 
   @override
   void dispose() {
+    if (_listening) _dictation?.stop();
     _text.dispose();
     super.dispose();
+  }
+
+  Future<void> _dictate() async {
+    final dictation = _dictation ??= SessionScope.read(context).dictation;
+    if (dictation == null) return;
+    if (_listening) {
+      await dictation.stop();
+      if (mounted) setState(() => _listening = false);
+      return;
+    }
+    _typed = _text.text.trimRight();
+    setState(() {
+      _error = null;
+      _listening = true;
+    });
+    final started = await dictation.start(
+      onWords: (words) {
+        if (!mounted) return;
+        final text = _typed.isEmpty ? words : '$_typed $words';
+        _text.value = TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+        setState(() {});
+      },
+      onDone: () {
+        if (mounted) setState(() => _listening = false);
+      },
+      onError: (message) {
+        if (mounted) setState(() => _error = message);
+      },
+    );
+    if (!started && mounted) setState(() => _listening = false);
   }
 
   Future<void> _organise() async {
@@ -122,6 +164,28 @@ class _BrainDumpScreenState extends State<BrainDumpScreen> {
           onChanged: (_) => setState(() {}),
         ),
         if (_error != null) _ErrorText(_error!),
+        if (SessionScope.of(context).dictation != null) ...[
+          const SizedBox(height: Tm.s2),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : _dictate,
+            icon: Icon(
+              _listening ? Icons.stop_circle_outlined : Icons.mic_none,
+            ),
+            label: Text(_listening ? 'Stop dictating' : 'Dictate'),
+          ),
+          if (_listening)
+            Padding(
+              padding: const EdgeInsets.only(top: Tm.s1),
+              child: Semantics(
+                liveRegion: true,
+                child: Text(
+                  'Listening… speak naturally; pause between thoughts.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: tm.textMuted),
+                ),
+              ),
+            ),
+        ],
         const SizedBox(height: Tm.s2),
         FilledButton.icon(
           onPressed: _busy || _text.text.trim().isEmpty ? null : _organise,

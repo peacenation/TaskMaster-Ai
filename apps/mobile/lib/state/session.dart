@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../api/client.dart';
 import '../api/models.dart';
 import '../auth/auth_gateway.dart';
+import 'dictation.dart';
 import 'reminders.dart';
 
 enum SessionState { loading, signedOut, signedIn }
@@ -14,11 +15,15 @@ class Session extends ChangeNotifier {
     required this.api,
     required this.auth,
     this.reminders = const NoReminders(),
+    this.dictation,
   });
 
   final TaskMasterApi api;
   final AuthGateway auth;
   final Reminders reminders;
+
+  /// Speech-to-text for Brain Dump; null where it isn't available.
+  final Dictation? dictation;
 
   bool get remindersOn => me?.preferences.notifications != 'off';
 

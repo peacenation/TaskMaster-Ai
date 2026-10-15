@@ -39,6 +39,15 @@ export default function PrivacyPage() {
         </p>
       </section>
 
+      <section aria-labelledby="dictation-heading">
+        <h2 id="dictation-heading">Dictation</h2>
+        <p>
+          If you dictate a Brain Dump, your browser’s or phone’s own speech recognition turns
+          speech into text (on many devices that service belongs to Google or Apple).
+          TaskMasterAi never receives audio — only the text you then choose to organise.
+        </p>
+      </section>
+
       <section aria-labelledby="stored-heading">
         <h2 id="stored-heading">What is stored</h2>
         <ul>
