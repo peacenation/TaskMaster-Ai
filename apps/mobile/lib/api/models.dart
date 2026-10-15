@@ -13,6 +13,7 @@ class Me {
     required this.onboarded,
     this.preferences = const Preferences(),
     this.hasPassword = true,
+    this.plan = const PlanInfo(),
   });
 
   factory Me.fromJson(Map<String, dynamic> json) {
@@ -27,6 +28,9 @@ class Me {
           ? const Preferences()
           : Preferences.fromJson(prefs),
       hasPassword: json['hasPassword'] as bool? ?? true,
+      plan: json['plan'] == null
+          ? const PlanInfo()
+          : PlanInfo.fromJson(json['plan'] as Map<String, dynamic>),
     );
   }
 
@@ -41,11 +45,35 @@ class Me {
 
   /// Deleting the account asks for the password when there is one.
   final bool hasPassword;
+  final PlanInfo plan;
 
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
     return parts.take(2).map((p) => p[0].toUpperCase()).join();
   }
+}
+
+/// Free or Pro, and what that allows. Read-only on the phone: plans are
+/// bought and managed on the web.
+class PlanInfo {
+  const PlanInfo({
+    this.pro = false,
+    this.status,
+    this.renewsAt,
+    this.calendars = 1,
+  });
+
+  factory PlanInfo.fromJson(Map<String, dynamic> json) => PlanInfo(
+    pro: json['id'] == 'pro',
+    status: json['status'] as String?,
+    renewsAt: _date(json['renewsAt']),
+    calendars: json['calendars'] as int? ?? 1,
+  );
+
+  final bool pro;
+  final String? status;
+  final DateTime? renewsAt;
+  final int calendars;
 }
 
 /// Settings shared with the web's Settings page.

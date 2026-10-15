@@ -38,6 +38,11 @@ Set **Production** and **Preview** separately. Preview points at staging.
 | `SUPABASE_SECRET_KEY` | Same page → secret key. **Server-only**; used for account deletion. Never prefix with `NEXT_PUBLIC_` |
 | `ANTHROPIC_API_KEY` | Optional. Without it the built-in rules organise |
 | `AI_HOURLY_LIMIT` | Optional, default `30` Claude calls per account per hour |
+| `STRIPE_SECRET_KEY` | Optional: turns billing on (with `STRIPE_PRICE_PRO`). Server-only |
+| `STRIPE_PRICE_PRO` | The Pro subscription's price id (`price_…`) |
+| `STRIPE_WEBHOOK_SECRET` | The webhook endpoint's signing secret (`whsec_…`) |
+| `PRO_PRICE_LABEL` | What the pricing page shows, e.g. `£4 / month`; keep it in step with the Stripe price |
+| `AI_HOURLY_LIMIT_PRO` | Optional, default `120` Claude calls per hour for Pro (`AI_HOURLY_LIMIT` is Free's) |
 | `CALENDAR_ENCRYPTION_KEY` | Recommended: any long random string (`openssl rand -base64 32`). Encrypts saved calendar addresses. Without it they're encrypted with a key derived from `SUPABASE_SECRET_KEY`, so rotating that secret means users reconnect calendars |
 
 The same variables apply on **Netlify** (Site configuration → Environment
@@ -174,6 +179,27 @@ the date and duration here. Not yet done; it needs the live project.
   `DATABASE_URL_APP` to a wrong password → `/api/health` returns 503 → the
   monitor must alert. Restore it afterwards. An alert nobody receives is not
   monitoring.
+
+## Billing (Stripe)
+
+Off until `STRIPE_SECRET_KEY` and `STRIPE_PRICE_PRO` are set; until then
+every account gets Pro limits and `/pricing` says Pro is coming soon.
+
+1. Stripe → Products: create **TaskMasterAi Pro** with a recurring price;
+   copy its `price_…` id.
+2. Developers → Webhooks → Add endpoint
+   `https://<site>/api/billing/webhook`, events
+   `checkout.session.completed` and
+   `customer.subscription.created/updated/deleted`; copy the signing secret.
+3. Settings → Billing → Customer portal: turn it on (cancel, update card,
+   invoices).
+4. Set the variables above and redeploy. Test with a test-mode key and
+   card `4242 4242 4242 4242` first.
+
+Only the signed webhook changes a plan (`lib/billing`); nothing a user
+sends can. Cancelling returns the account to Free limits and never
+deletes data. The mobile app shows the plan but doesn't sell it (store
+rules); upgrading happens on the web.
 
 ## Product metrics
 

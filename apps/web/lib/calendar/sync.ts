@@ -1,3 +1,4 @@
+import { entitlementsFor } from "@/lib/billing/plans";
 import { withRepositories } from "@/lib/repo";
 import { CalendarFetchError, fetchFeed, normaliseFeedUrl } from "./fetch";
 import { parseIcs } from "./ics";
@@ -40,8 +41,13 @@ export async function connectFeed(userId: string, input: string, label?: string)
   const now = new Date();
   const events = await download(url.toString(), now);
   return withRepositories(userId, async (repos) => {
-    if ((await repos.calendar.feeds()).length >= 5)
-      throw new CalendarFetchError("You can connect up to five calendars.");
+    const { calendars, plan } = entitlementsFor((await repos.users.profile())?.plan ?? "free");
+    if ((await repos.calendar.feeds()).length >= calendars)
+      throw new CalendarFetchError(
+        plan === "free" && calendars === 1
+          ? "Free includes one calendar. Upgrade to Pro to connect up to five."
+          : `You can connect up to ${calendars} calendars.`
+      );
     const id = await repos.calendar.addFeed({
       label: label?.trim() || labelFor(url),
       urlEncrypted: encryptSecret(url.toString()),

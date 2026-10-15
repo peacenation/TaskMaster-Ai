@@ -14,7 +14,10 @@ const PUBLIC = new Set([
   "/magic",
   "/design",
   "/privacy",
+  "/pricing",
   "/api/health",
+  // Stripe calls this; it's authenticated by its signature (lib/billing).
+  "/api/billing/webhook",
   // Supabase Auth returns here: email links (token hash) and Google (code).
   "/auth/confirm",
   "/auth/callback",

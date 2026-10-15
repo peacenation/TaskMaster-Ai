@@ -1,3 +1,4 @@
+import { entitlementsFor } from "@/lib/billing/plans";
 import { aiOrganisingEnabled, createClaudeExtractor } from "@/lib/ai/client";
 import {
   extractWithFallback,
@@ -14,15 +15,18 @@ import { withRepositories } from "@/lib/repo";
 // Per-user cap on Claude calls (PRD v2 §1.11 cost control; Phase 11
 // security review). Over it, the built-in rules organise instead — the
 // user still gets a proposal, just not an AI one.
-export const AI_HOURLY_LIMIT = Number(process.env.AI_HOURLY_LIMIT) || 30;
 const HOUR_MS = 60 * 60 * 1000;
 
 /** Claims one AI call from the user's hourly quota; false when AI is off or used up. */
 export async function claimAiCall(userId: string): Promise<boolean> {
   if (!aiOrganisingEnabled()) return false;
-  return withRepositories(userId, (repos) =>
-    repos.aiUsage.claim(AI_HOURLY_LIMIT, new Date(Date.now() - HOUR_MS))
-  );
+  return withRepositories(userId, async (repos) => {
+    const plan = (await repos.users.profile())?.plan ?? "free";
+    return repos.aiUsage.claim(
+      entitlementsFor(plan).aiPerHour,
+      new Date(Date.now() - HOUR_MS)
+    );
+  });
 }
 
 /** Null when the dump doesn't exist (or isn't this user's). */

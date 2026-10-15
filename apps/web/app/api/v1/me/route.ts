@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { signInMethods } from "@/lib/auth/reauth";
+import { entitlementsFor } from "@/lib/billing/plans";
 import { isValidTimeZone } from "@/lib/domain/dates";
 import { withRepositories } from "@/lib/repo";
 import { deleteAccount, deletionSchema } from "@/lib/server/account-deletion";
@@ -31,6 +32,13 @@ async function describe({ userId, timeZone }: ApiContext) {
     },
     // Deleting the account asks for the password when there is one.
     hasPassword: signInMethods(session).hasPassword,
+    // Read-only on the phone: plans are bought and managed on the web.
+    plan: {
+      id: profile.plan,
+      status: profile.planStatus,
+      renewsAt: profile.planRenewsAt?.toISOString() ?? null,
+      ...entitlementsFor(profile.plan),
+    },
   };
 }
 

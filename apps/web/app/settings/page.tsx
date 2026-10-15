@@ -1,5 +1,7 @@
 import { SettingsForm } from "@/components/auth/SettingsForm";
 import { CalendarSettings } from "@/components/settings/CalendarSettings";
+import { PlanSettings } from "@/components/settings/PlanSettings";
+import { billingEnabled } from "@/lib/billing/plans";
 import { googleConfigured } from "@/lib/auth/providers";
 import { isRecentSignIn, signInMethods } from "@/lib/auth/reauth";
 import { getCurrentUserId, getSession } from "@/lib/server/session";
@@ -8,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; billing?: string }>;
 }) {
   const { error } = await searchParams;
   const id = await getCurrentUserId();
@@ -25,6 +27,18 @@ export default async function Page({
         <p className="eyebrow">Account</p>
         <h1>Settings</h1>
       </header>
+      {searchParams && (await searchParams).billing === "success" && (
+        <p className="notice" role="status">
+          Welcome to Pro. It can take a few seconds to show here; refresh if it hasn’t.
+        </p>
+      )}
+      <PlanSettings
+        plan={profile.plan}
+        status={profile.planStatus}
+        renewsAt={profile.planRenewsAt?.toLocaleDateString("en-GB") ?? null}
+        canBuy={billingEnabled()}
+        hasBilling={!!profile.stripeCustomerId}
+      />
       <SettingsForm
         timezone={profile.timezone}
         preferences={profile.preferences}

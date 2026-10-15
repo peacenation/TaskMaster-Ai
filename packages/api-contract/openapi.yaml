@@ -1085,6 +1085,23 @@ components:
         hasPassword:
           description: Account deletion asks for the password when true.
           type: boolean
+        plan:
+          description: Read-only here; plans are bought and managed on the web.
+          type: object
+          required: [id, status, renewsAt, aiPerHour, calendars]
+          properties:
+            id:
+              type: string
+              enum: [free, pro]
+            status:
+              type: [string, "null"]
+            renewsAt:
+              type: [string, "null"]
+              format: date-time
+            aiPerHour:
+              type: integer
+            calendars:
+              type: integer
     TaskStatus:
       type: string
       enum: [inbox, todo, in_progress, completed, postponed, dropped]

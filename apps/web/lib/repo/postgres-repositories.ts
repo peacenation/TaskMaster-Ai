@@ -378,6 +378,24 @@ export function createUserRepository(db: AppDb, userId: string) {
       return typeof value === "string" ? value : null;
     },
 
+    /** Billing state from a verified Stripe webhook (lib/billing/webhook.ts). */
+    async setPlan(change: {
+      plan: "free" | "pro";
+      status: string;
+      renewsAt: Date | null;
+      customerId: string | null;
+    }): Promise<void> {
+      await db
+        .update(users)
+        .set({
+          plan: change.plan,
+          planStatus: change.status,
+          planRenewsAt: change.renewsAt,
+          ...(change.customerId ? { stripeCustomerId: change.customerId } : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+    },
     async chooseNext(taskId: string | null): Promise<void> {
       await db
         .update(users)

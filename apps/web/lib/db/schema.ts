@@ -86,6 +86,15 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   timezone: text("timezone").notNull().default("UTC"),
   preferences: jsonb("preferences").notNull().default({}),
+  // Billing (PRD §5.1): written only by the Stripe webhook, never by a
+  // request the user makes (lib/billing). "free" until a subscription is
+  // active; planStatus mirrors Stripe's (active, past_due, canceled…).
+  plan: text("plan", { enum: ["free", "pro"] })
+    .notNull()
+    .default("free"),
+  planStatus: text("plan_status"),
+  planRenewsAt: timestamp("plan_renews_at", { withTimezone: true }),
+  stripeCustomerId: text("stripe_customer_id").unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

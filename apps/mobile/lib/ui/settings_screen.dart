@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:intl/intl.dart';
 
 import '../api/client.dart';
 import '../api/models.dart';
@@ -39,6 +40,19 @@ class SettingsScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(Tm.s4, 0, Tm.s4, Tm.s8),
           children: [
+            SectionCard(
+              title: 'Plan',
+              child: Text(
+                me.plan.pro
+                    ? 'You’re on Pro'
+                          '${me.plan.renewsAt == null || me.plan.status == 'canceled' ? '' : ' · renews ${DateFormat('d MMM y').format(me.plan.renewsAt!)}'}'
+                          '${me.plan.status == 'past_due' ? '. Your payment needs attention: manage billing in Settings on the web.' : '.'}'
+                    : 'You’re on Free. Compare plans and upgrade in Settings on the '
+                          'TaskMasterAi website.',
+                style: TextStyle(color: tm.textMuted),
+              ),
+            ),
+            const SizedBox(height: Tm.s4),
             SectionCard(
               title: 'Planning',
               child: Column(

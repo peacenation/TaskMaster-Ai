@@ -16,6 +16,9 @@ Object.assign(env, {
   NODE_ENV: "production",
   // e2e/calendar.spec.ts serves its calendar from 127.0.0.1.
   E2E_CALENDAR_LOOPBACK: "1",
+  // e2e/billing.spec.ts signs webhook events with this. No Stripe key, so
+  // billing stays off (no checkout calls) and limits are unchanged.
+  STRIPE_WEBHOOK_SECRET: "whsec_e2e",
 });
 delete env.ANTHROPIC_API_KEY;
 delete env.ANTHROPIC_AUTH_TOKEN;
