@@ -1,73 +1,22 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/ui";
-import { zonedTimeToUtc } from "@/lib/domain/dates";
-import { weeklyInsights } from "@/lib/domain/insights";
-import { localDate } from "@/lib/execution/date";
-import { withRepositories } from "@/lib/repo";
+import { loadWeeklyReview } from "@/lib/server/reviews";
 import { getCurrentUserId, getTimeZone } from "@/lib/server/session";
 
 export const dynamic = "force-dynamic";
 
-function weekStart(value: string): string {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
-  return date.toISOString().slice(0, 10);
-}
-
-function shiftDate(value: string, days: number): string {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function dayBoundary(value: string, timeZone: string): Date {
-  const [year, month, day] = value.split("-").map(Number);
-  return zonedTimeToUtc({ year, month, day }, 0, 0, timeZone);
-}
-
 export default async function WeeklyReviewPage() {
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
-  const startDate = weekStart(localDate(new Date(), timeZone));
-  const endDate = shiftDate(startDate, 7);
-  const start = dayBoundary(startDate, timeZone);
-  const end = dayBoundary(endDate, timeZone);
-  const data = await withRepositories(userId, async (repos) => ({
-    goals: await repos.goals.list(),
-    tasks: await repos.tasks.list(),
-    events: await repos.execution.eventsBetween(start, end),
-  }));
-  const completedIds = new Set(
-    data.events.filter((event) => event.eventType === "completed").map((event) => event.taskId)
-  );
-  const upcoming = data.tasks.filter(
-    (task) =>
-      task.source !== "recurrence" && task.dueAt && task.dueAt >= start && task.dueAt < end
-  );
-  // One row per task, however many times it moved.
-  const postponed = [
-    ...data.events
-      .filter((event) => event.eventType === "postponed")
-      .reduce((byTask, event) => {
-        const seen = byTask.get(event.taskId);
-        return byTask.set(event.taskId, { ...event, times: (seen?.times ?? 0) + 1 });
-      }, new Map<string, (typeof data.events)[number] & { times: number }>())
-      .values(),
-  ];
-  const activeGoals = data.goals.map((goal) => {
-    const goalTasks = data.tasks.filter(
-      (task) => task.goalId === goal.id && task.status !== "dropped"
-    );
-    const completed = goalTasks.filter((task) => completedIds.has(task.id)).length;
-    return { ...goal, goalTasks, completed };
-  });
-  const insights = weeklyInsights({
-    goals: data.goals,
-    tasks: data.tasks.filter((task) => task.source !== "recurrence"),
-    events: data.events,
-    now: new Date(),
-    timeZone,
-  });
+  const {
+    startDate,
+    lastDate,
+    empty,
+    goals: activeGoals,
+    upcoming,
+    postponed,
+    insights,
+  } = await loadWeeklyReview(userId, timeZone);
 
   return (
     <div className="wrap">
@@ -75,10 +24,10 @@ export default async function WeeklyReviewPage() {
         <p className="eyebrow">Weekly review</p>
         <h1>Choose what deserves next week</h1>
         <p>
-          {startDate} to {shiftDate(endDate, -1)}
+          {startDate} to {lastDate}
         </p>
       </header>
-      {!data.goals.length && !data.tasks.length ? (
+      {empty ? (
         <EmptyState
           title="Nothing to review yet"
           description="Capture a few tasks or goals to begin."

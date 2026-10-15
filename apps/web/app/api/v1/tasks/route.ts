@@ -46,27 +46,31 @@ const createSchema = z.object({
   title: z.string().trim().min(1).max(500),
   dueAt: z.iso.datetime({ offset: true }).nullable().optional(),
   projectId: z.string().uuid().nullable().optional(),
+  goalId: z.string().uuid().nullable().optional(),
 });
 
 // Quick Add from the phone: lands in the Inbox, like the web's Quick Add.
 // Added from a project screen (projectId), it goes straight into that
-// project as a to-do, since it's already organised.
+// project (or for a goal) as a to-do, since it's already organised.
 export const POST = apiRoute(async ({ userId }, request) => {
   const parsed = createSchema.safeParse(await readJson(request));
   if (!parsed.success) throw new ApiError(400, "Give the task a title.");
-  const { title, dueAt, projectId } = parsed.data;
+  const { title, dueAt, projectId, goalId } = parsed.data;
   const { task, names } = await withRepositories(userId, async (repos) => {
     const project = projectId
       ? (await repos.projects.list()).find((p) => p.id === projectId)
       : undefined;
     if (projectId && !project) throw new ApiError(404, "Project not found.");
-    const status = project ? "todo" : "inbox";
+    const goal = goalId ? (await repos.goals.list()).find((g) => g.id === goalId) : undefined;
+    if (goalId && !goal) throw new ApiError(404, "Goal not found.");
+    const status = project || goal ? "todo" : "inbox";
     const created = await repos.tasks.create({
       title,
       dueAt: dueAt ? new Date(dueAt) : null,
       source: "quick_add",
       status,
       projectId: project?.id ?? null,
+      goalId: goal?.id ?? null,
     });
     await repos.taskEvents.record({
       taskId: created.id,

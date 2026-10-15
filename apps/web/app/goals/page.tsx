@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { saveGoal } from "@/app/actions/goals";
+import { goalProgress, NUDGE_TEXT } from "@/lib/domain/goal-progress";
 import { withRepositories } from "@/lib/repo";
 import { getCurrentUserId } from "@/lib/server/session";
 
@@ -49,11 +50,7 @@ export default async function GoalsPage() {
         ) : (
           <ul className="review-list">
             {goals.map((goal) => {
-              const linked = tasks.filter((task) => task.goalId === goal.id);
-              const active = linked.filter((task) =>
-                ["todo", "in_progress"].includes(task.status)
-              );
-              const completed = linked.filter((task) => task.status === "completed");
+              const progress = goalProgress(goal.id, tasks);
               return (
                 <li key={goal.id} className="review-item">
                   <span className="review-item-text">
@@ -63,25 +60,17 @@ export default async function GoalsPage() {
                     )}
                     <span className="field-hint">
                       {" "}
-                      · {linked.length} linked task{linked.length === 1 ? "" : "s"}
+                      · {progress.linked} linked task{progress.linked === 1 ? "" : "s"}
                     </span>
-                    {linked.length > 0 && (
+                    {progress.linked > 0 && (
                       <span className="field-hint">
                         {" "}
-                        · {completed.length}/{linked.length} complete
+                        · {progress.completed}/{progress.linked} complete
                       </span>
                     )}
-                    {linked.length === 0 ? (
-                      <span className="field-hint">
-                        {" "}
-                        · No action is linked yet; connect one task to move this goal forward.
-                      </span>
-                    ) : active.length === 0 && completed.length < linked.length ? (
-                      <span className="field-hint">
-                        {" "}
-                        · Nothing active is moving this goal; review postponed work.
-                      </span>
-                    ) : null}
+                    {progress.nudge && (
+                      <span className="field-hint"> · {NUDGE_TEXT[progress.nudge]}</span>
+                    )}
                   </span>
                   <Link href="/tasks/new" className="review-item-remove">
                     Add task

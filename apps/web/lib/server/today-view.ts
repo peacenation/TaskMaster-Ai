@@ -1,3 +1,4 @@
+import type { z } from "zod";
 import { localDate } from "@/lib/execution/date";
 import { buildToday, todaySettingsSchema } from "@/lib/planning/today";
 import { realityCheckSummary } from "@/lib/domain/reality-check";
@@ -178,4 +179,34 @@ export async function loadToday(
       inbox: records.filter((task) => task.status === "inbox").length,
     },
   };
+}
+
+export class RecoveryPendingError extends Error {}
+
+/**
+ * Rebuild today's plan with new settings (available time, energy, day
+ * length) and remember them. Missed blocks must be resolved first, so a
+ * rebuild never silently drops them.
+ */
+export async function rebuildToday(
+  userId: string,
+  timeZone: string,
+  settings: z.infer<typeof todaySettingsSchema>
+) {
+  const now = new Date();
+  await withRepositories(userId, async (repos) => {
+    if ((await repos.execution.recovery(now)).length) throw new RecoveryPendingError();
+    const today = buildToday(
+      toPlannable(await repos.tasks.list(), await repos.tasks.dependencies()),
+      { now, timeZone, availableMinutes: settings.availableMinutes, energy: settings.energy },
+      settings.dayMinutes,
+      await repos.users.nextTaskId()
+    );
+    await repos.users.savePreferences(timeZone, {
+      dayMinutes: settings.dayMinutes,
+      availableMinutes: settings.availableMinutes ?? null,
+      energy: settings.energy ?? null,
+    });
+    await repos.execution.savePlan(localDate(now, timeZone), today.plan, true);
+  });
 }

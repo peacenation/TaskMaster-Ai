@@ -1,43 +1,16 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/ui";
-import { zonedTimeToUtc } from "@/lib/domain/dates";
-import { localDate } from "@/lib/execution/date";
-import { withRepositories } from "@/lib/repo";
+import { loadDailyReview } from "@/lib/server/reviews";
 import { getCurrentUserId, getTimeZone } from "@/lib/server/session";
 
 export const dynamic = "force-dynamic";
 
-function shiftDate(value: string, days: number): string {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function dayBoundary(value: string, timeZone: string): Date {
-  const [year, month, day] = value.split("-").map(Number);
-  return zonedTimeToUtc({ year, month, day }, 0, 0, timeZone);
-}
-
 export default async function DailyReviewPage() {
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
-  const today = localDate(new Date(), timeZone);
-  const start = dayBoundary(today, timeZone);
-  const end = dayBoundary(shiftDate(today, 1), timeZone);
-  const { events, tasks, missed } = await withRepositories(userId, async (repos) => ({
-    events: await repos.execution.eventsBetween(start, end),
-    tasks: await repos.tasks.list(),
-    missed: await repos.execution.recovery(new Date()),
-  }));
-  const completed = events.filter((event) => event.eventType === "completed");
-  const changed = events.filter(
-    (event) => !["completed", "created"].includes(event.eventType)
-  );
-  const carried = tasks.filter(
-    (task) =>
-      task.source !== "recurrence" &&
-      task.createdAt < start &&
-      ["todo", "in_progress", "postponed"].includes(task.status)
+  const { events, completed, changed, carried, missed } = await loadDailyReview(
+    userId,
+    timeZone
   );
 
   return (

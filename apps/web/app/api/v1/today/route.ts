@@ -3,9 +3,11 @@ import { greeting, loadToday } from "@/lib/server/today-view";
 
 export const dynamic = "force-dynamic";
 
-// Today for the mobile app: the same plan app/page.tsx renders, as JSON.
-// Recovery and Reality Check decisions stay web-only for now; the app is
-// told they are pending (`attention`) so it can point the user there.
+const DAY_MS = 86_400_000;
+
+// Today for the mobile app: the same plan app/page.tsx renders, as JSON,
+// including the decisions it asks for: missed blocks to recover, a
+// Reality Check when the day is overloaded, and repeatedly postponed work.
 export const GET = apiRoute(async ({ userId, timeZone, profile }) => {
   const view = await loadToday(userId, timeZone, {}, profile);
   // Not onboarded yet: still greet them, so the app can offer a Brain Dump.
@@ -60,6 +62,31 @@ export const GET = apiRoute(async ({ userId, timeZone, profile }) => {
       done,
       total,
     })),
+    settings: {
+      dayMinutes: view.settings.dayMinutes,
+      availableMinutes: view.settings.availableMinutes ?? null,
+      energy: view.settings.energy ?? null,
+    },
+    recovery: view.recovery.map((item) => ({
+      id: item.id,
+      taskId: item.taskId,
+      title: item.title,
+      scheduledEnd: item.scheduledEnd?.toISOString() ?? null,
+    })),
+    realityCheck: view.realityCheck && {
+      ...view.realityCheck,
+      // Deadline-critical work (due within a day) the user can move or drop.
+      tasks: today.ranked
+        .filter(
+          (item) => item.task.dueAt && item.task.dueAt.getTime() <= now.getTime() + DAY_MS
+        )
+        .map((item) => ({
+          id: item.task.id,
+          title: item.task.title,
+          minutes: item.task.estimatedMinutes ?? 30,
+        })),
+    },
+    procrastination: view.procrastinationCandidates,
     attention: {
       recovery: view.recovery.length,
       realityCheck: view.realityCheck !== null,

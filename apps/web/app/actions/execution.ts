@@ -12,9 +12,8 @@ import {
   recoveryInputSchema,
   recover,
 } from "@/lib/execution/operations";
-import { buildToday, todaySettingsSchema } from "@/lib/planning/today";
-import { toPlannable } from "@/lib/server/views";
-import { localDate } from "@/lib/execution/date";
+import { todaySettingsSchema } from "@/lib/planning/today";
+import { rebuildToday } from "@/lib/server/today-view";
 export type ExecutionResult = { ok: true } | { ok: false; message: string };
 export async function actOnTask(id: string, status: unknown): Promise<ExecutionResult> {
   const taskId = z.string().uuid().safeParse(id);
@@ -72,28 +71,8 @@ export async function rebuildPlan(
   const settings = todaySettingsSchema.parse(Object.fromEntries(form));
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
-  const now = new Date();
   try {
-    await withRepositories(userId, async (repos) => {
-      if ((await repos.execution.recovery(now)).length) throw new Error("recovery");
-      const today = buildToday(
-        toPlannable(await repos.tasks.list(), await repos.tasks.dependencies()),
-        {
-          now,
-          timeZone,
-          availableMinutes: settings.availableMinutes,
-          energy: settings.energy,
-        },
-        settings.dayMinutes,
-        await repos.users.nextTaskId()
-      );
-      await repos.users.savePreferences(timeZone, {
-        dayMinutes: settings.dayMinutes,
-        availableMinutes: settings.availableMinutes ?? null,
-        energy: settings.energy ?? null,
-      });
-      await repos.execution.savePlan(localDate(now, timeZone), today.plan, true);
-    });
+    await rebuildToday(userId, timeZone, settings);
   } catch {
     return {
       message:

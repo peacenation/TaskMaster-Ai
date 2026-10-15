@@ -26,6 +26,10 @@ tags:
     description: Brain Dump — organise, review, commit.
   - name: Planner
     description: AI Planner — propose and apply a timeline for today.
+  - name: Goals
+    description: Goals and recurring responsibilities.
+  - name: Reviews
+    description: Daily and weekly reviews.
 paths:
   /api/v1/me:
     get:
@@ -43,6 +47,62 @@ paths:
                 $ref: "#/components/schemas/Me"
         "401":
           $ref: "#/components/responses/Unauthorized"
+    patch:
+      tags: [Account]
+      operationId: updatePreferences
+      summary: Save preferences (any subset)
+      parameters:
+        - $ref: "#/components/parameters/TimeZone"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Preferences"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      tags: [Account]
+      operationId: deleteAccount
+      summary: Permanently delete the account and all its data
+      description: |
+        Type `DELETE` to confirm. Accounts with a password must send it;
+        Google-only accounts must have signed in within the last 10 minutes
+        (403 otherwise).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmation]
+              properties:
+                confirmation:
+                  const: DELETE
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /api/v1/today:
     get:
       tags: [Today]
@@ -120,6 +180,10 @@ paths:
                   format: date-time
                 projectId:
                   description: Add straight into this project as a to-do (otherwise the Inbox).
+                  type: [string, "null"]
+                  format: uuid
+                goalId:
+                  description: Link to this goal; the task is added as a to-do.
                   type: [string, "null"]
                   format: uuid
       responses:
@@ -462,6 +526,368 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/v1/today/settings:
+    put:
+      tags: [Today]
+      operationId: rebuildToday
+      summary: Rebuild today's plan around available time and energy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TodaySettings"
+      responses:
+        "200":
+          description: Rebuilt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/today/next:
+    put:
+      tags: [Today]
+      operationId: chooseNext
+      summary: Choose your own next action (null clears it)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [taskId]
+              properties:
+                taskId:
+                  type: [string, "null"]
+                  format: uuid
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/today/recovery:
+    post:
+      tags: [Today]
+      operationId: recoverMissed
+      summary: Keep, postpone or drop missed plan blocks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decisions]
+              properties:
+                decisions:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [id, choice]
+                    properties:
+                      id:
+                        description: The recovery item id (not the task id).
+                        type: string
+                        format: uuid
+                      choice:
+                        type: string
+                        enum: [keep, postpone, drop]
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/tasks/organise:
+    post:
+      tags: [Tasks]
+      operationId: organiseInbox
+      summary: Move Inbox items onto the list, optionally into a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    type: string
+                    format: uuid
+                project:
+                  description: Project name; a new name creates the project.
+                  type: [string, "null"]
+      responses:
+        "200":
+          description: Moved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [moved]
+                properties:
+                  moved:
+                    type: integer
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/tasks/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Tasks]
+      operationId: getTask
+      summary: One task with steps, suggested steps, history and pickers
+      responses:
+        "200":
+          description: Task detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Tasks]
+      operationId: updateTask
+      summary: Edit a task (any subset of fields)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskPatch"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [task]
+                properties:
+                  task:
+                    $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Tasks]
+      operationId: deleteTask
+      summary: Delete a task
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/tasks/{id}/breakdown:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Tasks]
+      operationId: breakDownTask
+      summary: Save reviewed steps for a large or vague task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [steps]
+              properties:
+                steps:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [title, estimatedMinutes]
+                    properties:
+                      title:
+                        type: string
+                      estimatedMinutes:
+                        type: [integer, "null"]
+      responses:
+        "201":
+          description: Steps saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/goals:
+    get:
+      tags: [Goals]
+      operationId: listGoals
+      summary: Goals with progress and a nudge when nothing moves them
+      responses:
+        "200":
+          description: Goals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [goals]
+                properties:
+                  goals:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Goal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Goals]
+      operationId: createGoal
+      summary: Add a goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                targetDate:
+                  type: [string, "null"]
+                  format: date
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [goal]
+                properties:
+                  goal:
+                    type: object
+                    required: [id, title]
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/responsibilities:
+    get:
+      tags: [Goals]
+      operationId: listResponsibilities
+      summary: Recurring responsibilities and their next 30 days
+      parameters:
+        - $ref: "#/components/parameters/TimeZone"
+      responses:
+        "200":
+          description: Responsibilities
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [responsibilities]
+                properties:
+                  responsibilities:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Responsibility"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/responsibilities/{id}/stop:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Goals]
+      operationId: stopResponsibility
+      summary: Stop future instances (history is kept)
+      responses:
+        "200":
+          description: Stopped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/reviews/daily:
+    get:
+      tags: [Reviews]
+      operationId: dailyReview
+      summary: Close the day
+      parameters:
+        - $ref: "#/components/parameters/TimeZone"
+      responses:
+        "200":
+          description: Daily review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReview"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/reviews/weekly:
+    get:
+      tags: [Reviews]
+      operationId: weeklyReview
+      summary: Choose what deserves next week
+      parameters:
+        - $ref: "#/components/parameters/TimeZone"
+      responses:
+        "200":
+          description: Weekly review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyReview"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     bearerAuth:
@@ -477,7 +903,26 @@ components:
       schema:
         type: string
         example: Europe/London
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
   responses:
+    Forbidden:
+      description: Not allowed right now (e.g. sign in again first)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: The data changed or a precondition isn't met; refresh and retry
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
     Unauthorized:
       description: Missing, invalid, expired or revoked token
       content:
@@ -524,6 +969,24 @@ components:
         timeZone:
           type: string
         onboarded:
+          type: boolean
+        preferences:
+          type: object
+          required: [timeZone, dayMinutes, planMode, notifications]
+          properties:
+            timeZone:
+              description: The saved time zone, or null while the device's is used.
+              type: [string, "null"]
+            dayMinutes:
+              type: integer
+            planMode:
+              type: string
+              enum: [flexible, scheduled]
+            notifications:
+              type: string
+              enum: ["off", important]
+        hasPassword:
+          description: Account deletion asks for the password when true.
           type: boolean
     TaskStatus:
       type: string
@@ -750,8 +1213,66 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProjectProgress"
+        settings:
+          $ref: "#/components/schemas/TodaySettings"
+        recovery:
+          description: Missed plan blocks waiting for a keep/postpone/drop decision.
+          type: array
+          items:
+            type: object
+            required: [id, taskId, title, scheduledEnd]
+            properties:
+              id:
+                type: string
+                format: uuid
+              taskId:
+                type: string
+                format: uuid
+              title:
+                type: string
+              scheduledEnd:
+                type: [string, "null"]
+                format: date-time
+        realityCheck:
+          description: Present when deadline-critical work exceeds usable time.
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [workMinutes, usableMinutes, excessMinutes, tasks]
+              properties:
+                workMinutes:
+                  type: integer
+                usableMinutes:
+                  type: integer
+                excessMinutes:
+                  type: integer
+                tasks:
+                  type: array
+                  items:
+                    type: object
+                    required: [id, title, minutes]
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+                      minutes:
+                        type: integer
+        procrastination:
+          description: Tasks postponed three times in a row.
+          type: array
+          items:
+            type: object
+            required: [taskId, title]
+            properties:
+              taskId:
+                type: string
+                format: uuid
+              title:
+                type: string
         attention:
-          description: Decisions waiting on the web (recovery check-in, Reality Check).
+          description: Counts of pending decisions (recovery, Reality Check).
           type: object
           required: [recovery, realityCheck]
           properties:
@@ -759,3 +1280,286 @@ components:
               type: integer
             realityCheck:
               type: boolean
+    Preferences:
+      type: object
+      properties:
+        timeZone:
+          type: string
+        dayMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+        planMode:
+          type: string
+          enum: [flexible, scheduled]
+        notifications:
+          type: string
+          enum: ["off", important]
+    TodaySettings:
+      type: object
+      required: [dayMinutes]
+      properties:
+        dayMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+        availableMinutes:
+          type: [integer, "null"]
+        energy:
+          type: [string, "null"]
+          enum: [low, medium, high, null]
+    StepRef:
+      type: object
+      required: [id, title, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+    TaskDetail:
+      type: object
+      required: [task, steps, suggestedSteps, canBreakDown, history, projects, goals]
+      properties:
+        task:
+          allOf:
+            - $ref: "#/components/schemas/Task"
+            - type: object
+              properties:
+                description:
+                  type: [string, "null"]
+                importance:
+                  type: [integer, "null"]
+                urgency:
+                  type: [integer, "null"]
+                energy:
+                  type: [string, "null"]
+                goal:
+                  oneOf:
+                    - type: "null"
+                    - type: object
+                      required: [id, title]
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                parentTaskId:
+                  type: [string, "null"]
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/StepRef"
+        suggestedSteps:
+          description: Suggested steps when the task has none yet.
+          type: array
+          items:
+            type: string
+        canBreakDown:
+          type: boolean
+        history:
+          type: array
+          items:
+            type: object
+            required: [type, at]
+            properties:
+              type:
+                type: string
+              toStatus:
+                type: [string, "null"]
+              at:
+                type: string
+                format: date-time
+        projects:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+        goals:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+    TaskPatch:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: [string, "null"]
+        dueAt:
+          type: [string, "null"]
+          format: date-time
+        estimatedMinutes:
+          type: [integer, "null"]
+        priority:
+          type: [integer, "null"]
+        importance:
+          type: [integer, "null"]
+        urgency:
+          type: [integer, "null"]
+        energy:
+          type: [string, "null"]
+          enum: [low, medium, high, null]
+        project:
+          description: Project name; a new name creates it, null removes it.
+          type: [string, "null"]
+        goal:
+          description: Goal title; a new title creates it, null removes it.
+          type: [string, "null"]
+    Goal:
+      type: object
+      required: [id, title, targetDate, linked, active, completed, nudge, tasks]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        targetDate:
+          type: [string, "null"]
+          format: date
+        linked:
+          type: integer
+        active:
+          type: integer
+        completed:
+          type: integer
+        nudge:
+          description: unlinked — nothing moves it yet; stalled — only postponed work left.
+          type: [string, "null"]
+          enum: [unlinked, stalled, null]
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+    Responsibility:
+      type: object
+      required: [id, title, frequency, intervalCount, timesPerPeriod, endDate, stopped, upcoming]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        frequency:
+          type: string
+          enum: [daily, weekly, monthly]
+        intervalCount:
+          type: integer
+        timesPerPeriod:
+          type: integer
+        endDate:
+          type: [string, "null"]
+          format: date
+        stopped:
+          type: boolean
+        upcoming:
+          type: array
+          items:
+            type: object
+            required: [id, title, status, date]
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              status:
+                $ref: "#/components/schemas/TaskStatus"
+              date:
+                type: string
+                format: date
+    TaskRef:
+      type: object
+      required: [id, title]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+    DailyReview:
+      type: object
+      required: [date, completed, missed, carried, changed]
+      properties:
+        date:
+          type: string
+          format: date
+        completed:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskRef"
+        missed:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskRef"
+        carried:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskRef"
+        changed:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskRef"
+    WeeklyReview:
+      type: object
+      required: [startDate, endDate, goals, deadlines, postponed, insights]
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        goals:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              completed:
+                type: integer
+        deadlines:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              dueAt:
+                type: [string, "null"]
+                format: date-time
+        postponed:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              times:
+                type: integer
+        insights:
+          type: array
+          items:
+            type: object
+            properties:
+              kind:
+                type: string
+              message:
+                type: string
