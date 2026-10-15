@@ -16,7 +16,7 @@
 set -euo pipefail
 
 # Configuration, not secrets: safe (and sometimes intended) in the browser.
-PUBLIC_CONFIG='^(AI_EXTRACTION|AI_HOURLY_LIMIT|DATABASE_POOL_MAX)$'
+PUBLIC_CONFIG='^(AI_EXTRACTION|AI_HOURLY_LIMIT|AI_HOURLY_LIMIT_PRO|DATABASE_POOL_MAX|PRO_PRICE_LABEL|STRIPE_PRICE_PRO)$'
 
 secrets=$(grep -E '^[A-Z_]+=' .env.example | cut -d= -f1 | grep -v '^NEXT_PUBLIC_' | grep -Ev "$PUBLIC_CONFIG" || true)
 if [ -z "$secrets" ]; then
