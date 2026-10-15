@@ -1,6 +1,7 @@
 import 'package:taskmaster/api/client.dart';
 import 'package:taskmaster/api/models.dart';
 import 'package:taskmaster/auth/auth_gateway.dart';
+import 'package:taskmaster/state/reminders.dart';
 
 /// A /api/v1/today body exactly as the server sends it (keep in step with
 /// packages/api-contract/openapi.yaml and apps/web/app/api/v1/today).
@@ -506,4 +507,17 @@ class FakeAuth implements AuthGateway {
 
   @override
   Future<void> signOut() async => signedIn = false;
+}
+
+/// Records what the app asked of reminders.
+class RecordingReminders implements Reminders {
+  final synced = <bool>[];
+  int cleared = 0;
+
+  @override
+  Future<void> sync(Today today, {required bool enabled}) async =>
+      synced.add(enabled);
+
+  @override
+  Future<void> clear() async => cleared++;
 }

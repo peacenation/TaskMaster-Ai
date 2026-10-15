@@ -3,16 +3,32 @@ import 'package:flutter/widgets.dart';
 import '../api/client.dart';
 import '../api/models.dart';
 import '../auth/auth_gateway.dart';
+import 'reminders.dart';
 
 enum SessionState { loading, signedOut, signedIn }
 
 /// Who is signed in. Any 401 from the API (expired, revoked, signed out on
 /// another device) lands here and returns the app to sign-in.
 class Session extends ChangeNotifier {
-  Session({required this.api, required this.auth});
+  Session({
+    required this.api,
+    required this.auth,
+    this.reminders = const NoReminders(),
+  });
 
   final TaskMasterApi api;
   final AuthGateway auth;
+  final Reminders reminders;
+
+  bool get remindersOn => me?.preferences.notifications != 'off';
+
+  /// Today, with this device's reminders rescheduled to match it.
+  Future<Today> loadToday() async {
+    final today = await api.today();
+    // Not awaited: reminders never hold up Today.
+    reminders.sync(today, enabled: remindersOn);
+    return today;
+  }
 
   SessionState state = SessionState.loading;
   Me? me;
@@ -53,6 +69,7 @@ class Session extends ChangeNotifier {
   /// Save preferences and keep [me] current.
   Future<void> savePreferences(Map<String, Object?> changes) async {
     me = await api.updatePreferences(changes);
+    if (!remindersOn) await reminders.clear();
     notifyListeners();
   }
 
@@ -78,6 +95,7 @@ class Session extends ChangeNotifier {
   }
 
   void _signedOut() {
+    reminders.clear();
     me = null;
     state = SessionState.signedOut;
     notifyListeners();

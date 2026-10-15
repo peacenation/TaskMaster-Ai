@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:taskmaster/api/models.dart';
+import 'package:taskmaster/ui/settings_screen.dart';
 import 'package:taskmaster/ui/task_screen.dart';
 import 'package:taskmaster/ui/widgets.dart';
 
@@ -15,6 +16,14 @@ Future<void> openAccountMenu(WidgetTester tester) async {
   await tester.tap(find.byType(AccountAvatar).first);
   await tester.pumpAndSettle();
 }
+
+/// The Settings screen's list.
+final settingsList = find
+    .descendant(
+      of: find.byType(SettingsScreen),
+      matching: find.byType(Scrollable),
+    )
+    .first;
 
 /// The task screen's list (screens behind it are scrollables too).
 final taskList = find
@@ -281,6 +290,11 @@ void main() {
     expect(api.updates.single, {'planMode': 'scheduled'});
     expect(session.me!.preferences.planMode, 'scheduled');
 
+    await tester.scrollUntilVisible(
+      find.text('Delete account…'),
+      200,
+      scrollable: settingsList,
+    );
     await tester.ensureVisible(find.text('Delete account…'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete account…'));
@@ -320,6 +334,11 @@ void main() {
     await openAccountMenu(tester);
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Delete account…'),
+      200,
+      scrollable: settingsList,
+    );
     await tester.ensureVisible(find.text('Delete account…'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete account…'));
@@ -362,6 +381,11 @@ void main() {
     await openAccountMenu(tester);
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Connect a calendar'),
+      200,
+      scrollable: settingsList,
+    );
     await tester.ensureVisible(find.text('Connect a calendar'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Connect a calendar'));

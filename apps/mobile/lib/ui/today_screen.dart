@@ -21,9 +21,9 @@ class TodayScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final api = SessionScope.of(context).api;
+    final session = SessionScope.of(context);
     return Loader<Today>(
-      load: api.today,
+      load: session.loadToday,
       builder: (context, today, reload) => ListView(
         padding: const EdgeInsets.fromLTRB(Tm.s4, Tm.s2, Tm.s4, Tm.s8),
         children: [

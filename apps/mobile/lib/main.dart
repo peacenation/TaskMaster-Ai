@@ -8,6 +8,7 @@ import 'app.dart';
 import 'auth/auth_gateway.dart';
 import 'config.dart';
 import 'state/appearance.dart';
+import 'state/reminders.dart';
 import 'state/session.dart';
 
 Future<void> main() async {
@@ -43,7 +44,11 @@ Future<void> main() async {
     timeZone: timeZone,
     accessToken: () => auth.accessToken,
   );
-  final session = Session(api: api, auth: auth);
+  final session = Session(
+    api: api,
+    auth: auth,
+    reminders: LocalReminders(timeZone: timeZone),
+  );
   final appearance = Appearance(SecureAppearanceStore());
   await appearance.load();
   runApp(TaskMasterApp(session: session, appearance: appearance));

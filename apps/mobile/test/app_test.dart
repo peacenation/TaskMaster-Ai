@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:taskmaster/api/models.dart';
 import 'package:taskmaster/app.dart';
+import 'package:taskmaster/state/reminders.dart';
 import 'package:taskmaster/state/session.dart';
 import 'package:taskmaster/ui/today_screen.dart';
 import 'package:taskmaster/ui/widgets.dart';
@@ -18,13 +19,14 @@ Future<(FakeApi, FakeAuth, Session)> pumpApp(
   bool signedIn = false,
   FakeApi? api,
   FakeAuth? auth,
+  Reminders reminders = const NoReminders(),
 }) async {
   tester.view.physicalSize = const Size(1170, 2532);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
   final fake = api ?? FakeApi();
   final gateway = auth ?? FakeAuth(signedIn: signedIn);
-  final session = Session(api: fake, auth: gateway);
+  final session = Session(api: fake, auth: gateway, reminders: reminders);
   await tester.pumpWidget(TaskMasterApp(session: session));
   await session.restore();
   await tester.pumpAndSettle();

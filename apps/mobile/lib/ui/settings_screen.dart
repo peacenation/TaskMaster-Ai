@@ -85,8 +85,10 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: Tm.s3),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Important reminders'),
-                    subtitle: const Text('Due today, missed blocks, deadlines'),
+                    title: const Text('Reminders on this phone'),
+                    subtitle: const Text(
+                      'Before each planned block and meeting, and a morning nudge',
+                    ),
                     value: prefs.notifications == 'important',
                     onChanged: (on) =>
                         save({'notifications': on ? 'important' : 'off'}),
