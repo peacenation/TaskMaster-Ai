@@ -53,14 +53,23 @@ async function main() {
   }
 }
 
+/** The database error behind Drizzle's wrapper, however it's nested. */
+function describe(error: unknown, depth = 0): string[] {
+  if (!(error instanceof Error) || depth > 4) return [];
+  const e = error as Error & { code?: string; errors?: unknown[] };
+  const line = [e.name, e.code, e.message].filter(Boolean).join(" · ");
+  return [
+    line,
+    ...(e.errors ?? []).flatMap((inner) => describe(inner, depth + 1)),
+    ...describe(e.cause, depth + 1),
+  ];
+}
+
 main().catch((error) => {
-  // The message names the failing statement, never a credential. Drizzle
-  // wraps the database error, so show its cause (e.g. a wrong password or
-  // certificate) — Postgres error text never includes the password.
-  console.error(error instanceof Error ? error.message : error);
-  const cause =
-    error instanceof Error ? (error.cause as { message?: string; code?: string }) : null;
-  if (cause?.message)
-    console.error(`Cause: ${cause.message}${cause.code ? ` (${cause.code})` : ""}`);
+  // Drizzle's "Failed query" hides the reason (wrong password, certificate,
+  // network). Postgres and network errors never include the password.
+  const [first, ...causes] = describe(error);
+  console.error(first ?? String(error));
+  for (const cause of causes) console.error(`Cause: ${cause}`);
   process.exit(1);
 });
