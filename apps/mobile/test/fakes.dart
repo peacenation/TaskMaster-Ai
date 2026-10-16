@@ -1,5 +1,6 @@
 import 'package:taskmaster/api/client.dart';
 import 'package:taskmaster/api/models.dart';
+import 'package:taskmaster/api/offline.dart';
 import 'package:taskmaster/auth/auth_gateway.dart';
 import 'package:taskmaster/state/dictation.dart';
 import 'package:taskmaster/state/reminders.dart';
@@ -121,6 +122,14 @@ Map<String, dynamic> task(String id, String title, {int? priority}) => {
 
 class FakeApi implements TaskMasterApi {
   FakeApi({this.onboarded = true, this.decisions = false});
+
+  @override
+  final connection = Connection();
+
+  int offlineCleared = 0;
+
+  @override
+  Future<void> clearOfflineData() async => offlineCleared++;
 
   /// Flips to true when a Brain Dump is committed, like the server.
   bool onboarded;

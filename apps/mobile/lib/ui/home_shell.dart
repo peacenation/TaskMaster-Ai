@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'offline_banner.dart';
 import 'planner_screen.dart';
 import 'projects_screen.dart';
 import 'tasks_screen.dart';
@@ -71,10 +72,17 @@ class _HomeShellState extends State<HomeShell> {
           bottom: false,
           // Swipe left/right between tabs; each page stays alive, so its
           // scroll position and loaded data survive the swipe.
-          child: PageView(
-            controller: _pages,
-            onPageChanged: _settled,
-            children: [for (final tab in tabs) _KeepAlive(child: tab)],
+          child: Column(
+            children: [
+              const OfflineBanner(),
+              Expanded(
+                child: PageView(
+                  controller: _pages,
+                  onPageChanged: _settled,
+                  children: [for (final tab in tabs) _KeepAlive(child: tab)],
+                ),
+              ),
+            ],
           ),
         ),
         bottomNavigationBar: NavigationBar(

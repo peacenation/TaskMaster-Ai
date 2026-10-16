@@ -6,6 +6,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide Session;
 
 import 'api/client.dart';
+import 'api/offline.dart';
 import 'app.dart';
 import 'auth/auth_gateway.dart';
 import 'config.dart';
@@ -64,6 +65,7 @@ Future<void> main() async {
     baseUrl: Uri.parse(AppConfig.apiBaseUrl),
     timeZone: timeZone,
     accessToken: () => auth.accessToken,
+    offline: FileOfflineStore(),
   );
   final session = Session(
     api: api,

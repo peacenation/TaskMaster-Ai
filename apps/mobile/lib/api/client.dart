@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 import 'models.dart';
+import 'offline.dart';
 
 /// Thrown for any non-2xx response. [status] 401 means the session is gone
 /// (expired, signed out elsewhere, password reset) and the app signs out.
@@ -21,6 +22,12 @@ class ApiException implements Exception {
 /// Everything the app asks of the server. The UI depends on this interface,
 /// so widget tests can swap in a fake.
 abstract interface class TaskMasterApi {
+  /// Online/offline status and the offline queue (lib/api/offline.dart).
+  Connection get connection;
+
+  /// Forget cached data and the offline queue (sign-out).
+  Future<void> clearOfflineData();
+
   Future<Me> me();
   Future<Today> today();
   Future<List<Task>> tasks(TaskView view);
@@ -103,7 +110,10 @@ class HttpTaskMasterApi implements TaskMasterApi {
     required this.timeZone,
     required this.accessToken,
     http.Client? client,
-  }) : _http = client ?? http.Client();
+    this.offline,
+    DateTime Function()? now,
+  }) : _http = client ?? http.Client(),
+       _now = now ?? DateTime.now;
 
   final Uri baseUrl;
   final String timeZone;
@@ -111,6 +121,73 @@ class HttpTaskMasterApi implements TaskMasterApi {
   /// The Supabase access token for this request (null when signed out).
   final String? Function() accessToken;
   final http.Client _http;
+
+  /// Keeps the last good GET responses and offline Quick Adds; null turns
+  /// offline support off.
+  final OfflineStore? offline;
+  final DateTime Function() _now;
+
+  @override
+  final connection = Connection();
+
+  static const _queueKey = 'queue:quick-add';
+
+  /// The queue may hold captures from a previous run; check it once online.
+  bool _queueChecked = false;
+
+  @override
+  Future<void> clearOfflineData() async {
+    await offline?.clear();
+    connection
+      ..setPending(0)
+      ..markOnline();
+  }
+
+  bool _isNetworkError(Object e) => e is ApiException && e.status == 0;
+
+  Future<List<Map<String, dynamic>>> _queue() async {
+    final raw = await offline?.read(_queueKey);
+    if (raw == null) return [];
+    return (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> _saveQueue(List<Map<String, dynamic>> queue) async {
+    await offline?.write(_queueKey, jsonEncode(queue));
+    connection.setPending(queue.length);
+  }
+
+  /// Send offline Quick Adds, oldest first; stop at the first network
+  /// error. A call while a sync is running waits for that sync.
+  Future<void> flushQueue() {
+    if (offline == null) return Future.value();
+    return _flush ??= _sendQueued().whenComplete(() => _flush = null);
+  }
+
+  Future<void>? _flush;
+
+  Future<void> _sendQueued() async {
+    final queue = await _queue();
+    connection.setPending(queue.length);
+    while (queue.isNotEmpty) {
+      final item = queue.first;
+      try {
+        await _send(
+          'POST',
+          '/api/v1/tasks',
+          body: {
+            'title': item['title'],
+            'projectId': ?item['projectId'],
+            'goalId': ?item['goalId'],
+          },
+        );
+      } on ApiException catch (e) {
+        if (_isNetworkError(e)) return;
+        // Rejected for good (e.g. the project was deleted): drop it.
+      }
+      queue.removeAt(0);
+      await _saveQueue(queue);
+    }
+  }
 
   Map<String, String> get _headers {
     final token = accessToken();
@@ -160,8 +237,35 @@ class HttpTaskMasterApi implements TaskMasterApi {
     Object? body,
     Map<String, String>? query,
   }) async {
-    final response = await _send(method, path, body: body, query: query);
-    return jsonDecode(response.body) as Map<String, dynamic>;
+    final key = 'get:${baseUrl.replace(path: path, queryParameters: query)}';
+    final http.Response response;
+    try {
+      response = await _send(method, path, body: body, query: query);
+    } on ApiException catch (e) {
+      // Offline: show the last good copy of a read, if there is one.
+      if (method == 'GET' && _isNetworkError(e) && offline != null) {
+        final cached = await offline!.read(key);
+        if (cached != null) {
+          final entry = jsonDecode(cached) as Map<String, dynamic>;
+          connection.markOffline(DateTime.parse(entry['at'] as String));
+          return entry['body'] as Map<String, dynamic>;
+        }
+      }
+      rethrow;
+    }
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    connection.markOnline();
+    if (method == 'GET' && offline != null) {
+      await offline!.write(
+        key,
+        jsonEncode({'at': _now().toIso8601String(), 'body': decoded}),
+      );
+    }
+    if (connection.pending > 0 || !_queueChecked) {
+      _queueChecked = true;
+      flushQueue();
+    }
+    return decoded;
   }
 
   @override
@@ -189,12 +293,30 @@ class HttpTaskMasterApi implements TaskMasterApi {
     String? projectId,
     String? goalId,
   }) async {
-    final json = await _json(
-      'POST',
-      '/api/v1/tasks',
-      body: {'title': title, 'projectId': ?projectId, 'goalId': ?goalId},
-    );
-    return Task.fromJson(json['task'] as Map<String, dynamic>);
+    try {
+      final json = await _json(
+        'POST',
+        '/api/v1/tasks',
+        body: {'title': title, 'projectId': ?projectId, 'goalId': ?goalId},
+      );
+      return Task.fromJson(json['task'] as Map<String, dynamic>);
+    } on ApiException catch (e) {
+      // Capture never depends on signal: queue it and sync later.
+      if (!_isNetworkError(e) || offline == null) rethrow;
+      final queue = await _queue()
+        ..add({
+          'title': title,
+          'projectId': projectId,
+          'goalId': goalId,
+          'at': _now().toIso8601String(),
+        });
+      await _saveQueue(queue);
+      return Task(
+        id: 'pending-${queue.length}',
+        title: title,
+        status: TaskStatus.inbox,
+      );
+    }
   }
 
   @override

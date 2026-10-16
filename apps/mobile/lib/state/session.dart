@@ -101,6 +101,8 @@ class Session extends ChangeNotifier {
 
   void _signedOut() {
     reminders.clear();
+    // Cached data and the offline queue belong to the account signing out.
+    api.clearOfflineData();
     me = null;
     state = SessionState.signedOut;
     notifyListeners();

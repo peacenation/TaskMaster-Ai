@@ -625,15 +625,24 @@ Future<bool> showQuickAdd(
   );
   if (title == null || !context.mounted) return false;
   final api = SessionScope.read(context).api;
-  final ok = await runAction(
-    context,
-    () => api.quickAdd(title, projectId: projectId, goalId: goalId),
-  );
+  var queued = false;
+  final ok = await runAction(context, () async {
+    final task = await api.quickAdd(
+      title,
+      projectId: projectId,
+      goalId: goalId,
+    );
+    queued = task.id.startsWith('pending-');
+  });
   if (ok && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          destination == null ? 'Added to your Inbox' : 'Added to $destination',
+          queued
+              ? 'Saved on this phone — it’ll sync when you’re back online'
+              : destination == null
+              ? 'Added to your Inbox'
+              : 'Added to $destination',
         ),
       ),
     );
