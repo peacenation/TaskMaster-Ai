@@ -48,6 +48,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   void _reload() => setState(() => _generation++);
 
+  /// After joining, open the project; after declining, just refresh.
+  Future<void> _answered(String? projectId, String name) async {
+    _reload();
+    if (projectId != null && mounted) {
+      await _open(
+        ProjectProgress(id: projectId, name: name, done: 0, total: 0),
+      );
+    }
+  }
+
   Future<void> _open(ProjectProgress project) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -61,10 +71,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   Widget build(BuildContext context) {
     final api = SessionScope.of(context).api;
     if (_goals) return GoalsView(header: _header());
-    return Loader<List<ProjectProgress>>(
+    return Loader<(List<ProjectProgress>, List<Invitation>)>(
       key: ValueKey(_generation),
-      load: api.projects,
-      builder: (context, projects, _) => ListView(
+      load: () async => (await api.projects(), await api.invites()),
+      builder: (context, data, _) => ListView(
         padding: const EdgeInsets.fromLTRB(Tm.s4, Tm.s2, Tm.s4, Tm.s8),
         children: [
           _header(),
@@ -73,7 +83,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             style: TextStyle(color: context.tm.textMuted, fontSize: 16),
           ),
           const SizedBox(height: Tm.s4),
-          if (projects.isEmpty)
+          for (final invite in data.$2) ...[
+            _InvitationCard(invite: invite, answered: _answered),
+            const SizedBox(height: Tm.s3),
+          ],
+          if (data.$1.isEmpty)
             EmptyState(
               icon: Icons.folder_open_outlined,
               title: 'No projects yet',
@@ -88,7 +102,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 label: const Text('Start a Brain Dump'),
               ),
             ),
-          for (final (i, project) in projects.indexed) ...[
+          for (final (i, project) in data.$1.indexed) ...[
             _ProjectCard(
               project: project,
               sage: i.isOdd,
@@ -144,6 +158,14 @@ class _ProjectCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (project.shared) ...[
+                          Icon(
+                            Icons.group_outlined,
+                            size: 16,
+                            color: tm.textMuted,
+                          ),
+                          const SizedBox(width: Tm.s2),
+                        ],
                         Text(
                           '$percent%',
                           style: const TextStyle(fontWeight: FontWeight.w700),
@@ -168,6 +190,82 @@ class _ProjectCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Olu invited you to Launch": join or decline.
+class _InvitationCard extends StatefulWidget {
+  const _InvitationCard({required this.invite, required this.answered});
+  final Invitation invite;
+  final Future<void> Function(String? projectId, String name) answered;
+
+  @override
+  State<_InvitationCard> createState() => _InvitationCardState();
+}
+
+class _InvitationCardState extends State<_InvitationCard> {
+  bool _busy = false;
+
+  Future<void> _answer(bool accept) async {
+    setState(() => _busy = true);
+    final api = SessionScope.read(context).api;
+    String? projectId;
+    final ok = await runAction(context, () async {
+      projectId = await api.answerInvite(widget.invite.id, accept: accept);
+    });
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (ok) await widget.answered(projectId, widget.invite.projectName);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tm = context.tm;
+    final invite = widget.invite;
+    return Card(
+      color: tm.aiBg,
+      child: Padding(
+        padding: const EdgeInsets.all(Tm.s4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'SHARED WITH YOU',
+              style: TextStyle(
+                fontSize: 11,
+                letterSpacing: 0.5,
+                fontWeight: FontWeight.w700,
+                color: tm.aiText,
+              ),
+            ),
+            const SizedBox(height: Tm.s1),
+            Text(
+              '${invite.inviterName.isEmpty ? 'Someone' : invite.inviterName} '
+              'invited you to ${invite.projectName}',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: Tm.s3),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _busy ? null : () => _answer(true),
+                    child: const Text('Join'),
+                  ),
+                ),
+                const SizedBox(width: Tm.s2),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _busy ? null : () => _answer(false),
+                    child: const Text('Decline'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

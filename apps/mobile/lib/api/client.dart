@@ -97,6 +97,19 @@ abstract interface class TaskMasterApi {
   Future<DailyReview> dailyReview();
   Future<WeeklyReview> weeklyReview();
 
+  /// Open invitations to shared projects.
+  Future<List<Invitation>> invites();
+
+  /// Accept (returns the project id) or decline an invitation.
+  Future<String?> answerInvite(String id, {required bool accept});
+
+  /// Invite by email to a project you own; returns the link to send.
+  Future<String> inviteToProject(String projectId, String email);
+  Future<void> withdrawInvite(String projectId, String inviteId);
+
+  /// Owner removes someone, or you leave (your own id).
+  Future<void> removeMember(String projectId, String memberId);
+
   Future<List<ConnectedCalendar>> calendars();
 
   /// Connect by private iCal address; returns how many events were found.
@@ -545,5 +558,44 @@ class HttpTaskMasterApi implements TaskMasterApi {
         ],
       },
     );
+  }
+
+  @override
+  Future<List<Invitation>> invites() async {
+    final json = await _json('GET', '/api/v1/invites');
+    return [
+      for (final i in json['invites'] as List)
+        Invitation.fromJson(i as Map<String, dynamic>),
+    ];
+  }
+
+  @override
+  Future<String?> answerInvite(String id, {required bool accept}) async {
+    final json = await _json(
+      'POST',
+      '/api/v1/invites/$id',
+      body: {'action': accept ? 'accept' : 'decline'},
+    );
+    return json['projectId'] as String?;
+  }
+
+  @override
+  Future<String> inviteToProject(String projectId, String email) async {
+    final json = await _json(
+      'POST',
+      '/api/v1/projects/$projectId/invites',
+      body: {'email': email},
+    );
+    return json['link'] as String;
+  }
+
+  @override
+  Future<void> withdrawInvite(String projectId, String inviteId) async {
+    await _send('DELETE', '/api/v1/projects/$projectId/invites/$inviteId');
+  }
+
+  @override
+  Future<void> removeMember(String projectId, String memberId) async {
+    await _send('DELETE', '/api/v1/projects/$projectId/members/$memberId');
   }
 }

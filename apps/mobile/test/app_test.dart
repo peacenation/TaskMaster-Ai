@@ -295,6 +295,11 @@ void main() {
     expect(find.text('To do'), findsOneWidget);
     expect(find.text('8 of 12 tasks complete'), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Add task'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
     await tester.pumpAndSettle();
     expect(find.text('Goes straight into Website redesign.'), findsOneWidget);

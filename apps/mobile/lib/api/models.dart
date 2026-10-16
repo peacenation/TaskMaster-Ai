@@ -136,6 +136,7 @@ class Task {
     this.project,
     this.waitingOn,
     this.followUpAt,
+    this.assigneeId,
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -152,6 +153,7 @@ class Task {
           : ProjectRef(project['id'] as String, project['name'] as String),
       waitingOn: json['waitingOn'] as String?,
       followUpAt: _date(json['followUpAt']),
+      assigneeId: json['assigneeId'] as String?,
     );
   }
 
@@ -170,6 +172,9 @@ class Task {
 
   /// When to chase; out of the plan until then.
   final DateTime? followUpAt;
+
+  /// Shared projects: the person it's assigned to.
+  final String? assigneeId;
 }
 
 class PlanItem {
@@ -226,6 +231,7 @@ class ProjectProgress {
     required this.done,
     required this.total,
     this.open,
+    this.shared = false,
   });
 
   factory ProjectProgress.fromJson(Map<String, dynamic> json) =>
@@ -235,6 +241,7 @@ class ProjectProgress {
         done: json['done'] as int,
         total: json['total'] as int,
         open: json['open'] as int?,
+        shared: json['role'] == 'member',
       );
 
   final String id;
@@ -242,6 +249,9 @@ class ProjectProgress {
   final int done;
   final int total;
   final int? open;
+
+  /// Someone else's project, shared with you.
+  final bool shared;
 
   double get fraction => total == 0 ? 0 : done / total;
 }
@@ -450,12 +460,64 @@ class DumpProposal {
   final List<ProposedItem> items;
 }
 
+/// Someone on a shared project.
+class Person {
+  Person({
+    required this.id,
+    required this.name,
+    required this.isOwner,
+    required this.isMe,
+  });
+
+  factory Person.fromJson(Map<String, dynamic> json) => Person(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    isOwner: json['role'] == 'owner',
+    isMe: json['isMe'] as bool,
+  );
+
+  final String id;
+  final String name;
+  final bool isOwner;
+  final bool isMe;
+
+  String get initials => name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((p) => p.isNotEmpty)
+      .take(2)
+      .map((p) => p[0].toUpperCase())
+      .join();
+}
+
+/// An invitation to a shared project.
+class Invitation {
+  Invitation({
+    required this.id,
+    required this.projectName,
+    required this.inviterName,
+  });
+
+  factory Invitation.fromJson(Map<String, dynamic> json) => Invitation(
+    id: json['id'] as String,
+    projectName: json['projectName'] as String,
+    inviterName: json['inviterName'] as String,
+  );
+
+  final String id;
+  final String projectName;
+  final String inviterName;
+}
+
 class ProjectDetail {
   ProjectDetail({
     required this.project,
     required this.inProgress,
     required this.todo,
     required this.postponed,
+    this.isOwner = true,
+    this.people = const [],
+    this.pendingInvites = const [],
   });
 
   factory ProjectDetail.fromJson(Map<String, dynamic> json) {
@@ -469,6 +531,18 @@ class ProjectDetail {
       inProgress: tasks('inProgress'),
       todo: tasks('todo'),
       postponed: tasks('postponed'),
+      isOwner: json['role'] != 'member',
+      people: [
+        for (final p in json['people'] as List? ?? const [])
+          Person.fromJson(p as Map<String, dynamic>),
+      ],
+      pendingInvites: [
+        for (final i in json['invites'] as List? ?? const [])
+          (
+            id: (i as Map<String, dynamic>)['id'] as String,
+            email: i['email'] as String,
+          ),
+      ],
     );
   }
 
@@ -476,6 +550,18 @@ class ProjectDetail {
   final List<Task> inProgress;
   final List<Task> todo;
   final List<Task> postponed;
+  final bool isOwner;
+
+  /// Owner first, then members (empty for a project nobody's joined).
+  final List<Person> people;
+  final List<({String id, String email})> pendingInvites;
+
+  String? nameOf(String? userId) {
+    for (final p in people) {
+      if (p.id == userId) return p.isMe ? 'You' : p.name;
+    }
+    return null;
+  }
 }
 
 enum BlockKind { task, breakTime, event }
@@ -648,6 +734,8 @@ class TaskDetail {
     required this.history,
     required this.projectNames,
     required this.goalTitles,
+    this.people = const [],
+    this.mine = true,
   });
 
   factory TaskDetail.fromJson(Map<String, dynamic> json) {
@@ -687,6 +775,11 @@ class TaskDetail {
         for (final g in json['goals'] as List)
           (g as Map<String, dynamic>)['title'] as String,
       ],
+      people: [
+        for (final p in json['people'] as List? ?? const [])
+          Person.fromJson(p as Map<String, dynamic>),
+      ],
+      mine: json['mine'] as bool? ?? true,
     );
   }
 
@@ -702,6 +795,13 @@ class TaskDetail {
   final List<({String type, DateTime at})> history;
   final List<String> projectNames;
   final List<String> goalTitles;
+
+  /// People on the task's shared project, who it can be assigned to.
+  final List<Person> people;
+
+  /// False for someone else's task in a shared project: its project and
+  /// goal are theirs to change.
+  final bool mine;
 }
 
 enum GoalNudge { unlinked, stalled }

@@ -147,6 +147,12 @@ class _Body extends StatelessWidget {
               _Chip(icon: Icons.folder_outlined, label: task.project!.name),
             if (detail.goal != null)
               _Chip(icon: Icons.flag_outlined, label: detail.goal!.title),
+            for (final person in detail.people)
+              if (person.id == task.assigneeId)
+                _Chip(
+                  icon: Icons.person_outline,
+                  label: person.isMe ? 'Assigned to you' : 'For ${person.name}',
+                ),
           ],
         ),
         if (facts.isNotEmpty) ...[
@@ -474,6 +480,7 @@ class _EditTaskSheetState extends State<_EditTaskSheet> {
   late DateTime? _due = widget.detail.task.dueAt;
   late int? _priority = widget.detail.task.priority;
   late String? _energy = widget.detail.energy;
+  late String? _assignee = widget.detail.task.assigneeId;
   bool _busy = false;
 
   @override
@@ -528,8 +535,11 @@ class _EditTaskSheetState extends State<_EditTaskSheet> {
         'estimatedMinutes': minutes != null && minutes > 0 ? minutes : null,
         'priority': _priority,
         'energy': _energy,
-        'project': orNull(_project),
-        'goal': orNull(_goal),
+        // Someone else's task in a shared project: its project and goal
+        // stay theirs to change.
+        if (widget.detail.mine) 'project': orNull(_project),
+        if (widget.detail.mine) 'goal': orNull(_goal),
+        if (widget.detail.people.isNotEmpty) 'assigneeId': _assignee,
       }),
     );
     if (!mounted) return;
@@ -636,18 +646,45 @@ class _EditTaskSheetState extends State<_EditTaskSheet> {
                     onSelectionChanged: (s) =>
                         setState(() => _energy = s.first),
                   ),
-                  const SizedBox(height: Tm.s4),
-                  _NameField(
-                    controller: _project,
-                    label: 'Project',
-                    options: widget.detail.projectNames,
-                  ),
-                  const SizedBox(height: Tm.s3),
-                  _NameField(
-                    controller: _goal,
-                    label: 'Goal',
-                    options: widget.detail.goalTitles,
-                  ),
+                  if (widget.detail.people.isNotEmpty) ...[
+                    const SizedBox(height: Tm.s4),
+                    DropdownButtonFormField<String?>(
+                      initialValue: _assignee,
+                      decoration: const InputDecoration(
+                        labelText: 'Assigned to',
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text('Nobody yet'),
+                        ),
+                        for (final person in widget.detail.people)
+                          DropdownMenuItem(
+                            value: person.id,
+                            child: Text(
+                              person.isMe
+                                  ? '${person.name} (you)'
+                                  : person.name,
+                            ),
+                          ),
+                      ],
+                      onChanged: (value) => setState(() => _assignee = value),
+                    ),
+                  ],
+                  if (widget.detail.mine) ...[
+                    const SizedBox(height: Tm.s4),
+                    _NameField(
+                      controller: _project,
+                      label: 'Project',
+                      options: widget.detail.projectNames,
+                    ),
+                    const SizedBox(height: Tm.s3),
+                    _NameField(
+                      controller: _goal,
+                      label: 'Goal',
+                      options: widget.detail.goalTitles,
+                    ),
+                  ],
                 ],
               ),
             ),

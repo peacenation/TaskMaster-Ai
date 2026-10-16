@@ -218,9 +218,72 @@ class FakeApi implements TaskMasterApi {
   Future<ProjectDetail> project(String id) async => ProjectDetail.fromJson({
     'project': {'id': id, 'name': 'Website redesign', 'done': 8, 'total': 12},
     'inProgress': [task('t2', 'Review website designs', priority: 3)],
-    'todo': [task('t1', 'Finalise project proposal', priority: 5)],
+    'todo': [
+      {
+        ...task('t1', 'Finalise project proposal', priority: 5),
+        'assigneeId': 'u2',
+      },
+    ],
     'postponed': <Object>[],
+    'role': 'owner',
+    'people': [
+      {
+        'id': 'u1',
+        'name': 'Jerry Mbawa',
+        'email': 'jerry@example.com',
+        'role': 'owner',
+        'isMe': true,
+      },
+      if (!removed.contains('u2'))
+        {
+          'id': 'u2',
+          'name': 'Ada Lovelace',
+          'email': 'ada@example.com',
+          'role': 'member',
+          'isMe': false,
+        },
+    ],
+    'invites': [
+      for (final email in invitedEmails)
+        {
+          'id': 'inv-$email',
+          'email': email,
+          'expiresAt': '2099-01-01T00:00:00Z',
+        },
+    ],
   });
+
+  final invitedEmails = <String>[];
+  final removed = <String>[];
+  final answers = <(String, bool)>[];
+  bool hasInvite = false;
+
+  @override
+  Future<List<Invitation>> invites() async => [
+    if (hasInvite && answers.isEmpty)
+      Invitation(id: 'inv1', projectName: 'Launch', inviterName: 'Olu Owner'),
+  ];
+
+  @override
+  Future<String?> answerInvite(String id, {required bool accept}) async {
+    answers.add((id, accept));
+    return accept ? 'p-launch' : null;
+  }
+
+  @override
+  Future<String> inviteToProject(String projectId, String email) async {
+    if (email == 'jerry@example.com') throw ApiException(409, "That's you.");
+    invitedEmails.add(email);
+    return 'https://tasksmaster-ai.netlify.app/invites/abc123';
+  }
+
+  @override
+  Future<void> withdrawInvite(String projectId, String inviteId) async =>
+      invitedEmails.remove(inviteId.substring(4));
+
+  @override
+  Future<void> removeMember(String projectId, String memberId) async =>
+      removed.add(memberId);
 
   @override
   Future<DumpProposal> createDump(String text) async => DumpProposal.fromJson({

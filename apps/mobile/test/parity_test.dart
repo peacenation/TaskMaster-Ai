@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:taskmaster/api/models.dart';
 import 'package:taskmaster/ui/goals_screen.dart';
+import 'package:taskmaster/ui/project_screen.dart';
 import 'package:taskmaster/ui/settings_screen.dart';
 import 'package:taskmaster/ui/task_screen.dart';
 import 'package:taskmaster/ui/widgets.dart';
@@ -550,5 +551,84 @@ void main() {
     await tester.pumpAndSettle();
     expect(api.savedSteps.single, ['Choose a course', 'Book a trial lesson']);
     expect(find.text('Added 2 steps to your list'), findsOneWidget);
+  });
+
+  testWidgets('sharing: join an invitation from the Projects tab', (
+    tester,
+  ) async {
+    final fake = FakeApi()..hasInvite = true;
+    await pumpApp(tester, signedIn: true, api: fake);
+    await goToTab(tester, 'Projects');
+    expect(find.text('Olu Owner invited you to Launch'), findsOneWidget);
+    await tester.tap(find.text('Join'));
+    await tester.pumpAndSettle();
+    expect(fake.answers.single, ('inv1', true));
+    // Opens the project it joined.
+    expect(find.text('People'), findsOneWidget);
+  });
+
+  testWidgets('sharing: people, invite by email, withdraw, remove', (
+    tester,
+  ) async {
+    final (api, _, _) = await pumpApp(tester, signedIn: true);
+    await goToTab(tester, 'Projects');
+    await tester.tap(find.text('Website redesign').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Jerry Mbawa (you)'), findsOneWidget);
+    expect(find.text('Ada Lovelace'), findsOneWidget);
+    // The task assigned to Ada says so.
+    final assignedToAda = find.byWidgetPredicate(
+      (w) => w is Semantics && w.properties.label == 'Assigned to Ada Lovelace',
+    );
+    final projectList = find
+        .descendant(
+          of: find.byType(ProjectScreen),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      assignedToAda,
+      200,
+      scrollable: projectList,
+    );
+    expect(assignedToAda, findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Invite'),
+      -400,
+      scrollable: projectList,
+    );
+
+    await tester.tap(find.text('Invite'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Their email'),
+      'jerry@example.com',
+    );
+    await tester.tap(find.text('Send invitation'));
+    await tester.pumpAndSettle();
+    expect(find.text("That's you."), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Their email'),
+      'grace@example.com',
+    );
+    await tester.tap(find.text('Send invitation'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('https://tasksmaster-ai.netlify.app/invites/abc123'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(api.invitedEmails, ['grace@example.com']);
+    expect(find.text('grace@example.com'), findsOneWidget);
+    await tester.tap(find.text('Withdraw'));
+    await tester.pumpAndSettle();
+    expect(api.invitedEmails, isEmpty);
+
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Remove').last);
+    await tester.pumpAndSettle();
+    expect(api.removed, ['u2']);
   });
 }
