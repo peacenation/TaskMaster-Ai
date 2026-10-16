@@ -66,8 +66,11 @@ export function AuthForm({
   update = false,
   googleEnabled = false,
   oauthError,
+  next = "/",
 }: {
   mode: "signin" | "signup" | "reset" | "magic";
+  /** Where to go after signing in (already checked with safeNext). */
+  next?: string;
   /** Reset, second step: signed in by the recovery link, choose a new password. */
   update?: boolean;
   googleEnabled?: boolean;
@@ -96,7 +99,9 @@ export function AuthForm({
       const { error } = await supabaseBrowser().auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: back("/auth/callback"),
+          redirectTo: back(
+            next === "/" ? "/auth/callback" : `/auth/callback?next=${encodeURIComponent(next)}`
+          ),
           queryParams: { prompt: "select_account" },
         },
       });
@@ -142,8 +147,7 @@ export function AuthForm({
         if (error) return setError(explain(error.code, "Could not sign in. Try again."));
         // A full page load, not router.push: it drops the client router cache,
         // so nothing rendered for a previous user survives the account change.
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-        return window.location.assign("/");
+        return window.location.assign(next);
       }
       if (mode === "magic") {
         const { error } = await auth.signInWithOtp({

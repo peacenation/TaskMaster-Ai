@@ -32,6 +32,8 @@ tags:
     description: Daily and weekly reviews.
   - name: Calendar
     description: Read-only calendar feeds that Today plans around.
+  - name: Sharing
+    description: Shared projects — invitations, members and assignment.
 paths:
   /api/v1/me:
     get:
@@ -985,6 +987,159 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/v1/projects/{id}/invites:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Sharing]
+      operationId: inviteToProject
+      summary: Invite someone to a project you own, by email
+      description: |
+        They see it in the app when they sign in with that email; the
+        returned link (shown once — only its hash is stored) is for sending
+        it yourself. 409 when you're not the owner, it's your own email, or
+        they're already on the project.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "201":
+          description: Invited
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, email, link]
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  email:
+                    type: string
+                  link:
+                    type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/projects/{id}/invites/{inviteId}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+      - name: inviteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags: [Sharing]
+      operationId: withdrawInvite
+      summary: Withdraw an invitation you sent
+      responses:
+        "200":
+          description: Withdrawn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/projects/{id}/members/{memberId}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+      - name: memberId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags: [Sharing]
+      operationId: removeMember
+      summary: Remove someone (owner), or leave (your own id)
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/invites:
+    get:
+      tags: [Sharing]
+      operationId: listInvites
+      summary: Open invitations to your email address
+      responses:
+        "200":
+          description: Invitations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [invites]
+                properties:
+                  invites:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Invitation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/invites/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Sharing]
+      operationId: answerInvite
+      summary: Accept or decline an invitation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [accept, decline]
+      responses:
+        "200":
+          description: Answered
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, projectId]
+                properties:
+                  ok:
+                    type: boolean
+                  projectId:
+                    type: [string, "null"]
+                    format: uuid
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "410":
+          description: Expired, answered already, or not for you
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   securitySchemes:
     bearerAuth:
@@ -1144,6 +1299,10 @@ components:
           description: When to chase; the task is out of the plan until then.
           type: [string, "null"]
           format: date-time
+        assigneeId:
+          description: Shared projects — the member it's assigned to.
+          type: [string, "null"]
+          format: uuid
     PlanItem:
       type: object
       required: [task, position, minutes, estimateIsDefault, protected, scheduledStart, scheduledEnd]
@@ -1574,6 +1733,10 @@ components:
           description: When to follow up (defaults to three days).
           type: [string, "null"]
           format: date-time
+        assigneeId:
+          description: A person on the task's project, or null (400 otherwise).
+          type: [string, "null"]
+          format: uuid
     Goal:
       type: object
       required: [id, title, targetDate, linked, active, completed, nudge, tasks]
@@ -1748,4 +1911,34 @@ components:
           type: string
           format: date-time
         allDay:
+          type: boolean
+    Invitation:
+      type: object
+      required: [id, projectName, inviterName, expiresAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        projectName:
+          type: string
+        inviterName:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    Person:
+      type: object
+      required: [id, name, email, role, isMe]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [owner, member]
+        isMe:
           type: boolean

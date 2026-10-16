@@ -38,6 +38,7 @@ let taskIdB: string;
 let planIdA: string;
 let planIdB: string;
 let feedIdA: string;
+let projectIdA: string;
 let fixtures: TableFixture[];
 
 async function runAsUser<T>(userId: string, fn: (tx: typeof appDb) => Promise<T>): Promise<T> {
@@ -49,7 +50,7 @@ async function runAsUser<T>(userId: string, fn: (tx: typeof appDb) => Promise<T>
 
 async function truncateAll() {
   await adminDb.execute(
-    sql`TRUNCATE TABLE users, goals, projects, brain_dumps, tasks, task_dependencies, task_events, recurrence_rules, plans, plan_items, ai_requests, calendar_feeds, calendar_events, product_events RESTART IDENTITY CASCADE`
+    sql`TRUNCATE TABLE users, goals, projects, brain_dumps, tasks, task_dependencies, task_events, recurrence_rules, plans, plan_items, ai_requests, calendar_feeds, calendar_events, product_events, project_members, project_invites RESTART IDENTITY CASCADE`
   );
 }
 
@@ -79,8 +80,29 @@ beforeAll(async () => {
   await adminDb.execute(
     sql`INSERT INTO goals (user_id, title) VALUES (${userA}, 'Goal A'), (${userB}, 'Goal B')`
   );
+  const projectRows = await adminDb.execute<{ id: string }>(
+    sql`INSERT INTO projects (user_id, name) VALUES (${userA}, 'Project A'), (${userB}, 'Project B') RETURNING id`
+  );
+  projectIdA = projectRows.rows[0].id;
+  const projectIdB = projectRows.rows[1].id;
+  // A third person's projects: A is a member of one, B of another, so each
+  // has a membership row of their own without ever sharing with each other.
+  const userC = (
+    await adminDb.execute<{ id: string }>(
+      sql`INSERT INTO users (name, email) VALUES ('Isolation Test C', 'isolation-c@test.local') RETURNING id`
+    )
+  ).rows[0].id;
+  const projectsC = await adminDb.execute<{ id: string }>(
+    sql`INSERT INTO projects (user_id, name) VALUES (${userC}, 'C for A'), (${userC}, 'C for B') RETURNING id`
+  );
   await adminDb.execute(
-    sql`INSERT INTO projects (user_id, name) VALUES (${userA}, 'Project A'), (${userB}, 'Project B')`
+    sql`INSERT INTO project_members (project_id, user_id) VALUES (${projectsC.rows[0].id}, ${userA}), (${projectsC.rows[1].id}, ${userB})`
+  );
+  // Unshared projects: A and B each have an invitation out to someone else.
+  await adminDb.execute(
+    sql`INSERT INTO project_invites (project_id, user_id, email, token_hash, expires_at)
+        VALUES (${projectIdA}, ${userA}, 'friend-a@test.local', 'hash-a', now() + interval '1 day'),
+               (${projectIdB}, ${userB}, 'friend-b@test.local', 'hash-b', now() + interval '1 day')`
   );
   await adminDb.execute(
     sql`INSERT INTO brain_dumps (user_id, raw_text) VALUES (${userA}, 'Dump A'), (${userB}, 'Dump B')`
@@ -168,6 +190,19 @@ beforeAll(async () => {
       insertAs: (uid) => sql`INSERT INTO ai_requests (user_id) VALUES (${uid})`,
     },
     {
+      table: "project_members",
+      ownerColumn: "user_id",
+      // A joining a project with no invitation for them.
+      insertAs: (uid) =>
+        sql`INSERT INTO project_members (project_id, user_id) VALUES (${projectIdA}, ${uid})`,
+    },
+    {
+      table: "project_invites",
+      ownerColumn: "user_id",
+      insertAs: (uid) =>
+        sql`INSERT INTO project_invites (project_id, user_id, email, token_hash, expires_at) VALUES (${projectIdA}, ${uid}, 'x@test.local', ${`hash-${uid}`}, now())`,
+    },
+    {
       table: "product_events",
       ownerColumn: "user_id",
       insertAs: (uid) => sql`INSERT INTO product_events (user_id, name) VALUES (${uid}, 'x')`,
@@ -217,7 +252,7 @@ describe("every user-scoped table has RLS enabled, forced, and a policy", () => 
       ORDER BY c.relname
     `);
 
-    expect(result.rows.length).toBe(14);
+    expect(result.rows.length).toBe(16);
     for (const row of result.rows) {
       expect(row.rowsecurity, `${row.tablename}.relrowsecurity`).toBe(true);
       expect(row.forcerowsecurity, `${row.tablename}.relforcerowsecurity`).toBe(true);
@@ -238,6 +273,8 @@ describe("cross-user access is blocked, per table, per operation", () => {
         "plan_items",
         "plans",
         "product_events",
+        "project_invites",
+        "project_members",
         "projects",
         "recurrence_rules",
         "task_dependencies",
@@ -284,6 +321,8 @@ describe("cross-user access is blocked, per table, per operation", () => {
       calendar_feeds: "label = label",
       calendar_events: "title = title",
       product_events: "name = name",
+      project_members: "created_at = created_at",
+      project_invites: "email = email",
     };
     for (const f of fixtures) {
       const result = await runAsUser(userA, (tx) =>

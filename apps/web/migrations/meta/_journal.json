@@ -106,6 +106,20 @@
       "when": 1792124213957,
       "tag": "0014_actual_minutes",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1792124699136,
+      "tag": "0015_shared_projects",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792124800252,
+      "tag": "0016_invite_names",
+      "breakpoints": true
     }
   ]
 }

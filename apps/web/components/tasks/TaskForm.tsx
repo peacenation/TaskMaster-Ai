@@ -25,6 +25,8 @@ export interface TaskFormValues {
   waitingOn: string;
   /** Follow-up date (YYYY-MM-DD) in the user's timezone, or "". */
   followUpDate: string;
+  /** Shared projects: the assignee's user id, or "". */
+  assigneeId: string;
 }
 
 export const EMPTY_TASK: TaskFormValues = {
@@ -41,6 +43,7 @@ export const EMPTY_TASK: TaskFormValues = {
   goal: "",
   waitingOn: "",
   followUpDate: "",
+  assigneeId: "",
 };
 
 const SCALE = [
@@ -56,10 +59,13 @@ export function TaskForm({
   task,
   projects,
   goals,
+  people = [],
 }: {
   task: TaskFormValues;
   projects: string[];
   goals: string[];
+  /** People on the task's project; shown when it's shared. */
+  people?: Array<{ id: string; name: string }>;
 }) {
   const [state, action, pending] = useActionState<TaskFormState, FormData>(saveTask, {});
   const projectListId = useId();
@@ -197,6 +203,18 @@ export function TaskForm({
               defaultValue={task.followUpDate}
             />
           </Field>
+          {people.length > 1 && (
+            <Field label="Assigned to" htmlFor="assigneeId">
+              <Select id="assigneeId" name="assigneeId" defaultValue={task.assigneeId}>
+                <option value="">Nobody yet</option>
+                {people.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
           <Field label="Status" htmlFor="status">
             <Select id="status" name="status" defaultValue={task.status}>
               <option value="inbox">Inbox</option>

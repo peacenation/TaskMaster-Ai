@@ -43,7 +43,10 @@ export async function proxy(request: NextRequest) {
   if (!signedIn) {
     if (path.startsWith("/api/"))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    return NextResponse.redirect(new URL("/signin", request.url));
+    // Come back here after signing in (e.g. an invitation link).
+    const signin = new URL("/signin", request.url);
+    if (path !== "/") signin.searchParams.set("next", path);
+    return NextResponse.redirect(signin);
   }
   return response();
 }

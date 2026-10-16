@@ -3,6 +3,7 @@ import { createPostgresTaskRepository } from "./postgres-task-repository";
 import { createAccountRepository } from "./account-repository";
 import { createCalendarRepository } from "./calendar-repository";
 import { createEventsRepository } from "./events-repository";
+import { createSharingRepository } from "./sharing-repository";
 import { createExecutionRepository } from "./execution-repository";
 import {
   createAiUsageRepository,
@@ -31,6 +32,7 @@ export function createRepositories(
     aiUsage: createAiUsageRepository(db, userId),
     calendar: createCalendarRepository(db, userId),
     events: createEventsRepository(db, userId),
+    sharing: createSharingRepository(db, userId),
   };
 }
 

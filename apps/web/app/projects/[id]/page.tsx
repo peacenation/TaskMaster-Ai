@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { saveProjectOutcome } from "@/app/actions/projects";
 import { setTaskStatus } from "@/app/actions/tasks";
+import { PeopleSection } from "@/components/sharing/PeopleSection";
 import { EmptyState } from "@/components/ui";
 import { withRepositories } from "@/lib/repo";
 import { getCurrentUserId, getTimeZone } from "@/lib/server/session";
@@ -19,11 +20,20 @@ export default async function ProjectDetailPage({
   if (!z.string().uuid().safeParse(id).success) notFound();
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
-  const data = await withRepositories(userId, async (repos) => ({
-    project: await repos.projects.get(id),
-    tasks: await repos.tasks.list(),
-  }));
+  const data = await withRepositories(userId, async (repos) => {
+    const project = await repos.projects.get(id);
+    return {
+      project,
+      tasks: project ? await repos.tasks.visible() : [],
+      people: project ? await repos.sharing.people(id) : [],
+      pending: project?.ownerId === userId ? await repos.sharing.pendingFor(id) : [],
+    };
+  });
   if (!data.project) notFound();
+  const isOwner = data.project.ownerId === userId;
+  const nameOf = new Map(
+    data.people.map((p) => [p.userId, p.userId === userId ? "you" : p.name])
+  );
   const tasks = data.tasks.filter(
     (task) =>
       task.projectId === id && task.source !== "recurrence" && task.status !== "dropped"
@@ -43,33 +53,42 @@ export default async function ProjectDetailPage({
         </p>
         <progress aria-label="Project task completion" max={100} value={percent} />
       </header>
-      <section>
-        <h2>Outcome</h2>
-        <form action={saveProjectOutcome} className="task-form">
-          <input type="hidden" name="id" value={id} />
-          <label className="field" htmlFor="description">
-            <span>What does finished look like?</span>
-            <textarea
-              id="description"
-              name="description"
-              maxLength={2000}
-              defaultValue={data.project.description ?? ""}
-            />
-          </label>
-          <label className="field" htmlFor="dueDate">
-            <span>Target date</span>
-            <input
-              id="dueDate"
-              name="dueDate"
-              type="date"
-              defaultValue={data.project.dueDate ?? ""}
-            />
-          </label>
-          <button type="submit" className="btn btn-primary">
-            Save outcome
-          </button>
-        </form>
-      </section>
+      <PeopleSection
+        projectId={id}
+        people={data.people}
+        pending={data.pending}
+        me={userId}
+        isOwner={isOwner}
+      />
+      {isOwner && (
+        <section>
+          <h2>Outcome</h2>
+          <form action={saveProjectOutcome} className="task-form">
+            <input type="hidden" name="id" value={id} />
+            <label className="field" htmlFor="description">
+              <span>What does finished look like?</span>
+              <textarea
+                id="description"
+                name="description"
+                maxLength={2000}
+                defaultValue={data.project.description ?? ""}
+              />
+            </label>
+            <label className="field" htmlFor="dueDate">
+              <span>Target date</span>
+              <input
+                id="dueDate"
+                name="dueDate"
+                type="date"
+                defaultValue={data.project.dueDate ?? ""}
+              />
+            </label>
+            <button type="submit" className="btn btn-primary">
+              Save outcome
+            </button>
+          </form>
+        </section>
+      )}
       <section>
         <h2>Tasks</h2>
         {tasks.length === 0 ? (
@@ -85,6 +104,9 @@ export default async function ProjectDetailPage({
                 <span className="review-item-text">
                   <Link href={`/tasks/${task.id}`}>{task.title}</Link>
                   <span className="field-hint"> · {task.status.replaceAll("_", " ")}</span>
+                  {task.assigneeId && nameOf.has(task.assigneeId) && (
+                    <span className="field-hint"> · for {nameOf.get(task.assigneeId)}</span>
+                  )}
                   {task.dueAt && (
                     <span className="field-hint">
                       {" "}

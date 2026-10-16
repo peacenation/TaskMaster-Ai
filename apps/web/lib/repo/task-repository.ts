@@ -37,6 +37,8 @@ export interface TaskRecord {
   followUpAt: Date | null;
   /** Minutes from starting to completing it, when it was started. */
   actualMinutes: number | null;
+  /** Shared projects: the member who should do it, or null. */
+  assigneeId: string | null;
   createdAt: Date;
   updatedAt: Date;
   completedAt: Date | null;
@@ -53,8 +55,13 @@ export interface TaskDependency {
 }
 
 export interface TaskRepository {
-  /** The user's tasks, oldest first, optionally filtered by status. */
+  /**
+   * The user's tasks — their own, plus tasks in shared projects assigned to
+   * them — oldest first, optionally filtered by status.
+   */
   list(filter?: { statuses?: TaskStatus[] }): Promise<TaskRecord[]>;
+  /** Every task the user can see, including all tasks in shared projects. */
+  visible(): Promise<TaskRecord[]>;
   get(id: string): Promise<TaskRecord | undefined>;
   create(input: NewTask): Promise<TaskRecord>;
   /** Throws if the task doesn't exist (or isn't this user's). */
@@ -87,5 +94,6 @@ export const TASK_DEFAULTS: Omit<Editable, "title"> = {
   waitingSince: null,
   followUpAt: null,
   actualMinutes: null,
+  assigneeId: null,
   completedAt: null,
 };

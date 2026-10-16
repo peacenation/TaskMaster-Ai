@@ -41,6 +41,11 @@ async function main() {
       await pool.query(
         `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${APP_ROLE}`
       );
+      // Access-check functions (migration 0015) are revoked from PUBLIC so
+      // Supabase's API roles can't call them; the app role needs them.
+      await pool.query(
+        `GRANT EXECUTE ON FUNCTION can_access_project(uuid), app_current_user_email(), project_people(uuid) TO ${APP_ROLE}`
+      );
     }
     if (!present.has(APP_ROLE)) {
       console.warn(

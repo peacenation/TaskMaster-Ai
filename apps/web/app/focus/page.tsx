@@ -22,7 +22,7 @@ export default async function FocusPage({
     const records = await repos.tasks.list();
     const dependencies = await repos.tasks.dependencies();
     const today = buildToday(
-      toPlannable(records, dependencies),
+      toPlannable(records, dependencies, userId),
       { now, timeZone },
       240,
       await repos.users.nextTaskId()

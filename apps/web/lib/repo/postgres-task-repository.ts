@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, or } from "drizzle-orm";
 import type { AppDb } from "@/lib/db/client";
 import { taskDependencies, tasks } from "@/lib/db/schema";
 import { TASK_DEFAULTS, type TaskRecord, type TaskRepository } from "./task-repository";
@@ -29,6 +29,7 @@ function toRecord(row: TaskRow): TaskRecord {
     waitingSince: row.waitingSince,
     followUpAt: row.followUpAt,
     actualMinutes: row.actualMinutes,
+    assigneeId: row.assigneeId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     completedAt: row.completedAt,
@@ -44,13 +45,19 @@ function toRecord(row: TaskRow): TaskRecord {
 export function createPostgresTaskRepository(db: AppDb, userId: string): TaskRepository {
   return {
     async list(filter) {
-      const conditions = [eq(tasks.userId, userId)];
+      const conditions = [or(eq(tasks.userId, userId), eq(tasks.assigneeId, userId))!];
       if (filter?.statuses) conditions.push(inArray(tasks.status, filter.statuses));
       const rows = await db
         .select()
         .from(tasks)
         .where(and(...conditions))
         .orderBy(asc(tasks.createdAt), asc(tasks.id));
+      return rows.map(toRecord);
+    },
+
+    async visible() {
+      // RLS decides: own rows, plus every task in a project shared with you.
+      const rows = await db.select().from(tasks).orderBy(asc(tasks.createdAt), asc(tasks.id));
       return rows.map(toRecord);
     },
 
@@ -85,6 +92,7 @@ export function createPostgresTaskRepository(db: AppDb, userId: string): TaskRep
           waitingSince: merged.waitingSince,
           followUpAt: merged.followUpAt,
           actualMinutes: merged.actualMinutes,
+          assigneeId: merged.assigneeId,
           completedAt: merged.completedAt,
         })
         .returning();

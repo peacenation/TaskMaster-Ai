@@ -82,7 +82,7 @@ export async function loadToday(
       ...query,
     });
     const today = buildToday(
-      toPlannable(records, dependencies),
+      toPlannable(records, dependencies, userId),
       {
         now,
         timeZone,
@@ -245,7 +245,7 @@ export async function rebuildToday(
     if ((await repos.execution.recovery(now)).length) throw new RecoveryPendingError();
     const { start, end } = dayRange(localDate(now, timeZone), timeZone);
     const today = buildToday(
-      toPlannable(await repos.tasks.list(), await repos.tasks.dependencies()),
+      toPlannable(await repos.tasks.list(), await repos.tasks.dependencies(), userId),
       { now, timeZone, availableMinutes: settings.availableMinutes, energy: settings.energy },
       settings.dayMinutes,
       await repos.users.nextTaskId(),

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { zonedTimeToUtc } from "@/lib/domain/dates";
 import { waitingPatch } from "@/lib/domain/waiting";
 import { trackStatus } from "@/lib/execution/operations";
+import { canAssign } from "@/lib/server/sharing";
 import { withRepositories } from "@/lib/repo";
 import type { TaskEventType } from "@/lib/repo/postgres-repositories";
 import { getCurrentUserId, getTimeZone } from "@/lib/server/session";
@@ -40,6 +41,7 @@ const taskFormSchema = z.object({
   project: optional(z.string().trim().max(200)),
   goal: optional(z.string().trim().max(200)),
   waitingOn: optional(z.string().trim().max(200)),
+  assigneeId: optional(z.string().uuid()),
   followUpDate: optional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid date")),
 });
 
@@ -65,14 +67,31 @@ export async function saveTask(
     for (const issue of parsed.error.issues) errors[String(issue.path[0])] ??= issue.message;
     return { errors };
   }
-  const { id, dueLocal, project, goal, waitingOn, followUpDate, ...fields } = parsed.data;
+  const { id, dueLocal, project, goal, waitingOn, followUpDate, assigneeId, ...fields } =
+    parsed.data;
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
 
   try {
     await withRepositories(userId, async (repos) => {
-      const projectRecord = project ? await repos.projects.findOrCreate(project) : null;
-      const goalRecord = goal ? await repos.goals.findOrCreate({ title: goal }) : null;
+      // Someone else's task in a shared project: its project and goal stay
+      // the owner's call, so keep them rather than looking names up as ours.
+      const existing = id ? await repos.tasks.get(id) : undefined;
+      const theirs = !!existing && existing.userId !== userId;
+      const projectRecord = theirs
+        ? existing.projectId
+          ? { id: existing.projectId }
+          : null
+        : project
+          ? await repos.projects.findOrCreate(project)
+          : null;
+      const goalRecord = theirs
+        ? existing.goalId
+          ? { id: existing.goalId }
+          : null
+        : goal
+          ? await repos.goals.findOrCreate({ title: goal })
+          : null;
       const followUpAt = followUpDate ? toUtc(`${followUpDate}T09:00`, timeZone) : undefined;
       const values = {
         ...fields,
@@ -84,6 +103,9 @@ export async function saveTask(
       if (id) {
         const before = await repos.tasks.get(id);
         if (!before) throw new Error("not_found");
+        // Shared projects: only people on the task's project can be assigned.
+        if (!(await canAssign(repos, values.projectId, assigneeId)))
+          throw new Error("bad_assignee");
         // Still waiting on the same person: keep when it started.
         const waiting =
           waitingOn && before.waitingOn === waitingOn
@@ -94,6 +116,7 @@ export async function saveTask(
         await repos.tasks.update(id, {
           ...values,
           ...waiting,
+          assigneeId,
           // Keep the original completion time if it was already done.
           completedAt:
             fields.status === "completed" ? (before.completedAt ?? new Date()) : null,

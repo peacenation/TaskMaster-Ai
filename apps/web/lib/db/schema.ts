@@ -190,6 +190,10 @@ export const tasks = pgTable(
     // How long it really took, from starting to completing it (when both
     // happened). Feeds learned estimates (lib/domain/learning.ts).
     actualMinutes: integer("actual_minutes"),
+    // Shared projects: who should do it (a project member), or null.
+    assigneeId: uuid("assignee_id").references((): AnyPgColumn => users.id, {
+      onDelete: "set null",
+    }),
     // clock_timestamp(), not now(): now() is the *transaction's* start time,
     // so every task in a Brain Dump commit would tie, and "oldest first"
     // would fall back to random UUID order instead of the reviewed order.
@@ -400,5 +404,57 @@ export const productEvents = pgTable(
     index("product_events_name_time_idx").on(table.name, table.occurredAt),
     index("product_events_user_id_idx").on(table.userId),
     unique("product_events_user_dedupe_unique").on(table.userId, table.dedupeKey),
+  ]
+);
+
+// Shared projects (PRD §4.1 Lightweight Delegation, §5.2 Enhanced
+// Collaboration). The owner is projects.user_id; everyone else who can see
+// a project is a row here. Access is enforced by RLS through
+// can_access_project() (migration 0015), never only in application code.
+export const projectMembers = pgTable(
+  "project_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("project_members_project_user_unique").on(table.projectId, table.userId),
+    index("project_members_user_id_idx").on(table.userId),
+  ]
+);
+
+// An invitation to a shared project, by email. The invitee sees it in the
+// app when they sign in with that email, or follows the link; only a hash
+// of the link's token is stored. user_id is the inviter.
+export const projectInvites = pgTable(
+  "project_invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    // Snapshots, so the invitee (not yet a member, so unable to read the
+    // project or the inviter's profile) can see what they're joining.
+    projectName: text("project_name").notNull().default(""),
+    inviterName: text("inviter_name").notNull().default(""),
+    tokenHash: text("token_hash").notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    declinedAt: timestamp("declined_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("project_invites_project_id_idx").on(table.projectId),
+    index("project_invites_email_idx").on(table.email),
   ]
 );

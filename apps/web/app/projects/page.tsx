@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { setTaskStatus } from "@/app/actions/tasks";
+import { InvitationsCard } from "@/components/sharing/InvitationsCard";
 import { EmptyState } from "@/components/ui";
 import { withRepositories } from "@/lib/repo";
 import type { TaskRecord } from "@/lib/repo/task-repository";
@@ -34,19 +35,24 @@ function TaskRow({ task, timeZone }: { task: TaskRecord; timeZone: string }) {
 export default async function ProjectsPage() {
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
-  const { open, postponed, projects } = await withRepositories(userId, async (repos) => ({
-    open: (await repos.tasks.list({ statuses: ["todo", "in_progress"] })).filter(
-      (task) => task.source !== "recurrence"
-    ),
-    postponed: (await repos.tasks.list({ statuses: ["postponed"] })).filter(
-      (task) => task.source !== "recurrence"
-    ),
-    projects: await repos.projects.list(),
-  }));
+  const { open, postponed, projects, invites } = await withRepositories(
+    userId,
+    async (repos) => {
+      // Everything visible: your tasks plus everyone's in shared projects.
+      const visible = (await repos.tasks.visible()).filter((t) => t.source !== "recurrence");
+      return {
+        open: visible.filter((t) => t.status === "todo" || t.status === "in_progress"),
+        postponed: visible.filter((t) => t.status === "postponed"),
+        projects: await repos.projects.list(),
+        invites: await repos.sharing.mine(),
+      };
+    }
+  );
+  const shared = new Set(projects.filter((p) => p.ownerId !== userId).map((p) => p.id));
 
   const groups = [
     ...projects.map((p) => ({
-      name: p.name,
+      name: shared.has(p.id) ? `${p.name} (shared with you)` : p.name,
       tasks: open.filter((t) => t.projectId === p.id),
     })),
     { name: "No project", tasks: open.filter((t) => t.projectId === null) },
@@ -67,6 +73,7 @@ export default async function ProjectsPage() {
         </div>
       </header>
 
+      <InvitationsCard invites={invites} />
       {open.length === 0 && postponed.length === 0 && (
         <EmptyState title="No tasks yet" description="Create one, or start a Brain Dump." />
       )}

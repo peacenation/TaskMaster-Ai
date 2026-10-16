@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { withRepositories } from "@/lib/repo";
 import { ApiError, apiRoute, json, toTaskDto } from "@/lib/server/api";
+import { peopleDto } from "@/lib/server/sharing";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +13,18 @@ export const GET = apiRoute(
       .uuid()
       .safeParse((await params).id);
     if (!id.success) throw new ApiError(404, "Project not found.");
-    const { project, records } = await withRepositories(userId, async (repos) => ({
-      project: (await repos.projects.list()).find((p) => p.id === id.data),
-      records: await repos.tasks.list(),
-    }));
+    const { project, records, people, pending } = await withRepositories(
+      userId,
+      async (repos) => {
+        const project = await repos.projects.get(id.data);
+        return {
+          project,
+          records: project ? await repos.tasks.visible() : [],
+          people: project ? await repos.sharing.people(id.data) : [],
+          pending: project?.ownerId === userId ? await repos.sharing.pendingFor(id.data) : [],
+        };
+      }
+    );
     if (!project) throw new ApiError(404, "Project not found.");
     const names = new Map([[project.id, project.name]]);
     const tasks = records.filter(
@@ -37,6 +46,13 @@ export const GET = apiRoute(
       inProgress: pick("in_progress"),
       todo: pick("todo"),
       postponed: pick("postponed"),
+      role: project.ownerId === userId ? "owner" : "member",
+      people: peopleDto(people, userId),
+      invites: pending.map((i) => ({
+        id: i.id,
+        email: i.email,
+        expiresAt: i.expiresAt.toISOString(),
+      })),
     });
   }
 );

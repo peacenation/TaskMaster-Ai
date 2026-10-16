@@ -4,9 +4,14 @@ import type { TaskDependency, TaskRecord } from "@/lib/repo/task-repository";
 
 // Small server-side adapters between stored records and what pages render.
 
+/**
+ * Records → what the planner ranks. With `userId`, tasks assigned to
+ * someone else (shared projects) are left out: they're theirs to do.
+ */
 export function toPlannable(
   records: TaskRecord[],
-  dependencies: TaskDependency[]
+  dependencies: TaskDependency[],
+  userId?: string
 ): PlannableTask[] {
   const dependsOn = new Map<string, string[]>();
   for (const { taskId, dependsOnTaskId } of dependencies) {
@@ -14,6 +19,7 @@ export function toPlannable(
   }
   return records
     .filter((record) => record.source !== "recurrence")
+    .filter((record) => !userId || !record.assigneeId || record.assigneeId === userId)
     .map((r) => ({
       id: r.id,
       title: r.title,

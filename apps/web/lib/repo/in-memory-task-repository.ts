@@ -76,6 +76,10 @@ export function createInMemoryTaskRepository(
         .map(({ taskId, dependsOnTaskId }) => ({ taskId, dependsOnTaskId }));
     },
 
+    async visible() {
+      return mine();
+    },
+
     async durationSamples(limit = 30) {
       return mine()
         .filter((t) => t.actualMinutes !== null)

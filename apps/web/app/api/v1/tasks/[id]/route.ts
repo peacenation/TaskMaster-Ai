@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { breakdownTask } from "@/lib/domain/breakdown";
 import { waitingPatch } from "@/lib/domain/waiting";
+import { canAssign, peopleDto } from "@/lib/server/sharing";
 import { withRepositories } from "@/lib/repo";
 import { ApiError, apiRoute, json, readJson, toTaskDto } from "@/lib/server/api";
 
@@ -32,9 +33,10 @@ export const GET = apiRoute(async ({ userId }, _request, context: Params) => {
       goals: await repos.goals.list(),
       children: await repos.execution.children(id),
       events: await repos.execution.events(id),
+      people: task.projectId ? await repos.sharing.people(task.projectId) : [],
     };
   });
-  const { task, projects, goals, children, events } = data;
+  const { task, projects, goals, children, events, people } = data;
   const names = new Map(projects.map((p) => [p.id, p.name]));
   const goal = goals.find((g) => g.id === task.goalId);
   const canBreakDown =
@@ -62,6 +64,9 @@ export const GET = apiRoute(async ({ userId }, _request, context: Params) => {
       at: event.occurredAt.toISOString(),
     })),
     projects: projects.map((p) => ({ id: p.id, name: p.name })),
+    // Who it can be assigned to: the people on its project (shared or not).
+    people: people.length > 1 ? peopleDto(people, userId) : [],
+    mine: task.userId === userId,
     goals: goals.map((g) => ({ id: g.id, title: g.title })),
   });
 });
@@ -85,6 +90,8 @@ const patchSchema = z
     // and when to chase (defaults to three days).
     waitingOn: z.string().trim().max(200).nullable(),
     followUpAt: z.iso.datetime({ offset: true }).nullable(),
+    // Shared projects: a member of the task's project, or null.
+    assigneeId: z.string().uuid().nullable(),
   })
   .partial();
 
@@ -94,10 +101,17 @@ export const PATCH = apiRoute(async ({ userId }, request, context: Params) => {
   const id = await taskId(context);
   const parsed = patchSchema.safeParse(await readJson(request));
   if (!parsed.success) throw new ApiError(400, "Check the task details and try again.");
-  const { project, goal, dueAt, description, waitingOn, followUpAt, ...fields } = parsed.data;
+  const { project, goal, dueAt, description, waitingOn, followUpAt, assigneeId, ...fields } =
+    parsed.data;
   const { task, names } = await withRepositories(userId, async (repos) => {
     const before = await repos.tasks.get(id);
     if (!before) throw new ApiError(404, "Task not found.");
+    // Someone else's task in a shared project: work on it, but its project
+    // and goal stay the owner's call.
+    if (before.userId !== userId && (project !== undefined || goal !== undefined))
+      throw new ApiError(403, "Only the person who created this task can move it.");
+    if (assigneeId !== undefined && !(await canAssign(repos, before.projectId, assigneeId)))
+      throw new ApiError(400, "They need to be on this task's project first.");
     const followUp =
       followUpAt === undefined ? undefined : followUpAt === null ? null : new Date(followUpAt);
     const waiting =
@@ -118,6 +132,7 @@ export const PATCH = apiRoute(async ({ userId }, request, context: Params) => {
       ...(project !== undefined ? { projectId: projectRecord?.id ?? null } : {}),
       ...(goal !== undefined ? { goalId: goalRecord?.id ?? null } : {}),
       ...waiting,
+      ...(assigneeId !== undefined ? { assigneeId } : {}),
     });
     if (waitingOn && !before.waitingOn)
       await repos.events.track("waiting_marked", { task_id: id });

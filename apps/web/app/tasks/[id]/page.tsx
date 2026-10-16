@@ -18,7 +18,7 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
 
   const userId = await getCurrentUserId();
   const timeZone = await getTimeZone();
-  const { task, projects, goals, children, events } = await withRepositories(
+  const { task, projects, goals, children, events, people } = await withRepositories(
     userId,
     async (repos) => ({
       task: await repos.tasks.get(id),
@@ -26,6 +26,9 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
       goals: await repos.goals.list(),
       children: await repos.execution.children(id),
       events: await repos.execution.events(id),
+      people: await repos.tasks
+        .get(id)
+        .then((t) => (t?.projectId ? repos.sharing.people(t.projectId) : [])),
     })
   );
   if (!task) notFound();
@@ -58,6 +61,7 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
       <TaskForm
         projects={projects.map((p) => p.name)}
         goals={goals.map((goal) => goal.title)}
+        people={people.map((p) => ({ id: p.userId, name: p.name }))}
         task={{
           id: task.id,
           title: task.title,
@@ -72,6 +76,7 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
           project: projects.find((p) => p.id === task.projectId)?.name ?? "",
           goal: goals.find((goal) => goal.id === task.goalId)?.title ?? "",
           waitingOn: task.waitingOn ?? "",
+          assigneeId: task.assigneeId ?? "",
           followUpDate: task.followUpAt
             ? toLocalInput(task.followUpAt, timeZone).slice(0, 10)
             : "",

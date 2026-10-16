@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { AppDb } from "@/lib/db/client";
 import {
   aiRequests,
@@ -88,6 +88,8 @@ export interface ProjectRecord {
   name: string;
   description: string | null;
   dueDate: string | null;
+  /** Who owns it; anyone else seeing it is a member of a shared project. */
+  ownerId: string;
 }
 
 export interface GoalRecord {
@@ -114,6 +116,7 @@ const projectColumns = {
   name: projects.name,
   description: projects.description,
   dueDate: projects.dueDate,
+  ownerId: projects.userId,
 };
 
 export function createProjectRepository(db: AppDb, userId: string) {
@@ -122,7 +125,12 @@ export function createProjectRepository(db: AppDb, userId: string) {
       return db
         .select(projectColumns)
         .from(projects)
-        .where(and(eq(projects.userId, userId), eq(projects.status, "active")))
+        .where(
+          and(
+            or(eq(projects.userId, userId), sql`can_access_project(${projects.id})`),
+            eq(projects.status, "active")
+          )
+        )
         .orderBy(projects.name);
     },
 
@@ -130,7 +138,12 @@ export function createProjectRepository(db: AppDb, userId: string) {
       const rows = await db
         .select(projectColumns)
         .from(projects)
-        .where(and(eq(projects.id, id), eq(projects.userId, userId)))
+        .where(
+          and(
+            eq(projects.id, id),
+            or(eq(projects.userId, userId), sql`can_access_project(${projects.id})`)
+          )
+        )
         .limit(1);
       return rows[0];
     },

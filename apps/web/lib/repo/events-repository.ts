@@ -17,7 +17,9 @@ export type ProductEventName =
   | "planner_applied"
   | "calendar_connected"
   | "waiting_marked"
-  | "goal_steps_saved";
+  | "goal_steps_saved"
+  | "project_invite_sent"
+  | "project_joined";
 
 /** Counts, flags and ids only — never task or Brain Dump text. */
 export type EventProperties = Record<string, string | number | boolean | null>;
