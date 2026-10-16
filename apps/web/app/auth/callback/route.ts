@@ -8,7 +8,9 @@ import { supabaseServer } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
   const next = safeNext(url.searchParams.get("next"));
-  const back = next === "/settings" ? "/settings" : "/signin";
+  // Settings pages (Connect Google, confirm before deleting) get their
+  // errors back where they started.
+  const back = next === "/settings" || next.startsWith("/settings/") ? next : "/signin";
   const providerError = url.searchParams.get("error_code") ?? url.searchParams.get("error");
   if (providerError)
     return NextResponse.redirect(

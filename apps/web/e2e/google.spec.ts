@@ -42,7 +42,7 @@ test("a failed return from Google or an email link is explained", async ({ page 
 
 test("Settings shows sign-in methods and Connect Google", async ({ page }, info) => {
   await signUp(page, uniqueEmail("google", info.project.name));
-  await page.goto("/settings");
+  await page.goto("/settings/security");
   const methods = page.locator("section", {
     has: page.getByRole("heading", { name: "Sign-in methods" }),
   });
@@ -50,6 +50,7 @@ test("Settings shows sign-in methods and Connect Google", async ({ page }, info)
   await expect(methods).toContainText("Not connected");
   await expect(methods.getByRole("button", { name: "Connect Google" })).toBeVisible();
   // A password account still deletes with its password, not a Google step.
+  await page.goto("/settings/data");
   await expect(page.getByLabel("Current password")).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm with Google" })).toHaveCount(0);
 });

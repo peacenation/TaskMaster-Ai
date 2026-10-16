@@ -2,13 +2,15 @@
 import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui";
-export function SignOut() {
+import { SignOutIcon } from "@/components/shell/icons";
+export function SignOut({ className, withIcon }: { className?: string; withIcon?: boolean }) {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   return (
     <>
       <Button
         variant="secondary"
+        className={className}
         disabled={pending}
         onClick={async () => {
           setPending(true);
@@ -25,6 +27,7 @@ export function SignOut() {
           }
         }}
       >
+        {withIcon && <SignOutIcon size={18} />}
         Sign out
       </Button>
       {error && <p role="alert">{error}</p>}
