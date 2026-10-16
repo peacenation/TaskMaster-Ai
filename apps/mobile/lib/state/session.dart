@@ -4,6 +4,7 @@ import '../api/client.dart';
 import '../api/models.dart';
 import '../auth/auth_gateway.dart';
 import 'dictation.dart';
+import 'home_widget.dart';
 import 'reminders.dart';
 
 enum SessionState { loading, signedOut, signedIn }
@@ -16,6 +17,7 @@ class Session extends ChangeNotifier {
     required this.auth,
     this.reminders = const NoReminders(),
     this.dictation,
+    this.homeWidget = const NoHomeScreenWidget(),
   });
 
   final TaskMasterApi api;
@@ -25,13 +27,17 @@ class Session extends ChangeNotifier {
   /// Speech-to-text for Brain Dump; null where it isn't available.
   final Dictation? dictation;
 
+  /// The Android home-screen widget.
+  final HomeScreenWidget homeWidget;
+
   bool get remindersOn => me?.preferences.notifications != 'off';
 
   /// Today, with this device's reminders rescheduled to match it.
   Future<Today> loadToday() async {
     final today = await api.today();
-    // Not awaited: reminders never hold up Today.
+    // Not awaited: reminders and the widget never hold up Today.
     reminders.sync(today, enabled: remindersOn);
+    homeWidget.show(today);
     return today;
   }
 
@@ -101,6 +107,7 @@ class Session extends ChangeNotifier {
 
   void _signedOut() {
     reminders.clear();
+    homeWidget.clear();
     // Cached data and the offline queue belong to the account signing out.
     api.clearOfflineData();
     me = null;

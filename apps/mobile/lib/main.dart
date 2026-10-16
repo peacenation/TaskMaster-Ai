@@ -13,6 +13,7 @@ import 'config.dart';
 import 'state/appearance.dart';
 import 'state/crash_reports.dart';
 import 'state/dictation.dart';
+import 'state/home_widget.dart';
 import 'state/reminders.dart';
 import 'state/session.dart';
 
@@ -72,6 +73,7 @@ Future<void> main() async {
     auth: auth,
     reminders: LocalReminders(timeZone: timeZone),
     dictation: DeviceDictation(),
+    homeWidget: AndroidHomeScreenWidget(),
   );
   final appearance = Appearance(SecureAppearanceStore());
   await appearance.load();
