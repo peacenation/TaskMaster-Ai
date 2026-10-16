@@ -54,7 +54,13 @@ async function main() {
 }
 
 main().catch((error) => {
-  // The message names the failing statement, never a credential.
+  // The message names the failing statement, never a credential. Drizzle
+  // wraps the database error, so show its cause (e.g. a wrong password or
+  // certificate) — Postgres error text never includes the password.
   console.error(error instanceof Error ? error.message : error);
+  const cause =
+    error instanceof Error ? (error.cause as { message?: string; code?: string }) : null;
+  if (cause?.message)
+    console.error(`Cause: ${cause.message}${cause.code ? ` (${cause.code})` : ""}`);
   process.exit(1);
 });
