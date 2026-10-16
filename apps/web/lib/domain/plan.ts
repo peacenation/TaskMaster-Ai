@@ -1,3 +1,4 @@
+import { plannedMinutes, type LearnedEstimates } from "./learning";
 import { prioritize, type Reason, type ScoredTask } from "./prioritize";
 import type { PlannableTask, PlanningContext } from "./task";
 
@@ -28,6 +29,8 @@ export interface PlanOptions {
   startAt?: Date;
   /** Scheduled mode: busy time (calendar events) blocks are placed around. */
   busy?: ReadonlyArray<{ start: Date; end: Date }>;
+  /** What's been learned about this person's real durations (lib/domain/learning.ts). */
+  learned?: LearnedEstimates;
 }
 
 export interface PlanItem {
@@ -139,7 +142,10 @@ export function buildPlan(
   const actionable = ranked.filter((s) => !s.blocked);
   const blocked = ranked.filter((s) => s.blocked);
 
-  const minutesOf = (s: ScoredTask) => s.task.estimatedMinutes ?? defaultEstimate;
+  const minutesOf = (s: ScoredTask) =>
+    options.learned
+      ? plannedMinutes(s.task.estimatedMinutes, options.learned)
+      : (s.task.estimatedMinutes ?? defaultEstimate);
   const usable =
     options.availableMinutes !== undefined
       ? Math.floor(options.availableMinutes * (1 - bufferRatio))

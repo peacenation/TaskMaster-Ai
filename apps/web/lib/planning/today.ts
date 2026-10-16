@@ -4,6 +4,7 @@ import { buildPlan, PLAN_DEFAULTS } from "@/lib/domain/plan";
 import { prioritize } from "@/lib/domain/prioritize";
 import type { PlannableTask, PlanningContext } from "@/lib/domain/task";
 import { isParked } from "@/lib/domain/waiting";
+import { NO_LEARNING, type LearnedEstimates } from "@/lib/domain/learning";
 
 const minutes = z.coerce.number().int().min(1).max(1440);
 export const todaySettingsSchema = z.object({
@@ -42,7 +43,9 @@ export function buildToday(
   dayMinutes: number,
   chosenId: string | null,
   /** Today's timed calendar events: their time comes out of the day, and blocks go around them. */
-  busy: ReadonlyArray<BusyTime> = []
+  busy: ReadonlyArray<BusyTime> = [],
+  /** Learned real durations; plans use estimates as given until there's evidence. */
+  learned: LearnedEstimates = NO_LEARNING
 ) {
   // Inbox and postponed work can block dependencies, but aren't candidates for today.
   const blockers = new Set(
@@ -82,6 +85,7 @@ export function buildToday(
     mode: "scheduled",
     availableMinutes: Math.max(0, dayMinutes - meetingMinutes),
     busy,
+    learned,
   });
   return {
     recommendation,
@@ -91,6 +95,7 @@ export function buildToday(
     ranked: prioritize(actionable, context),
     blocked: candidates.filter((task) => blockedIds.has(task.id)),
     meetingMinutes,
+    learned,
     bufferMinutes:
       (plan.capacity.availableMinutes ?? dayMinutes) -
       (plan.capacity.usableMinutes ?? dayMinutes),

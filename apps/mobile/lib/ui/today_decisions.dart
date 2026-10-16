@@ -355,6 +355,13 @@ class CapacityCard extends StatelessWidget {
               color: today.overloaded ? tm.danger : null,
             ),
           ),
+          if (today.learnedSummary != null) ...[
+            const SizedBox(height: Tm.s2),
+            Text(
+              today.learnedSummary!,
+              style: TextStyle(color: tm.aiText, fontSize: 13),
+            ),
+          ],
           const SizedBox(height: Tm.s2),
           Text(
             [

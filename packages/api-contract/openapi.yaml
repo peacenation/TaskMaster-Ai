@@ -1388,6 +1388,22 @@ components:
         meetingMinutes:
           description: Meeting time still ahead today, already taken out of capacity.
           type: integer
+        learned:
+          description: |
+            Learned estimates: from started-then-completed tasks. The plan
+            multiplies estimates by `factor` and uses `typicalMinutes` for
+            unestimated tasks, once there are enough samples.
+          type: object
+          required: [factor, typicalMinutes, samples, summary]
+          properties:
+            factor:
+              type: number
+            typicalMinutes:
+              type: integer
+            samples:
+              type: integer
+            summary:
+              type: [string, "null"]
         followUps:
           description: Waiting On tasks whose follow-up date has come.
           type: array

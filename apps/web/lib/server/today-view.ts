@@ -4,6 +4,7 @@ import { localDate } from "@/lib/execution/date";
 import { buildToday, todaySettingsSchema } from "@/lib/planning/today";
 import { realityCheckSummary } from "@/lib/domain/reality-check";
 import { isFollowUpDue } from "@/lib/domain/waiting";
+import { learnEstimates, plannedMinutes } from "@/lib/domain/learning";
 import { withRepositories, type Repositories } from "@/lib/repo";
 import type { TaskRecord } from "@/lib/repo/task-repository";
 import { toPlannable } from "@/lib/server/views";
@@ -71,6 +72,7 @@ export async function loadToday(
     const procrastinationCandidates = await repos.taskEvents.procrastinationCandidates();
     const { start: dayStart, end: dayEnd } = dayRange(date, timeZone);
     const events = await repos.calendar.eventsBetween(dayStart, dayEnd);
+    const learned = learnEstimates(await repos.tasks.durationSamples());
     const next = profile.preferences.nextTaskId;
     const chosenId = typeof next === "string" ? next : null;
     const settings = todaySettingsSchema.parse({
@@ -89,7 +91,8 @@ export async function loadToday(
       },
       settings.dayMinutes,
       chosenId,
-      busyFrom(events)
+      busyFrom(events),
+      learned
     );
     let saved = await repos.execution.plan(date);
     if (!saved) {
@@ -150,7 +153,7 @@ export async function loadToday(
           score: current.score,
           reasons: current.reasons,
           position: item.position,
-          minutes: current.task.estimatedMinutes ?? 30,
+          minutes: plannedMinutes(current.task.estimatedMinutes, today.learned),
           estimateIsDefault: current.task.estimatedMinutes === null,
           protected: item.recommendationReason?.includes("protected") ?? false,
           scheduledStart: item.scheduledStart,
@@ -206,6 +209,7 @@ export async function loadToday(
     procrastinationCandidates,
     events,
     meetingMinutes: today.meetingMinutes,
+    learned: today.learned,
     // Waiting on someone, and it's time to chase.
     followUps: records.filter((task) => isOpenTask(task) && isFollowUpDue(task, now)),
     projectNames,
@@ -245,7 +249,8 @@ export async function rebuildToday(
       { now, timeZone, availableMinutes: settings.availableMinutes, energy: settings.energy },
       settings.dayMinutes,
       await repos.users.nextTaskId(),
-      busyFrom(await repos.calendar.eventsBetween(start, end))
+      busyFrom(await repos.calendar.eventsBetween(start, end)),
+      learnEstimates(await repos.tasks.durationSamples())
     );
     await repos.users.savePreferences(timeZone, {
       dayMinutes: settings.dayMinutes,

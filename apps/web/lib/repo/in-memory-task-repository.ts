@@ -75,5 +75,16 @@ export function createInMemoryTaskRepository(
         .filter((d) => d.userId === userId)
         .map(({ taskId, dependsOnTaskId }) => ({ taskId, dependsOnTaskId }));
     },
+
+    async durationSamples(limit = 30) {
+      return mine()
+        .filter((t) => t.actualMinutes !== null)
+        .sort((a, b) => (b.completedAt?.getTime() ?? 0) - (a.completedAt?.getTime() ?? 0))
+        .slice(0, limit)
+        .map((t) => ({
+          estimatedMinutes: t.estimatedMinutes,
+          actualMinutes: t.actualMinutes!,
+        }));
+    },
   };
 }

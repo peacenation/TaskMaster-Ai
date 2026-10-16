@@ -75,6 +75,12 @@ Map<String, dynamic> todayJson({
     if (decisions) {'taskId': 't3', 'title': 'Update launch checklist'},
   ],
   'meetingMinutes': 60,
+  'learned': {
+    'factor': 1.4,
+    'typicalMinutes': 35,
+    'samples': 8,
+    'summary': 'Your tasks usually take about 1.4× your estimate, so the plan allows for that.',
+  },
   'followUps': [
     if (decisions)
       {

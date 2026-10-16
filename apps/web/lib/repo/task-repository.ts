@@ -35,6 +35,8 @@ export interface TaskRecord {
   waitingSince: Date | null;
   /** When to chase it; the task comes back to Today then. */
   followUpAt: Date | null;
+  /** Minutes from starting to completing it, when it was started. */
+  actualMinutes: number | null;
   createdAt: Date;
   updatedAt: Date;
   completedAt: Date | null;
@@ -59,6 +61,10 @@ export interface TaskRepository {
   update(id: string, patch: TaskPatch): Promise<TaskRecord>;
   remove(id: string): Promise<void>;
   dependencies(): Promise<TaskDependency[]>;
+  /** Recent started-then-completed tasks (learned estimates). */
+  durationSamples(
+    limit?: number
+  ): Promise<Array<{ estimatedMinutes: number | null; actualMinutes: number }>>;
 }
 
 export const TASK_DEFAULTS: Omit<Editable, "title"> = {
@@ -80,5 +86,6 @@ export const TASK_DEFAULTS: Omit<Editable, "title"> = {
   waitingOn: null,
   waitingSince: null,
   followUpAt: null,
+  actualMinutes: null,
   completedAt: null,
 };

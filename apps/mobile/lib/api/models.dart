@@ -273,6 +273,7 @@ class Today {
     this.events = const [],
     this.meetingMinutes = 0,
     this.followUps = const [],
+    this.learnedSummary,
   });
 
   factory Today.fromJson(Map<String, dynamic> json) {
@@ -333,6 +334,8 @@ class Today {
         for (final t in json['followUps'] as List? ?? const [])
           Task.fromJson(t as Map<String, dynamic>),
       ],
+      learnedSummary:
+          (json['learned'] as Map<String, dynamic>?)?['summary'] as String?,
     );
   }
 
@@ -365,6 +368,9 @@ class Today {
 
   /// Waiting On tasks whose follow-up date has come.
   final List<Task> followUps;
+
+  /// How the plan used learned durations, in words; null until learned.
+  final String? learnedSummary;
 
   /// Share of today's work done: completed ÷ (completed + still planned).
   double get dailyProgress {

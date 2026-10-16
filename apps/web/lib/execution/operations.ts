@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { actualMinutes } from "@/lib/domain/learning";
 import type { Repositories } from "@/lib/repo";
 
 export const executionStatusSchema = z.enum([
@@ -31,9 +32,19 @@ export async function changeStatus(
     )
       throw new Error("Finish the dependencies before starting this task.");
   }
+  // Learned estimates: a task started and then completed records how long
+  // it really took (from the last time it was started).
+  let actual: number | null = null;
+  if (status === "completed" && before.status === "in_progress") {
+    const started = (await repos.execution.events(taskId))
+      .filter((e) => e.toStatus === "in_progress")
+      .at(-1)?.occurredAt;
+    actual = actualMinutes(started ?? null, now);
+  }
   await repos.tasks.update(taskId, {
     status,
     completedAt: status === "completed" ? now : null,
+    ...(actual !== null ? { actualMinutes: actual } : {}),
   });
   await trackStatus(repos, taskId, status);
   await repos.taskEvents.record({

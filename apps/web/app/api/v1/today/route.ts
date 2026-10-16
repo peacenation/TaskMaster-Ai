@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { syncStaleFeeds } from "@/lib/calendar/sync";
+import { learnedSummary, plannedMinutes } from "@/lib/domain/learning";
 import { apiRoute, json, toTaskDto } from "@/lib/server/api";
 import { greeting, loadToday } from "@/lib/server/today-view";
 
@@ -87,11 +88,18 @@ export const GET = apiRoute(async ({ userId, timeZone, profile }) => {
         .map((item) => ({
           id: item.task.id,
           title: item.task.title,
-          minutes: item.task.estimatedMinutes ?? 30,
+          minutes: plannedMinutes(item.task.estimatedMinutes, view.learned),
         })),
     },
     procrastination: view.procrastinationCandidates,
     meetingMinutes: view.meetingMinutes,
+    // Learned estimates: how the plan sized tasks, in words (or null).
+    learned: {
+      factor: view.learned.factor,
+      typicalMinutes: view.learned.typicalMinutes,
+      samples: view.learned.samples,
+      summary: learnedSummary(view.learned),
+    },
     followUps: view.followUps.map((task) => toTaskDto(task, projectNames)),
     events: view.events.map((event) => ({
       title: event.title,

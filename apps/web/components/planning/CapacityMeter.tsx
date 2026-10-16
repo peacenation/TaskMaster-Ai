@@ -5,12 +5,15 @@ export function CapacityMeter({
   bufferMinutes,
   gapMinutes,
   meetingMinutes = 0,
+  learned = null,
 }: {
   capacity: Capacity;
   bufferMinutes: number;
   gapMinutes: number;
   /** Calendar time still ahead today, already taken out of `available`. */
   meetingMinutes?: number;
+  /** Learned estimates, in words, when the plan uses them. */
+  learned?: string | null;
 }) {
   const available = capacity.availableMinutes ?? 0;
   const usable = capacity.usableMinutes ?? 0;
@@ -31,6 +34,7 @@ export function CapacityMeter({
         max={Math.max(1, available)}
         value={capacity.plannedMinutes}
       />
+      {learned && <p className="field-hint">{learned}</p>}
       {meetingMinutes > 0 && (
         <p className="field-hint">
           {meetingMinutes} minutes of meetings from your calendar are already taken out.

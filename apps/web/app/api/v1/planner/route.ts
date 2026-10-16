@@ -10,6 +10,7 @@ import {
   type PlannerTask,
 } from "@/lib/planner/plan";
 import { createClaudePlanner } from "@/lib/planner/claude";
+import { plannedMinutes } from "@/lib/domain/learning";
 import { ApiError, apiRoute, json, readJson } from "@/lib/server/api";
 import { loadToday } from "@/lib/server/today-view";
 
@@ -48,7 +49,7 @@ export const POST = apiRoute(async ({ userId, timeZone, profile }, request) => {
     id: task.id,
     title: task.title,
     project: view.projectNames.get(task.projectId ?? "") ?? null,
-    minutes: task.estimatedMinutes ?? 30,
+    minutes: plannedMinutes(task.estimatedMinutes, view.learned),
     due: task.dueAt ? stamp(task.dueAt) : null,
     priority: task.priority,
     inTodaysPlan: inPlan.has(task.id),

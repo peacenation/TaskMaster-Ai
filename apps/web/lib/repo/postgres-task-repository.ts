@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import type { AppDb } from "@/lib/db/client";
 import { taskDependencies, tasks } from "@/lib/db/schema";
 import { TASK_DEFAULTS, type TaskRecord, type TaskRepository } from "./task-repository";
@@ -28,6 +28,7 @@ function toRecord(row: TaskRow): TaskRecord {
     waitingOn: row.waitingOn,
     waitingSince: row.waitingSince,
     followUpAt: row.followUpAt,
+    actualMinutes: row.actualMinutes,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     completedAt: row.completedAt,
@@ -83,6 +84,7 @@ export function createPostgresTaskRepository(db: AppDb, userId: string): TaskRep
           waitingOn: merged.waitingOn,
           waitingSince: merged.waitingSince,
           followUpAt: merged.followUpAt,
+          actualMinutes: merged.actualMinutes,
           completedAt: merged.completedAt,
         })
         .returning();
@@ -107,6 +109,23 @@ export function createPostgresTaskRepository(db: AppDb, userId: string): TaskRep
 
     async remove(id) {
       await db.delete(tasks).where(eq(tasks.id, id));
+    },
+
+    /** Recent started-then-completed tasks, for learned estimates. */
+    async durationSamples(limit = 30) {
+      const rows = await db
+        .select({
+          estimatedMinutes: tasks.estimatedMinutes,
+          actualMinutes: tasks.actualMinutes,
+        })
+        .from(tasks)
+        .where(and(eq(tasks.userId, userId), isNotNull(tasks.actualMinutes)))
+        .orderBy(desc(tasks.completedAt))
+        .limit(limit);
+      return rows.map((r) => ({
+        estimatedMinutes: r.estimatedMinutes,
+        actualMinutes: r.actualMinutes!,
+      }));
     },
 
     async dependencies() {

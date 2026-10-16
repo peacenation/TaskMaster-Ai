@@ -22,6 +22,7 @@ import { TaskRow } from "@/components/planning/TaskRow";
 import { getCurrentProfile, getTimeZone } from "@/lib/server/session";
 import { greeting, loadToday } from "@/lib/server/today-view";
 import { syncStaleFeeds } from "@/lib/calendar/sync";
+import { learnedSummary, plannedMinutes } from "@/lib/domain/learning";
 import { formatDue } from "@/lib/server/views";
 
 export const dynamic = "force-dynamic";
@@ -164,7 +165,7 @@ export default async function TodayPage({
                 .map((item) => ({
                   id: item.task.id,
                   title: item.task.title,
-                  minutes: item.task.estimatedMinutes ?? 30,
+                  minutes: plannedMinutes(item.task.estimatedMinutes, view.learned),
                 }))}
             />
           )}
@@ -316,6 +317,7 @@ export default async function TodayPage({
             }
             gapMinutes={today.gapMinutes}
             meetingMinutes={view.meetingMinutes}
+            learned={learnedSummary(view.learned)}
           />
           {recommendation && (
             <FocusCard

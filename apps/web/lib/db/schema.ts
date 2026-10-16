@@ -187,6 +187,9 @@ export const tasks = pgTable(
     waitingOn: text("waiting_on"),
     waitingSince: timestamp("waiting_since", { withTimezone: true }),
     followUpAt: timestamp("follow_up_at", { withTimezone: true }),
+    // How long it really took, from starting to completing it (when both
+    // happened). Feeds learned estimates (lib/domain/learning.ts).
+    actualMinutes: integer("actual_minutes"),
     // clock_timestamp(), not now(): now() is the *transaction's* start time,
     // so every task in a Brain Dump commit would tie, and "oldest first"
     // would fall back to random UUID order instead of the reviewed order.

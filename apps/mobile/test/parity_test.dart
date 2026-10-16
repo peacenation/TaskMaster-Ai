@@ -389,6 +389,7 @@ void main() {
       200,
       scrollable: todayList,
     );
+    expect(find.textContaining('1.4× your estimate'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.byType(AccountAvatar),
