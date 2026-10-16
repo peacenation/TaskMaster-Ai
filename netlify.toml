@@ -9,6 +9,11 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Turbopack's build cache records the values of env vars server code reads
+  # (to know when to rebuild), so Netlify's secret scanner finds secrets
+  # marked "secret" there. The cache is never published or served; the
+  # deployed client bundle is checked by npm run check:client-bundle in CI.
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/.next/cache/**,.next/cache/**"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
