@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { ErrorReport } from "./report-error";
 
 // Forwards scrubbed error reports (report-error.ts) to Sentry when
@@ -29,7 +28,7 @@ export function parseDsn(dsn: string | undefined): Dsn | null {
 }
 
 export function toEnvelope(report: ErrorReport, now = new Date()): string {
-  const eventId = randomUUID().replaceAll("-", "");
+  const eventId = crypto.randomUUID().replaceAll("-", "");
   const event = {
     event_id: eventId,
     timestamp: now.toISOString(),

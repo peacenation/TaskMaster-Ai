@@ -700,6 +700,31 @@ class TaskDetail {
 
 enum GoalNudge { unlinked, stalled }
 
+/// Suggested next steps for a goal (Claude, or built-in rules). Not saved.
+class StepSuggestion {
+  StepSuggestion({
+    required this.byAi,
+    required this.reply,
+    required this.steps,
+  });
+
+  factory StepSuggestion.fromJson(Map<String, dynamic> json) => StepSuggestion(
+    byAi: json['engine'] == 'ai',
+    reply: json['reply'] as String,
+    steps: [
+      for (final s in json['steps'] as List)
+        (
+          title: (s as Map<String, dynamic>)['title'] as String,
+          estimatedMinutes: s['estimatedMinutes'] as int?,
+        ),
+    ],
+  );
+
+  final bool byAi;
+  final String reply;
+  final List<({String title, int? estimatedMinutes})> steps;
+}
+
 class Goal {
   Goal({
     required this.id,

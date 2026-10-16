@@ -388,6 +388,26 @@ class FakeApi implements TaskMasterApi {
   Future<void> createGoal(String title, {DateTime? targetDate}) async =>
       goalsCreated.add(title);
 
+  final savedSteps = <List<String>>[];
+
+  @override
+  Future<StepSuggestion> suggestGoalSteps(String goalId) async =>
+      StepSuggestion.fromJson({
+        'engine': 'ai',
+        'reply': 'Start small and build the habit.',
+        'steps': [
+          {'title': 'Choose a course', 'estimatedMinutes': 30},
+          {'title': 'Book a first lesson', 'estimatedMinutes': 15},
+          {'title': 'Practise for 20 minutes', 'estimatedMinutes': 20},
+        ],
+      });
+
+  @override
+  Future<void> saveGoalSteps(
+    String goalId,
+    List<({String title, int? estimatedMinutes})> steps,
+  ) async => savedSteps.add([for (final s in steps) s.title]);
+
   @override
   Future<List<Responsibility>> responsibilities() async => [
     Responsibility.fromJson({

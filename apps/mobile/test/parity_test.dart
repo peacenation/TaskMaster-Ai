@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:taskmaster/api/models.dart';
+import 'package:taskmaster/ui/goals_screen.dart';
 import 'package:taskmaster/ui/settings_screen.dart';
 import 'package:taskmaster/ui/task_screen.dart';
 import 'package:taskmaster/ui/widgets.dart';
@@ -238,7 +239,23 @@ void main() {
     await tester.tap(find.text('Save goal'));
     await tester.pumpAndSettle();
     expect(api.goalsCreated, ['Run a 10k']);
+    final goalsList = find
+        .descendant(
+          of: find.byType(GoalsView),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.text('Run a 10k'),
+      300,
+      scrollable: goalsList,
+    );
     expect(find.text('Run a 10k'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Add a step towards this').first,
+      -300,
+      scrollable: goalsList,
+    );
 
     await tester.tap(find.text('Add a step towards this').first);
     await tester.pumpAndSettle();
@@ -510,5 +527,27 @@ void main() {
     await tester.tap(find.text('Plan my day'));
     await tester.pumpAndSettle();
     expect(find.text('Dictate'), findsNothing);
+  });
+
+  testWidgets('Goals: suggest next steps, edit, add to the list', (
+    tester,
+  ) async {
+    final (api, _, _) = await pumpApp(tester, signedIn: true);
+    await goToTab(tester, 'Projects');
+    await tester.tap(find.text('Goals').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Suggest next steps').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Start small and build the habit.'), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Step 2'),
+      'Book a trial lesson',
+    );
+    await tester.tap(find.byTooltip('Remove step 3'));
+    await tester.pump();
+    await tester.tap(find.text('Add these to my list'));
+    await tester.pumpAndSettle();
+    expect(api.savedSteps.single, ['Choose a course', 'Book a trial lesson']);
+    expect(find.text('Added 2 steps to your list'), findsOneWidget);
   });
 }

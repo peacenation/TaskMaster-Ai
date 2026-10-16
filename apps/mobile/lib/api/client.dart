@@ -76,6 +76,15 @@ abstract interface class TaskMasterApi {
 
   Future<List<Goal>> goals();
   Future<void> createGoal(String title, {DateTime? targetDate});
+
+  /// Suggested next steps for a goal; nothing is saved.
+  Future<StepSuggestion> suggestGoalSteps(String goalId);
+
+  /// Save reviewed steps as to-dos linked to the goal.
+  Future<void> saveGoalSteps(
+    String goalId,
+    List<({String title, int? estimatedMinutes})> steps,
+  );
   Future<List<Responsibility>> responsibilities();
   Future<void> stopResponsibility(String id);
   Future<DailyReview> dailyReview();
@@ -391,5 +400,28 @@ class HttpTaskMasterApi implements TaskMasterApi {
   @override
   Future<void> disconnectCalendar(String id) async {
     await _send('DELETE', '/api/v1/calendars/$id');
+  }
+
+  @override
+  Future<StepSuggestion> suggestGoalSteps(String goalId) async =>
+      StepSuggestion.fromJson(
+        await _json('GET', '/api/v1/goals/$goalId/steps'),
+      );
+
+  @override
+  Future<void> saveGoalSteps(
+    String goalId,
+    List<({String title, int? estimatedMinutes})> steps,
+  ) async {
+    await _send(
+      'POST',
+      '/api/v1/goals/$goalId/steps',
+      body: {
+        'steps': [
+          for (final s in steps)
+            {'title': s.title, 'estimatedMinutes': s.estimatedMinutes},
+        ],
+      },
+    );
   }
 }

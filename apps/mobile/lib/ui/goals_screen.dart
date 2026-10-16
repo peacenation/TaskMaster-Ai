@@ -165,6 +165,16 @@ class _GoalCard extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 onPressed: () async {
+                  if (await showGoalSteps(context, goal)) await changed();
+                },
+                icon: const Icon(Icons.auto_awesome),
+                label: const Text('Suggest next steps'),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () async {
                   if (await showQuickAdd(
                     context,
                     goalId: goal.id,
@@ -264,6 +274,184 @@ class _NewGoalSheetState extends State<_NewGoalSheet> {
             child: Text(_busy ? 'Saving…' : 'Save goal'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Suggested next steps for [goal]: edit or remove, then add them to the
+/// list. True when saved.
+Future<bool> showGoalSteps(BuildContext context, Goal goal) async {
+  final saved = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => _GoalStepsSheet(goal: goal),
+  );
+  return saved == true;
+}
+
+class _GoalStepsSheet extends StatefulWidget {
+  const _GoalStepsSheet({required this.goal});
+  final Goal goal;
+
+  @override
+  State<_GoalStepsSheet> createState() => _GoalStepsSheetState();
+}
+
+class _GoalStepsSheetState extends State<_GoalStepsSheet> {
+  StepSuggestion? _suggestion;
+  final _titles = <TextEditingController>[];
+  final _minutes = <int?>[];
+  String? _error;
+  bool _busy = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  @override
+  void dispose() {
+    for (final c in _titles) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final session = SessionScope.read(context);
+    try {
+      final suggestion = await session.api.suggestGoalSteps(widget.goal.id);
+      if (!mounted) return;
+      setState(() {
+        _suggestion = suggestion;
+        for (final s in suggestion.steps) {
+          _titles.add(TextEditingController(text: s.title));
+          _minutes.add(s.estimatedMinutes);
+        }
+        _busy = false;
+      });
+    } on Object catch (e) {
+      await session.handle(e);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = 'Couldn’t suggest steps. Try again.';
+        });
+      }
+    }
+  }
+
+  Future<void> _save() async {
+    final steps = [
+      for (final (i, c) in _titles.indexed)
+        if (c.text.trim().isNotEmpty)
+          (title: c.text.trim(), estimatedMinutes: _minutes[i]),
+    ];
+    if (steps.isEmpty) return;
+    setState(() => _busy = true);
+    final api = SessionScope.read(context).api;
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await runAction(
+      context,
+      () => api.saveGoalSteps(widget.goal.id, steps),
+    );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (!ok) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Added ${steps.length} step${steps.length == 1 ? '' : 's'} to your list',
+        ),
+      ),
+    );
+    Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tm = context.tm;
+    final suggestion = _suggestion;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(Tm.s4, 0, Tm.s4, Tm.s2),
+                children: [
+                  Text(
+                    'Next steps for ${widget.goal.title}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: Tm.s2),
+                  if (suggestion == null && _error == null)
+                    const Padding(
+                      padding: EdgeInsets.all(Tm.s6),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  if (_error != null)
+                    Text(_error!, style: TextStyle(color: tm.danger)),
+                  if (suggestion != null) ...[
+                    Text(
+                      suggestion.byAi
+                          ? suggestion.reply
+                          : '${suggestion.reply} (Suggested by built-in rules.)',
+                      style: TextStyle(color: tm.textMuted),
+                    ),
+                    const SizedBox(height: Tm.s2),
+                    for (final (i, c) in _titles.indexed)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: c,
+                              decoration: InputDecoration(
+                                isDense: true,
+                                labelText: 'Step ${i + 1}',
+                                helperText: _minutes[i] == null
+                                    ? null
+                                    : formatMinutes(_minutes[i]!),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Remove step ${i + 1}',
+                            onPressed: () => setState(() {
+                              _titles.removeAt(i).dispose();
+                              _minutes.removeAt(i);
+                            }),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                  ],
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Tm.s4, Tm.s2, Tm.s4, Tm.s4),
+              child: FilledButton(
+                onPressed: _busy || _titles.isEmpty ? null : _save,
+                child: Text(
+                  _busy && suggestion != null
+                      ? 'Saving…'
+                      : 'Add these to my list',
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
