@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_description">What to do next, and today\'s progress</string>
+    <string name="widget_today_description">Today\'s tasks and your progress</string>
+    <string name="widget_up_next_description">What\'s up next</string>
+    <string name="widget_focus_description">Start a focus session on your next task</string>
 </resources>

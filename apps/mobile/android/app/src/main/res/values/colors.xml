@@ -1,4 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#35251F</color>
+
+    <!-- Home-screen widget, light: ivory card, the app's light hero. -->
+    <color name="widget_bg_start">#FFFDFA</color>
+    <color name="widget_bg_end">#FBF6EF</color>
+    <color name="widget_border">#E8DFD2</color>
+    <color name="widget_text">#35251F</color>
+    <color name="widget_muted">#6B574A</color>
+    <color name="widget_accent">#7A4A24</color>
+    <color name="widget_chip_bg">#EED5BB</color>
+    <color name="widget_track">#E8DFD2</color>
+    <color name="widget_fill">#C28B58</color>
+    <color name="widget_success">#56664D</color>
+    <color name="widget_button_bg">#70503E</color>
+    <color name="widget_button_text">#F7F3EC</color>
+    <color name="widget_button2_bg">#F1EADF</color>
+    <color name="widget_button2_text">#35251F</color>
+    <color name="widget_ring">#B57A45</color>
+    <color name="widget_progress_fill">#84957A</color>
+    <color name="widget_plus_bg">#70503E</color>
+    <color name="widget_icon_tile">#F6E7D8</color>
 </resources>

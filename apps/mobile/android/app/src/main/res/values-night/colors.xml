@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home-screen widget, dark: espresso card, the app's dark hero. -->
+    <color name="widget_bg_start">#2C1F17</color>
+    <color name="widget_bg_end">#43301F</color>
+    <color name="widget_border">#4A392E</color>
+    <color name="widget_text">#F3EBE1</color>
+    <color name="widget_muted">#CDBDAD</color>
+    <color name="widget_accent">#EDBE92</color>
+    <color name="widget_chip_bg">#47301F</color>
+    <color name="widget_track">#4A392E</color>
+    <color name="widget_fill">#D29A66</color>
+    <color name="widget_success">#A9BC9C</color>
+    <color name="widget_button_bg">#D29A66</color>
+    <color name="widget_button_text">#1A120E</color>
+    <color name="widget_button2_bg">#33231A</color>
+    <color name="widget_button2_text">#F3EBE1</color>
+    <color name="widget_ring">#D29A66</color>
+    <color name="widget_progress_fill">#A9BC9C</color>
+    <color name="widget_plus_bg">#D29A66</color>
+    <color name="widget_icon_tile">#33231A</color>
+</resources>

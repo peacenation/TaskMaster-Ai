@@ -1,7 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../api/models.dart';
+import '../state/session.dart';
+import 'brain_dump_screen.dart';
+import 'focus_screen.dart';
 import 'offline_banner.dart';
 import 'planner_screen.dart';
+import 'task_screen.dart';
 import 'projects_screen.dart';
 import 'tasks_screen.dart';
 import 'today_screen.dart';
@@ -34,9 +41,55 @@ class _HomeShellState extends State<HomeShell> {
   final _pages = PageController();
   int _index = 0;
   int _todayGeneration = 0;
+  StreamSubscription<Uri?>? _widgetTaps;
+
+  @override
+  void initState() {
+    super.initState();
+    // The home-screen widget opens the app with taskmaster:// links.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final widget = SessionScope.read(context).homeWidget;
+      _widgetTaps = widget.launches.listen(_openFromWidget);
+      _openFromWidget(await widget.initialLaunch());
+    });
+  }
+
+  /// focus?task=ID → Focus on that task; capture → Brain Dump; else Today.
+  Future<void> _openFromWidget(Uri? uri) async {
+    if (uri == null || uri.scheme != 'taskmaster' || !mounted) return;
+    switch (uri.host) {
+      case 'focus':
+        final id = uri.queryParameters['task'];
+        final autostart = uri.queryParameters['start'] == '1';
+        Task? task;
+        if (id != null) {
+          try {
+            task = (await SessionScope.read(context).api.taskDetail(id)).task;
+          } on Object {
+            // The task changed since the widget last updated: focus anyway.
+          }
+        }
+        if (mounted && await openFocus(context, task, autostart: autostart)) {
+          setState(() => _todayGeneration++);
+        }
+      case 'task':
+        final id = uri.queryParameters['id'];
+        if (id != null && await openTask(context, id)) {
+          setState(() => _todayGeneration++);
+        }
+      case 'tasks':
+        _select(AppTab.tasks.index);
+      case 'capture':
+        if (await openBrainDump(context)) setState(() => _todayGeneration++);
+      default:
+        _select(AppTab.today.index);
+    }
+  }
 
   @override
   void dispose() {
+    _widgetTaps?.cancel();
     _pages.dispose();
     super.dispose();
   }

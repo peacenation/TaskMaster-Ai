@@ -2,7 +2,11 @@ import 'package:taskmaster/api/client.dart';
 import 'package:taskmaster/api/models.dart';
 import 'package:taskmaster/api/offline.dart';
 import 'package:taskmaster/auth/auth_gateway.dart';
+
+import 'dart:async';
+
 import 'package:taskmaster/state/dictation.dart';
+import 'package:taskmaster/state/home_widget.dart';
 import 'package:taskmaster/state/reminders.dart';
 
 /// A /api/v1/today body exactly as the server sends it (keep in step with
@@ -646,4 +650,26 @@ class FakeDictation implements Dictation {
     listening = false;
     _onDone?.call();
   }
+}
+
+/// A home-screen widget whose taps the test controls.
+class FakeHomeWidget implements HomeScreenWidget {
+  final shown = <Map<String, String?>>[];
+  final _taps = StreamController<Uri?>.broadcast();
+  Uri? launchedWith;
+
+  void tap(String uri) => _taps.add(Uri.parse(uri));
+
+  @override
+  Future<void> show(Today today) async =>
+      shown.add(widgetData(today, DateTime.now()));
+
+  @override
+  Future<void> clear() async {}
+
+  @override
+  Future<Uri?> initialLaunch() async => launchedWith;
+
+  @override
+  Stream<Uri?> get launches => _taps.stream;
 }

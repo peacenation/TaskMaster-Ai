@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:taskmaster/api/models.dart';
 import 'package:taskmaster/app.dart';
 import 'package:taskmaster/state/dictation.dart';
+import 'package:taskmaster/state/home_widget.dart';
 import 'package:taskmaster/state/reminders.dart';
 import 'package:taskmaster/state/session.dart';
 import 'package:taskmaster/ui/today_screen.dart';
@@ -22,6 +23,7 @@ Future<(FakeApi, FakeAuth, Session)> pumpApp(
   FakeAuth? auth,
   Reminders reminders = const NoReminders(),
   Dictation? dictation,
+  HomeScreenWidget homeWidget = const NoHomeScreenWidget(),
 }) async {
   tester.view.physicalSize = const Size(1170, 2532);
   tester.view.devicePixelRatio = 3;
@@ -33,6 +35,7 @@ Future<(FakeApi, FakeAuth, Session)> pumpApp(
     auth: gateway,
     reminders: reminders,
     dictation: dictation,
+    homeWidget: homeWidget,
   );
   await tester.pumpWidget(TaskMasterApp(session: session));
   await session.restore();
