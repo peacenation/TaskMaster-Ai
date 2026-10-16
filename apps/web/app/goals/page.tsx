@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { saveGoal } from "@/app/actions/goals";
+import { GoalSteps } from "@/components/goals/GoalSteps";
 import { goalProgress, NUDGE_TEXT } from "@/lib/domain/goal-progress";
 import { withRepositories } from "@/lib/repo";
 import { getCurrentUserId } from "@/lib/server/session";
@@ -75,6 +76,7 @@ export default async function GoalsPage() {
                   <Link href="/tasks/new" className="review-item-remove">
                     Add task
                   </Link>
+                  <GoalSteps goalId={goal.id} goalTitle={goal.title} />
                 </li>
               );
             })}

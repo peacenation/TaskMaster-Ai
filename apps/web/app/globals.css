@@ -2166,3 +2166,26 @@ button[aria-pressed="true"]:not(.segmented-option) {
   font-size: var(--text-2xl, 1.75rem);
   font-weight: 700;
 }
+
+/* ---------- Goal steps ---------- */
+.goal-steps {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  width: 100%;
+}
+.goal-steps ol {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: var(--space-2);
+}
+.goal-steps li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+/* The suggestions take the item's full width, under its title. */
+.review-item:has(.goal-steps) {
+  flex-wrap: wrap;
+}

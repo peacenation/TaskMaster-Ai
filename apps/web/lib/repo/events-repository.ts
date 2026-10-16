@@ -16,7 +16,8 @@ export type ProductEventName =
   | "recovery_resolved"
   | "planner_applied"
   | "calendar_connected"
-  | "waiting_marked";
+  | "waiting_marked"
+  | "goal_steps_saved";
 
 /** Counts, flags and ids only — never task or Brain Dump text. */
 export type EventProperties = Record<string, string | number | boolean | null>;

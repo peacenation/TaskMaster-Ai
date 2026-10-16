@@ -125,6 +125,18 @@ test("mobile: everything the web does", async ({}, info) => {
   expect(goals.find((g: { id: string }) => g.id === spanish.id).nudge).toBeNull();
   expect((await post("/api/v1/goals", token, { title: " " })).status).toBe(400);
 
+  // Goal breakdown: suggested steps (built-in rules in e2e), then saved.
+  const suggested = await call(`/api/v1/goals/${spanish.id}/steps`, token);
+  expect(suggested.body.engine).toBe("rules");
+  expect(suggested.body.steps[0].title).toBe("Choose one course or book for Spanish");
+  const savedSteps = await post(`/api/v1/goals/${spanish.id}/steps`, token, {
+    steps: suggested.body.steps.slice(0, 2),
+  });
+  expect(savedSteps.body).toEqual({ saved: 2 });
+  goals = (await call("/api/v1/goals", token)).body.goals;
+  expect(goals.find((g: { id: string }) => g.id === spanish.id).linked).toBe(3);
+  expect((await call(`/api/v1/goals/${crypto.randomUUID()}/steps`, token)).status).toBe(404);
+
   // Today: decisions it asks for, settings, and choosing the next task.
   const today = (await call("/api/v1/today", token)).body;
   expect(today).toHaveProperty("recovery");
