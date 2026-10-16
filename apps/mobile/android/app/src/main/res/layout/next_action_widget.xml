@@ -39,7 +39,9 @@
         android:textColor="#CDBDAD"
         android:textSize="13sp" />
 
-    <View
+    <!-- Spacer. Widgets may only use RemoteViews-safe classes: a plain
+         View can't be drawn on a home screen, a FrameLayout can. -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />
