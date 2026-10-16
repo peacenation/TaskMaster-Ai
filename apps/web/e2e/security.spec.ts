@@ -11,6 +11,9 @@ test("security headers are sent on every page", async ({ request }) => {
     expect(headers["x-frame-options"], path).toBe("DENY");
     expect(headers["x-content-type-options"], path).toBe("nosniff");
     expect(headers["x-powered-by"], path).toBeUndefined();
+    // Dictation needs the microphone on this site; nothing else does.
+    expect(headers["permissions-policy"], path).toContain("microphone=(self)");
+    expect(headers["permissions-policy"], path).toContain("camera=()");
   }
 });
 
