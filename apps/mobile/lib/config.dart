@@ -33,4 +33,8 @@ abstract final class AppConfig {
   static const googleIosClientId = String.fromEnvironment(
     'GOOGLE_IOS_CLIENT_ID',
   );
+
+  /// Crash reports (lib/state/crash_reports.dart); off when unset. A
+  /// Sentry DSN is public by design — it can only submit events.
+  static const sentryDsn = String.fromEnvironment('SENTRY_DSN');
 }

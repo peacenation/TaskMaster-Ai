@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -8,6 +10,7 @@ import 'app.dart';
 import 'auth/auth_gateway.dart';
 import 'config.dart';
 import 'state/appearance.dart';
+import 'state/crash_reports.dart';
 import 'state/dictation.dart';
 import 'state/reminders.dart';
 import 'state/session.dart';
@@ -17,6 +20,23 @@ Future<void> main() async {
   // matching SplashIntro), not a blank frame in between.
   final binding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: binding);
+  // Crash reports (off unless built with SENTRY_DSN): type and code
+  // location only, never the error's message.
+  final crashes = CrashReports.fromDsn(
+    AppConfig.sentryDsn,
+    release: 'taskmaster-mobile@2.0.0',
+  );
+  if (crashes != null) {
+    final previous = FlutterError.onError;
+    FlutterError.onError = (details) {
+      crashes.report(details.exception, details.stack);
+      previous?.call(details);
+    };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      crashes.report(error, stack);
+      return false;
+    };
+  }
   if (AppConfig.supabaseUrl.isEmpty ||
       AppConfig.supabasePublishableKey.isEmpty) {
     throw StateError(

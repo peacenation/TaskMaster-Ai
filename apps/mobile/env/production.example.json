@@ -3,5 +3,6 @@
   "SUPABASE_URL": "https://cpfmxwvaddfixgwujekn.supabase.co",
   "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_REPLACE_ME",
   "GOOGLE_WEB_CLIENT_ID": "OPTIONAL_xxxx.apps.googleusercontent.com",
-  "GOOGLE_IOS_CLIENT_ID": "OPTIONAL_ios_xxxx.apps.googleusercontent.com"
+  "GOOGLE_IOS_CLIENT_ID": "OPTIONAL_ios_xxxx.apps.googleusercontent.com",
+  "SENTRY_DSN": "OPTIONAL_https://key@o0.ingest.sentry.io/0"
 }

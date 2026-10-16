@@ -43,6 +43,7 @@ Set **Production** and **Preview** separately. Preview points at staging.
 | `STRIPE_WEBHOOK_SECRET` | The webhook endpoint's signing secret (`whsec_…`) |
 | `PRO_PRICE_LABEL` | What the pricing page shows, e.g. `£4 / month`; keep it in step with the Stripe price |
 | `AI_HOURLY_LIMIT_PRO` | Optional, default `120` Claude calls per hour for Pro (`AI_HOURLY_LIMIT` is Free's) |
+| `SENTRY_DSN` | Optional: forwards the scrubbed server error reports to Sentry (error class, route, Postgres code only). The phone app takes its own DSN at build time (`SENTRY_DSN` in `env/production.json`) |
 | `CALENDAR_ENCRYPTION_KEY` | Recommended: any long random string (`openssl rand -base64 32`). Encrypts saved calendar addresses. Without it they're encrypted with a key derived from `SUPABASE_SECRET_KEY`, so rotating that secret means users reconnect calendars |
 
 The same variables apply on **Netlify** (Site configuration → Environment
@@ -170,9 +171,10 @@ the date and duration here. Not yet done; it needs the live project.
 - **Errors:** every server error is one log line
   `{"event":"request.error","route":…,"errorName":…,"postgresCode":…,"digest":…}`
   with no user content (`instrumentation.ts`). Add a Vercel log drain or
-  alert on `request.error`. To use Sentry instead, forward
-  `buildErrorReport(...)` from `instrumentation.ts`, never the raw error,
-  because Postgres messages contain row values.
+  alert on `request.error`. With `SENTRY_DSN` set, the same scrubbed report
+  also goes to Sentry (`lib/observability/sentry.ts`), never the raw error,
+  because Postgres messages contain row values. The phone app reports
+  crashes the same way: type and code location, no message.
 - **Also logged:** `extraction.fallback` (why Claude wasn't used:
   `quota`, `rate_limited`, `timeout`…) and `health.database_unreachable`.
 - **Verify alerts deliberately:** on a preview deployment, set
